@@ -14,9 +14,11 @@ export interface EventEnvelope<TData = unknown> {
   readonly correlationId: string;
   readonly causationId?: string | undefined;
   readonly source: string;
-  readonly actor?: {
-    readonly type: 'user' | 'service' | 'system';
-    readonly id?: string | undefined;
-  } | undefined;
+  readonly actor?:
+    | {
+        readonly type: 'user' | 'service' | 'system';
+        readonly id?: string | undefined;
+      }
+    | undefined;
   readonly data: TData;
 }

@@ -66,10 +66,7 @@ export class TenantAwareTransaction {
    * @returns The result of the operation
    * @throws DatabaseContextError if tenantId is missing or invalid
    */
-  async execute<T>(
-    tenantId: string,
-    operation: (tx: TransactionClient) => Promise<T>,
-  ): Promise<T> {
+  async execute<T>(tenantId: string, operation: (tx: TransactionClient) => Promise<T>): Promise<T> {
     if (!tenantId) {
       throw new DatabaseContextError(
         'Tenant ID is required for database operations. ' +
@@ -103,10 +100,7 @@ export class TenantAwareTransaction {
    * Execute a read-only query within tenant context.
    * Same isolation guarantees as execute, but signals read-only intent.
    */
-  async query<T>(
-    tenantId: string,
-    operation: (tx: TransactionClient) => Promise<T>,
-  ): Promise<T> {
+  async query<T>(tenantId: string, operation: (tx: TransactionClient) => Promise<T>): Promise<T> {
     return this.execute(tenantId, operation);
   }
 }

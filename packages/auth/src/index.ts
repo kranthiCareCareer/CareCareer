@@ -1,5 +1,8 @@
 // Core types and abstractions
-export type { AuthenticatedPrincipal, TenantMembershipClaim } from './core/authenticated-principal.js';
+export type {
+  AuthenticatedPrincipal,
+  TenantMembershipClaim,
+} from './core/authenticated-principal.js';
 export type { TokenValidator, TokenValidationConfig } from './core/token-validator.js';
 export type {
   AuthorizationService,

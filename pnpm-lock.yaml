@@ -118,6 +118,35 @@ importers:
         specifier: 3.2.3
         version: 3.2.3(@types/node@22.15.21)(jiti@2.4.2)(yaml@2.9.0)
 
+  packages/idempotency:
+    dependencies:
+      '@carecareer/request-context':
+        specifier: workspace:*
+        version: link:../request-context
+    devDependencies:
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.3
+        version: 3.2.3(@types/node@22.15.21)(jiti@2.4.2)(yaml@2.9.0)
+
+  packages/observability:
+    dependencies:
+      '@carecareer/request-context':
+        specifier: workspace:*
+        version: link:../request-context
+    devDependencies:
+      '@types/node':
+        specifier: 22.15.21
+        version: 22.15.21
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.3
+        version: 3.2.3(@types/node@22.15.21)(jiti@2.4.2)(yaml@2.9.0)
+
   packages/request-context:
     dependencies:
       uuid:

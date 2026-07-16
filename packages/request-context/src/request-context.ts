@@ -43,7 +43,11 @@ export class RequestContext implements RequestContextData {
   }
 
   /** Create a new context with additional tenant/actor information */
-  withTenant(tenantId: string, actorId: string, actorType: 'user' | 'service' | 'system'): RequestContext {
+  withTenant(
+    tenantId: string,
+    actorId: string,
+    actorType: 'user' | 'service' | 'system',
+  ): RequestContext {
     return new RequestContext({
       ...this,
       tenantId,

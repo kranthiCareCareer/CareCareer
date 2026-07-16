@@ -1,6 +1,6 @@
-import { runWithContext } from '@carecareer/request-context';
 import { describe, expect, it, vi } from 'vitest';
 
+import { runWithContext } from '@carecareer/request-context';
 
 import { OutboxWriteError } from './errors.js';
 import { EventEnvelopeBuilder } from './event-envelope-builder.js';
@@ -207,9 +207,17 @@ describe('InMemoryEventTransport', () => {
   it('should clear events', async () => {
     const transport = new InMemoryEventTransport();
     await transport.publish({
-      eventId: 'e-1', eventType: 'x', eventVersion: 1, tenantId: 't',
-      aggregateType: 'x', aggregateId: 'a', aggregateVersion: 1,
-      occurredAt: '', correlationId: 'c', source: 's', data: {},
+      eventId: 'e-1',
+      eventType: 'x',
+      eventVersion: 1,
+      tenantId: 't',
+      aggregateType: 'x',
+      aggregateId: 'a',
+      aggregateVersion: 1,
+      occurredAt: '',
+      correlationId: 'c',
+      source: 's',
+      data: {},
     });
 
     transport.clear();

@@ -1,7 +1,7 @@
+import { v7 as uuidv7 } from 'uuid';
 
 import type { TransactionClient } from '@carecareer/database';
 import { getContext } from '@carecareer/request-context';
-import { v7 as uuidv7 } from 'uuid';
 
 import { OutboxWriteError } from './errors.js';
 import type { EventEnvelope } from './event-envelope.js';

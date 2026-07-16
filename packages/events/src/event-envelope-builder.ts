@@ -1,6 +1,6 @@
-import { getContext } from '@carecareer/request-context';
 import { v7 as uuidv7 } from 'uuid';
 
+import { getContext } from '@carecareer/request-context';
 
 import type { EventEnvelope } from './event-envelope.js';
 
@@ -52,9 +52,7 @@ export class EventEnvelopeBuilder {
       correlationId,
       causationId: params.causationId,
       source: this.source,
-      actor: context
-        ? { type: context.actorType ?? 'system', id: context.actorId }
-        : undefined,
+      actor: context ? { type: context.actorType ?? 'system', id: context.actorId } : undefined,
       data: params.data,
     };
   }

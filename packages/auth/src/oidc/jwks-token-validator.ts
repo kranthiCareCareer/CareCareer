@@ -31,7 +31,7 @@ export class JwksTokenValidator implements TokenValidator {
       const options: jose.JWTVerifyOptions = {
         issuer: this.config.issuer,
         audience: this.config.audience,
-        algorithms: (this.config.algorithms as string[]) ?? ['RS256'],
+        algorithms: this.config.algorithms ? [...this.config.algorithms] : ['RS256'],
       };
 
       if (this.config.maxTokenAgeSec) {
@@ -53,7 +53,7 @@ export class JwksTokenValidator implements TokenValidator {
         throw new TokenExpiredError();
       }
       if (error instanceof jose.errors.JOSEError) {
-        throw new InvalidTokenError(error.code ?? 'Verification failed');
+        throw new InvalidTokenError(error.code);
       }
       throw new InvalidTokenError('Unknown validation error');
     }
@@ -61,7 +61,10 @@ export class JwksTokenValidator implements TokenValidator {
 
   private getJwks(): ReturnType<typeof jose.createRemoteJWKSet> {
     if (!this.jwks) {
-      const jwksUri = this.config.jwksUri ?? `${this.config.issuer}.well-known/jwks.json`;
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- jwksUri is optional string, ternary reads clearer for URL construction
+      const jwksUri = this.config.jwksUri
+        ? this.config.jwksUri
+        : `${this.config.issuer}.well-known/jwks.json`;
       this.jwks = jose.createRemoteJWKSet(new URL(jwksUri));
     }
     return this.jwks;

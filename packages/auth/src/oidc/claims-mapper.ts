@@ -74,13 +74,16 @@ export class ClaimsMapper {
       .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
       .map((item) => ({
         tenantId: String(item['tenantId'] ?? item['tenant_id'] ?? ''),
-        roles: Array.isArray(item['roles']) ? item['roles'].map(String) : [],
-        branchIds: Array.isArray(item['branchIds'] ?? item['branch_ids'])
-          ? (item['branchIds'] as string[] ?? item['branch_ids'] as string[]).map(String)
-          : [],
+        roles: Array.isArray(item['roles']) ? (item['roles'] as unknown[]).map(String) : [],
+        branchIds: this.extractStringArray(item['branchIds'], item['branch_ids']),
         status: this.mapMembershipStatus(item['status']),
       }))
       .filter((m) => m.tenantId.length > 0);
+  }
+
+  private extractStringArray(primary: unknown, fallback: unknown): string[] {
+    const source = Array.isArray(primary) ? primary : Array.isArray(fallback) ? fallback : [];
+    return (source as unknown[]).map(String);
   }
 
   private mapMembershipStatus(raw: unknown): 'active' | 'inactive' | 'suspended' {

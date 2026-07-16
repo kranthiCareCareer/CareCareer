@@ -76,9 +76,7 @@ describe('ClaimsMapper', () => {
       sub: 'user1',
       iat: 123,
       exp: 999,
-      tenants: [
-        { tenant_id: 'tenant-b', roles: ['WORKER'], branch_ids: ['b1'], status: 'active' },
-      ],
+      tenants: [{ tenant_id: 'tenant-b', roles: ['WORKER'], branch_ids: ['b1'], status: 'active' }],
     };
 
     const principal = mapper.toPrincipal(payload);

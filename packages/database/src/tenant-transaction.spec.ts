@@ -11,16 +11,20 @@ function createMockPrisma(): {
   const executedRaw: string[] = [];
 
   const mockTx = {
-    $executeRaw: vi.fn().mockImplementation((_strings: TemplateStringsArray, ...values: unknown[]) => {
-      executedRaw.push(`SET LOCAL [${String(values[0])}]`);
-      return Promise.resolve(1);
-    }),
+    $executeRaw: vi
+      .fn()
+      .mockImplementation((_strings: TemplateStringsArray, ...values: unknown[]) => {
+        executedRaw.push(`SET LOCAL [${String(values[0])}]`);
+        return Promise.resolve(1);
+      }),
   };
 
   const prisma: PrismaLikeClient = {
-    $transaction: vi.fn().mockImplementation(async (fn: (tx: typeof mockTx) => Promise<unknown>) => {
-      return fn(mockTx);
-    }),
+    $transaction: vi
+      .fn()
+      .mockImplementation(async (fn: (tx: typeof mockTx) => Promise<unknown>) => {
+        return fn(mockTx);
+      }),
   };
 
   return { prisma, executedRaw };
@@ -44,7 +48,10 @@ describe('TenantAwareTransaction', () => {
       const { prisma } = createMockPrisma();
       const tenantTx = new TenantAwareTransaction(prisma);
 
-      const result = await tenantTx.execute(validTenantId, async () => ({ id: '123', name: 'test' }));
+      const result = await tenantTx.execute(validTenantId, async () => ({
+        id: '123',
+        name: 'test',
+      }));
 
       expect(result).toEqual({ id: '123', name: 'test' });
     });
