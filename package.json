@@ -4,35 +4,39 @@
   "private": true,
   "description": "CareCareer AI-Native Healthcare Workforce Platform",
   "scripts": {
-    "dev": "turbo run dev",
     "build": "turbo run build",
+    "dev": "turbo run dev",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
-    "format": "prettier --write \"**/*.{ts,tsx,json,md,yml}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,json,md,yml}\"",
-    "type-check": "turbo run type-check",
+    "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:unit": "turbo run test:unit",
     "test:integration": "turbo run test:integration",
     "test:coverage": "turbo run test:coverage",
     "test:e2e": "turbo run test:e2e",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "clean": "turbo run clean",
     "db:migrate": "turbo run db:migrate",
     "db:seed": "turbo run db:seed",
     "db:reset": "turbo run db:reset",
-    "clean": "turbo run clean",
+    "security:secrets": "gitleaks detect --source .",
+    "security:dependencies": "pnpm audit --audit-level high",
     "prepare": "husky"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
-    "eslint": "^9.0.0",
-    "eslint-config-prettier": "^10.0.0",
-    "eslint-plugin-import": "^2.31.0",
-    "husky": "^9.0.0",
-    "lint-staged": "^15.0.0",
-    "prettier": "^3.4.0",
-    "turbo": "^2.0.0",
-    "typescript": "^5.7.0"
+    "@changesets/cli": "2.27.12",
+    "@typescript-eslint/eslint-plugin": "8.33.1",
+    "@typescript-eslint/parser": "8.33.1",
+    "eslint": "9.28.0",
+    "eslint-config-prettier": "10.1.5",
+    "eslint-plugin-import": "2.31.0",
+    "husky": "9.1.7",
+    "lint-staged": "15.5.1",
+    "prettier": "3.5.3",
+    "turbo": "2.5.4",
+    "typescript": "5.8.3",
+    "vitest": "3.2.3"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -47,5 +51,5 @@
     "node": ">=20.0.0",
     "pnpm": ">=9.0.0"
   },
-  "packageManager": "pnpm@11.13.1"
+  "packageManager": "pnpm@9.15.4"
 }

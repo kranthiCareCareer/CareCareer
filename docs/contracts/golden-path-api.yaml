@@ -1,0 +1,2015 @@
+openapi: 3.1.0
+info:
+  title: CareCareer Golden Path API
+  version: 0.1.0
+  description: |
+    Minimum API surface for the per-diem golden-path pilot.
+    Covers: platform context, facilities, workers, credentials,
+    shifts, marketplace, assignments, clock events, timecards,
+    pay/bill calculations, and reconciliation.
+
+    Conventions:
+    - All mutations require Idempotency-Key header
+    - All requests require Authorization (Bearer JWT)
+    - Tenant context extracted from JWT (not request body)
+    - X-Correlation-ID propagated across services
+    - Cursor-based pagination for list endpoints
+    - Standard error envelope for all failures
+
+servers:
+  - url: http://localhost:3000/api
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    tenantId:
+      name: X-Tenant-ID
+      in: header
+      required: false
+      description: Tenant override (platform admin only; normally from JWT)
+      schema:
+        type: string
+        format: uuid
+    correlationId:
+      name: X-Correlation-ID
+      in: header
+      required: false
+      description: Distributed tracing correlation ID
+      schema:
+        type: string
+        format: uuid
+    idempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Client-generated unique key for mutation deduplication
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+    cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+    limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, correlationId]
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code (see golden-path-errors.md)
+              example: WORKER_NOT_ELIGIBLE
+            message:
+              type: string
+              description: Human-readable error description
+              example: The worker is not eligible for this shift.
+            correlationId:
+              type: string
+              format: uuid
+            requestId:
+              type: string
+              format: uuid
+            timestamp:
+              type: string
+              format: date-time
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  reason:
+                    type: string
+                  field:
+                    type: string
+                  context:
+                    type: object
+
+    PaginationMeta:
+      type: object
+      properties:
+        cursor:
+          type: string
+          nullable: true
+        nextCursor:
+          type: string
+          nullable: true
+        hasMore:
+          type: boolean
+        totalCount:
+          type: integer
+          description: Only included when explicitly requested
+
+    AuditMeta:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          format: uuid
+        version:
+          type: integer
+
+    # --- Platform & Auth ---
+    CurrentUser:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        roles:
+          type: array
+          items:
+            type: string
+        branchIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+
+    Permission:
+      type: object
+      properties:
+        resource:
+          type: string
+        action:
+          type: string
+        allowed:
+          type: boolean
+
+    # --- Facility ---
+    Facility:
+      type: object
+      required: [id, tenantId, name, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 200
+        address:
+          $ref: '#/components/schemas/Address'
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, SUSPENDED]
+        timezone:
+          type: string
+          description: IANA timezone (e.g., America/New_York)
+        geofenceRadiusMeters:
+          type: integer
+          minimum: 50
+          maximum: 5000
+          default: 200
+        coordinates:
+          $ref: '#/components/schemas/GeoCoordinates'
+        audit:
+          $ref: '#/components/schemas/AuditMeta'
+
+    Address:
+      type: object
+      properties:
+        line1:
+          type: string
+        line2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zip:
+          type: string
+        country:
+          type: string
+          default: US
+
+    GeoCoordinates:
+      type: object
+      properties:
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+
+    Department:
+      type: object
+      required: [id, facilityId, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        facilityId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        unit:
+          type: string
+          nullable: true
+        credentialRequirements:
+          type: array
+          items:
+            $ref: '#/components/schemas/CredentialRequirementRef'
+
+    CredentialRequirementRef:
+      type: object
+      properties:
+        credentialTypeId:
+          type: string
+          format: uuid
+        credentialTypeCode:
+          type: string
+        required:
+          type: boolean
+        description:
+          type: string
+
+    # --- Worker & Credentials ---
+    Worker:
+      type: object
+      required: [id, tenantId, firstName, lastName, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        displayId:
+          type: string
+        firstName:
+          type: string
+          description: 'CONFIDENTIAL'
+        lastName:
+          type: string
+          description: 'CONFIDENTIAL'
+        email:
+          type: string
+          format: email
+          description: 'CONFIDENTIAL'
+        phone:
+          type: string
+          description: 'CONFIDENTIAL'
+        status:
+          type: string
+          enum:
+            [
+              APPLICANT,
+              SCREENING,
+              QUALIFIED,
+              CREDENTIALING,
+              READY,
+              ACTIVE,
+              INACTIVE,
+              BLOCKED,
+              ALUMNI,
+            ]
+        preferredFacilities:
+          type: array
+          items:
+            type: string
+            format: uuid
+        maxCommuteMiles:
+          type: integer
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [RN, LPN, CNA, RT, ALLIED, OTHER]
+        audit:
+          $ref: '#/components/schemas/AuditMeta'
+
+    WorkerCredential:
+      type: object
+      required: [id, workerId, credentialTypeId, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        workerId:
+          type: string
+          format: uuid
+        credentialTypeId:
+          type: string
+          format: uuid
+        credentialTypeCode:
+          type: string
+        status:
+          type: string
+          enum:
+            [
+              UPLOADED,
+              EXTRACTED,
+              PENDING_VERIFICATION,
+              VERIFIED,
+              EXPIRING,
+              EXPIRED,
+              REJECTED,
+              REVOKED,
+            ]
+        licenseNumber:
+          type: string
+          description: 'CONFIDENTIAL — stored encrypted'
+        issuingState:
+          type: string
+        issuedAt:
+          type: string
+          format: date
+        expiresAt:
+          type: string
+          format: date
+          nullable: true
+        documentUrl:
+          type: string
+          description: Presigned URL (short-lived)
+        verifiedAt:
+          type: string
+          format: date-time
+          nullable: true
+        verifiedBy:
+          type: string
+          nullable: true
+        rejectionReason:
+          type: string
+          nullable: true
+        audit:
+          $ref: '#/components/schemas/AuditMeta'
+
+    EligibilityEvaluation:
+      type: object
+      required: [id, workerId, facilityId, status, reasons]
+      properties:
+        id:
+          type: string
+          format: uuid
+        workerId:
+          type: string
+          format: uuid
+        facilityId:
+          type: string
+          format: uuid
+        departmentId:
+          type: string
+          format: uuid
+          nullable: true
+        shiftId:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum: [PENDING, ELIGIBLE, INELIGIBLE, ELIGIBLE_WITH_EXCEPTION, ERROR]
+        reasons:
+          type: array
+          description: Machine-readable reasons; never just a boolean
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                enum:
+                  [
+                    CREDENTIAL_VALID,
+                    CREDENTIAL_EXPIRED,
+                    CREDENTIAL_MISSING,
+                    CREDENTIAL_PENDING,
+                    AVAILABILITY_CONFLICT,
+                    BLOCKED,
+                    OIG_EXCLUSION,
+                    SAM_EXCLUSION,
+                    FACILITY_REQUIREMENT_NOT_MET,
+                    EXCEPTION_APPROVED,
+                  ]
+              credentialTypeCode:
+                type: string
+                nullable: true
+              message:
+                type: string
+              blocking:
+                type: boolean
+        evaluatedAt:
+          type: string
+          format: date-time
+
+    # --- Shift & Marketplace ---
+    Shift:
+      type: object
+      required:
+        [
+          id,
+          tenantId,
+          facilityId,
+          departmentId,
+          status,
+          role,
+          startTime,
+          endTime,
+          requiredWorkerCount,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        facilityId:
+          type: string
+          format: uuid
+        departmentId:
+          type: string
+          format: uuid
+        displayId:
+          type: string
+        status:
+          type: string
+          enum:
+            [DRAFT, PUBLISHED, PARTIALLY_FILLED, FILLED, IN_PROGRESS, COMPLETED, CLOSED, CANCELLED]
+        role:
+          type: string
+          enum: [RN, LPN, CNA, RT, ALLIED, OTHER]
+        startTime:
+          type: string
+          format: date-time
+          description: UTC; facility timezone in metadata
+        endTime:
+          type: string
+          format: date-time
+          description: UTC; supports overnight shifts (endTime > startTime always)
+        facilityTimezone:
+          type: string
+          description: IANA timezone for display and business-date calculation
+        businessDate:
+          type: string
+          format: date
+          description: The business date this shift belongs to (handles overnight)
+        requiredWorkerCount:
+          type: integer
+          minimum: 1
+          description: Number of workers needed; shift is FILLED when all slots confirmed
+        confirmedWorkerCount:
+          type: integer
+          minimum: 0
+        payRate:
+          type: object
+          properties:
+            amount:
+              type: string
+              description: Decimal string for precision (e.g., "45.00")
+            currency:
+              type: string
+              default: USD
+        billRate:
+          type: object
+          properties:
+            amount:
+              type: string
+            currency:
+              type: string
+              default: USD
+        credentialRequirements:
+          type: array
+          items:
+            $ref: '#/components/schemas/CredentialRequirementRef'
+        cancellationReason:
+          type: string
+          nullable: true
+        cancelledBy:
+          type: string
+          enum: [CLIENT, SCHEDULER, SYSTEM]
+          nullable: true
+        audit:
+          $ref: '#/components/schemas/AuditMeta'
+
+    ShiftRequest:
+      type: object
+      required: [id, shiftId, workerId, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        shiftId:
+          type: string
+          format: uuid
+        workerId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [REQUESTED, UNDER_REVIEW, CONFIRMED, REJECTED, WITHDRAWN, EXPIRED]
+        eligibilityEvaluationId:
+          type: string
+          format: uuid
+          description: Evaluation performed at request time
+        requestedAt:
+          type: string
+          format: date-time
+        confirmedAt:
+          type: string
+          format: date-time
+          nullable: true
+        confirmedBy:
+          type: string
+          format: uuid
+          nullable: true
+          description: User who confirmed (scheduler, client, or system policy)
+        rejectionReason:
+          type: string
+          nullable: true
+        audit:
+          $ref: '#/components/schemas/AuditMeta'
+
+    Assignment:
+      type: object
+      required: [id, shiftId, workerId, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        shiftId:
+          type: string
+          format: uuid
+        workerId:
+          type: string
+          format: uuid
+        shiftRequestId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            [
+              CONFIRMED,
+              CHECKED_IN,
+              ON_BREAK,
+              WORKING,
+              CHECKED_OUT,
+              TIMECARD_PENDING,
+              COMPLETED,
+              CANCELLED,
+              NO_SHOW,
+              ABANDONED,
+            ]
+        confirmedAt:
+          type: string
+          format: date-time
+        checkedInAt:
+          type: string
+          format: date-time
+          nullable: true
+        checkedOutAt:
+          type: string
+          format: date-time
+          nullable: true
+        cancellationReason:
+          type: string
+          nullable: true
+        cancelledBy:
+          type: string
+          enum: [WORKER, CLIENT, SCHEDULER, SYSTEM]
+          nullable: true
+        audit:
+          $ref: '#/components/schemas/AuditMeta'
+
+    # --- Clock Events ---
+    ClockEvent:
+      type: object
+      required: [id, assignmentId, type, timestamp, deviceEventId]
+      properties:
+        id:
+          type: string
+          format: uuid
+        assignmentId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [CLOCK_IN, CLOCK_OUT, BREAK_START, BREAK_END]
+        timestamp:
+          type: string
+          format: date-time
+          description: Device-reported time (UTC)
+        serverTimestamp:
+          type: string
+          format: date-time
+          description: Server receipt time (UTC); detects device drift
+        deviceEventId:
+          type: string
+          description: Device-generated unique ID for offline deduplication
+        coordinates:
+          $ref: '#/components/schemas/GeoCoordinates'
+        geofenceResult:
+          type: object
+          properties:
+            withinFence:
+              type: boolean
+            distanceMeters:
+              type: number
+            facilityCoordinates:
+              $ref: '#/components/schemas/GeoCoordinates'
+            radiusMeters:
+              type: integer
+        deviceInfo:
+          type: object
+          properties:
+            platform:
+              type: string
+              enum: [ios, android, web]
+            appVersion:
+              type: string
+            deviceId:
+              type: string
+              description: Hashed device identifier
+        offlineSubmitted:
+          type: boolean
+          description: True if event was stored offline and synced later
+        rejectionReason:
+          type: string
+          nullable: true
+          description: Populated if event was rejected (e.g., geofence fail)
+
+    # --- Timecard ---
+    Timecard:
+      type: object
+      required: [id, assignmentId, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        assignmentId:
+          type: string
+          format: uuid
+        shiftId:
+          type: string
+          format: uuid
+        workerId:
+          type: string
+          format: uuid
+        facilityId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            [
+              DRAFT,
+              GENERATED,
+              WORKER_REVIEW,
+              SUBMITTED,
+              CLIENT_REVIEW,
+              APPROVED,
+              REJECTED,
+              CORRECTED,
+              CALCULATED,
+              EXPORT_READY,
+              ADJUSTMENT_REQUIRED,
+            ]
+        businessDate:
+          type: string
+          format: date
+        scheduledStart:
+          type: string
+          format: date-time
+        scheduledEnd:
+          type: string
+          format: date-time
+        actualStart:
+          type: string
+          format: date-time
+          nullable: true
+        actualEnd:
+          type: string
+          format: date-time
+          nullable: true
+        totalMinutesWorked:
+          type: integer
+        totalBreakMinutes:
+          type: integer
+        overtimeMinutes:
+          type: integer
+        exceptions:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                enum:
+                  [
+                    EARLY_CLOCK_IN,
+                    LATE_CLOCK_IN,
+                    EARLY_CLOCK_OUT,
+                    LATE_CLOCK_OUT,
+                    MISSING_CLOCK_OUT,
+                    GEOFENCE_WARNING,
+                    BREAK_VIOLATION,
+                    OVERTIME_THRESHOLD,
+                    VARIANCE_EXCEEDED,
+                  ]
+              severity:
+                type: string
+                enum: [INFO, WARNING, BLOCKING]
+              message:
+                type: string
+              autoResolved:
+                type: boolean
+        approvedBy:
+          type: string
+          format: uuid
+          nullable: true
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        rejectionReason:
+          type: string
+          nullable: true
+        version:
+          type: integer
+          description: Increments on correction; preserves history
+        audit:
+          $ref: '#/components/schemas/AuditMeta'
+
+    # --- Pay/Bill Calculation ---
+    Calculation:
+      type: object
+      required: [id, timecardId, status, type]
+      properties:
+        id:
+          type: string
+          format: uuid
+        timecardId:
+          type: string
+          format: uuid
+        timecardVersion:
+          type: integer
+          description: Version of timecard used for this calculation
+        type:
+          type: string
+          enum: [PAY, BILL]
+        status:
+          type: string
+          enum: [PENDING, CALCULATING, COMPLETED, FAILED, SUPERSEDED]
+        ruleSetId:
+          type: string
+          format: uuid
+        ruleSetVersion:
+          type: integer
+        lineItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalculationLineItem'
+        totalAmount:
+          type: string
+          description: Decimal string
+        currency:
+          type: string
+          default: USD
+        calculatedAt:
+          type: string
+          format: date-time
+        supersededBy:
+          type: string
+          format: uuid
+          nullable: true
+          description: If corrected, points to newer calculation
+        explanation:
+          type: array
+          description: Human-readable rule application trace
+          items:
+            type: object
+            properties:
+              step:
+                type: integer
+              rule:
+                type: string
+              input:
+                type: string
+              result:
+                type: string
+        audit:
+          $ref: '#/components/schemas/AuditMeta'
+
+    CalculationLineItem:
+      type: object
+      properties:
+        category:
+          type: string
+          enum:
+            [
+              BASE,
+              OVERTIME,
+              DOUBLE_TIME,
+              NIGHT_DIFFERENTIAL,
+              WEEKEND_DIFFERENTIAL,
+              HOLIDAY_PREMIUM,
+              GUARANTEED_HOURS,
+              MILEAGE,
+              STIPEND,
+              OTHER,
+            ]
+        minutes:
+          type: integer
+        rate:
+          type: string
+          description: Decimal string
+        amount:
+          type: string
+          description: Decimal string
+        ruleApplied:
+          type: string
+          description: Which specific rule produced this line
+
+    # --- Reconciliation ---
+    ReconciliationRun:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        domain:
+          type: string
+          enum: [ELIGIBILITY, SHIFT_LIFECYCLE, TIMECARD_HOURS, PAY_CALCULATION, BILL_CALCULATION]
+        status:
+          type: string
+          enum: [RUNNING, COMPLETED, FAILED]
+        periodStart:
+          type: string
+          format: date-time
+        periodEnd:
+          type: string
+          format: date-time
+        totalRecords:
+          type: integer
+        matchedRecords:
+          type: integer
+        mismatchedRecords:
+          type: integer
+        matchRate:
+          type: number
+          format: double
+        exceptions:
+          type: array
+          items:
+            type: object
+            properties:
+              entityType:
+                type: string
+              entityId:
+                type: string
+              carecareerValue:
+                type: string
+              legacyValue:
+                type: string
+              field:
+                type: string
+              severity:
+                type: string
+                enum: [LOW, MEDIUM, HIGH, CRITICAL]
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+paths:
+  # ============================================================
+  # Platform & Authorization
+  # ============================================================
+  /v1/me:
+    get:
+      operationId: getCurrentUser
+      tags: [Platform]
+      summary: Get current authenticated user context
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/CurrentUser'
+
+  /v1/me/permissions:
+    get:
+      operationId: getMyPermissions
+      tags: [Platform]
+      summary: Get resolved permissions for current user
+      responses:
+        '200':
+          description: Permission list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Permission'
+
+  /v1/tenants/{tenantId}:
+    get:
+      operationId: getTenant
+      tags: [Platform]
+      summary: Get tenant details
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Tenant detail
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/branches:
+    get:
+      operationId: listBranches
+      tags: [Platform]
+      summary: List branches accessible to current user
+      parameters:
+        - $ref: '#/components/parameters/cursor'
+        - $ref: '#/components/parameters/limit'
+      responses:
+        '200':
+          description: Branch list
+
+  # ============================================================
+  # Facilities
+  # ============================================================
+  /v1/facilities:
+    post:
+      operationId: createFacility
+      tags: [Facility]
+      summary: Create a new facility
+      parameters:
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, address, timezone, coordinates]
+              properties:
+                name:
+                  type: string
+                address:
+                  $ref: '#/components/schemas/Address'
+                timezone:
+                  type: string
+                coordinates:
+                  $ref: '#/components/schemas/GeoCoordinates'
+                geofenceRadiusMeters:
+                  type: integer
+                  default: 200
+      responses:
+        '201':
+          description: Facility created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Facility'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      operationId: listFacilities
+      tags: [Facility]
+      summary: List facilities
+      parameters:
+        - $ref: '#/components/parameters/cursor'
+        - $ref: '#/components/parameters/limit'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE]
+      responses:
+        '200':
+          description: Paginated facility list
+
+  /v1/facilities/{facilityId}:
+    get:
+      operationId: getFacility
+      tags: [Facility]
+      summary: Get facility by ID
+      parameters:
+        - name: facilityId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Facility detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Facility'
+        '404':
+          description: Not found
+
+  /v1/facilities/{facilityId}/departments:
+    post:
+      operationId: createDepartment
+      tags: [Facility]
+      summary: Create department within facility
+      parameters:
+        - name: facilityId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                unit:
+                  type: string
+                credentialRequirements:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      credentialTypeId:
+                        type: string
+                        format: uuid
+                      required:
+                        type: boolean
+                        default: true
+      responses:
+        '201':
+          description: Department created
+
+  /v1/facilities/{facilityId}/credential-requirements:
+    get:
+      operationId: getFacilityCredentialRequirements
+      tags: [Facility]
+      summary: Get credential requirements for a facility
+      parameters:
+        - name: facilityId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [RN, LPN, CNA, RT, ALLIED]
+        - name: departmentId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Requirement list
+
+  # ============================================================
+  # Workers & Credentials
+  # ============================================================
+  /v1/workers:
+    post:
+      operationId: createWorker
+      tags: [Worker]
+      summary: Register a new worker
+      parameters:
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [firstName, lastName, roles]
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                phone:
+                  type: string
+                roles:
+                  type: array
+                  items:
+                    type: string
+                    enum: [RN, LPN, CNA, RT, ALLIED, OTHER]
+                maxCommuteMiles:
+                  type: integer
+      responses:
+        '201':
+          description: Worker created
+
+  /v1/workers/{workerId}:
+    get:
+      operationId: getWorker
+      tags: [Worker]
+      summary: Get worker profile
+      parameters:
+        - name: workerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Worker profile
+    patch:
+      operationId: updateWorker
+      tags: [Worker]
+      summary: Update worker profile
+      parameters:
+        - name: workerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                phone:
+                  type: string
+                maxCommuteMiles:
+                  type: integer
+                preferredFacilities:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                version:
+                  type: integer
+                  description: Required for optimistic concurrency
+      responses:
+        '200':
+          description: Worker updated
+        '409':
+          description: Version conflict
+
+  /v1/workers/{workerId}/credentials:
+    post:
+      operationId: addCredential
+      tags: [Worker]
+      summary: Submit a credential for a worker
+      parameters:
+        - name: workerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [credentialTypeId]
+              properties:
+                credentialTypeId:
+                  type: string
+                  format: uuid
+                licenseNumber:
+                  type: string
+                issuingState:
+                  type: string
+                issuedAt:
+                  type: string
+                  format: date
+                expiresAt:
+                  type: string
+                  format: date
+                documentKey:
+                  type: string
+                  description: S3 object key from prior document upload
+      responses:
+        '201':
+          description: Credential submitted
+    get:
+      operationId: listWorkerCredentials
+      tags: [Worker]
+      summary: List credentials for a worker
+      parameters:
+        - name: workerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Credential list
+
+  /v1/workers/{workerId}/eligibility-evaluations:
+    post:
+      operationId: evaluateEligibility
+      tags: [Worker]
+      summary: Evaluate worker eligibility for a facility/shift
+      description: |
+        Eligibility is evaluated at multiple points:
+        - Marketplace display (can worker SEE the shift)
+        - Request submission (can worker REQUEST the shift)
+        - Assignment confirmation (final gate before confirmation)
+        - Clock-in (credential may have expired since confirmation)
+      parameters:
+        - name: workerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [facilityId]
+              properties:
+                facilityId:
+                  type: string
+                  format: uuid
+                departmentId:
+                  type: string
+                  format: uuid
+                shiftId:
+                  type: string
+                  format: uuid
+                evaluationPoint:
+                  type: string
+                  enum: [MARKETPLACE_DISPLAY, REQUEST_SUBMISSION, ASSIGNMENT_CONFIRMATION, CLOCK_IN]
+      responses:
+        '201':
+          description: Evaluation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/EligibilityEvaluation'
+
+  # ============================================================
+  # Shifts & Marketplace
+  # ============================================================
+  /v1/shifts:
+    post:
+      operationId: createShift
+      tags: [Shift]
+      summary: Create a new shift
+      parameters:
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [facilityId, departmentId, role, startTime, endTime, requiredWorkerCount]
+              properties:
+                facilityId:
+                  type: string
+                  format: uuid
+                departmentId:
+                  type: string
+                  format: uuid
+                role:
+                  type: string
+                  enum: [RN, LPN, CNA, RT, ALLIED, OTHER]
+                startTime:
+                  type: string
+                  format: date-time
+                endTime:
+                  type: string
+                  format: date-time
+                requiredWorkerCount:
+                  type: integer
+                  minimum: 1
+                  default: 1
+                payRate:
+                  type: object
+                  properties:
+                    amount:
+                      type: string
+                    currency:
+                      type: string
+                      default: USD
+                billRate:
+                  type: object
+                  properties:
+                    amount:
+                      type: string
+                    currency:
+                      type: string
+                      default: USD
+                notes:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '201':
+          description: Shift created in DRAFT status
+
+  /v1/shifts/{shiftId}:
+    get:
+      operationId: getShift
+      tags: [Shift]
+      summary: Get shift details
+      parameters:
+        - name: shiftId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Shift detail
+    patch:
+      operationId: updateShift
+      tags: [Shift]
+      summary: Update shift (only in DRAFT status)
+      parameters:
+        - name: shiftId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                startTime:
+                  type: string
+                  format: date-time
+                endTime:
+                  type: string
+                  format: date-time
+                requiredWorkerCount:
+                  type: integer
+                payRate:
+                  type: object
+                billRate:
+                  type: object
+                version:
+                  type: integer
+      responses:
+        '200':
+          description: Shift updated
+
+  /v1/shifts/{shiftId}/publish:
+    post:
+      operationId: publishShift
+      tags: [Shift]
+      summary: Publish shift to marketplace
+      parameters:
+        - name: shiftId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      responses:
+        '200':
+          description: Shift published
+        '422':
+          description: Invalid state transition
+
+  /v1/shifts/{shiftId}/cancel:
+    post:
+      operationId: cancelShift
+      tags: [Shift]
+      summary: Cancel a shift
+      parameters:
+        - name: shiftId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                cancelledBy:
+                  type: string
+                  enum: [CLIENT, SCHEDULER, SYSTEM]
+      responses:
+        '200':
+          description: Shift cancelled
+
+  /v1/marketplace/shifts:
+    get:
+      operationId: listMarketplaceShifts
+      tags: [Shift]
+      summary: List available shifts for current worker
+      description: |
+        Returns PUBLISHED shifts filtered by worker eligibility.
+        Eligibility is pre-evaluated; only shifts the worker CAN
+        request are returned.
+      parameters:
+        - $ref: '#/components/parameters/cursor'
+        - $ref: '#/components/parameters/limit'
+        - name: role
+          in: query
+          schema:
+            type: string
+        - name: facilityId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: maxDistanceMiles
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Available shifts (eligibility pre-filtered)
+
+  /v1/shifts/{shiftId}/requests:
+    post:
+      operationId: requestShift
+      tags: [Shift]
+      summary: Worker requests a shift
+      description: |
+        Performs eligibility evaluation at REQUEST_SUBMISSION point.
+        Blocks if credentials expired, scheduling conflict, or other
+        deterministic rule fails.
+      parameters:
+        - name: shiftId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      responses:
+        '201':
+          description: Request created
+        '422':
+          description: Not eligible (see error details)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ============================================================
+  # Assignments
+  # ============================================================
+  /v1/shift-requests/{requestId}/confirm:
+    post:
+      operationId: confirmShiftRequest
+      tags: [Assignment]
+      summary: Confirm a shift request (creates assignment)
+      description: |
+        Can be confirmed by: scheduler, client, or auto-policy engine.
+        Performs final eligibility check at ASSIGNMENT_CONFIRMATION point.
+        If credential expired between request and confirmation, blocks.
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      responses:
+        '201':
+          description: Assignment created
+        '422':
+          description: Eligibility failed or state invalid
+
+  /v1/shift-requests/{requestId}/reject:
+    post:
+      operationId: rejectShiftRequest
+      tags: [Assignment]
+      summary: Reject a shift request
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Request rejected
+
+  /v1/assignments/{assignmentId}:
+    get:
+      operationId: getAssignment
+      tags: [Assignment]
+      summary: Get assignment details
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Assignment detail
+
+  /v1/assignments/{assignmentId}/cancel:
+    post:
+      operationId: cancelAssignment
+      tags: [Assignment]
+      summary: Cancel an assignment
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason, cancelledBy]
+              properties:
+                reason:
+                  type: string
+                cancelledBy:
+                  type: string
+                  enum: [WORKER, CLIENT, SCHEDULER, SYSTEM]
+      responses:
+        '200':
+          description: Assignment cancelled
+
+  # ============================================================
+  # Clock Events & Timecards
+  # ============================================================
+  /v1/assignments/{assignmentId}/clock-events:
+    post:
+      operationId: recordClockEvent
+      tags: [Time]
+      summary: Record a clock event (clock in/out, break start/end)
+      description: |
+        Supports offline submission. Device-generated eventId used
+        for deduplication. Geofence validated server-side.
+        If credential expired since assignment, clock-in is BLOCKED.
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, timestamp, deviceEventId, coordinates]
+              properties:
+                type:
+                  type: string
+                  enum: [CLOCK_IN, CLOCK_OUT, BREAK_START, BREAK_END]
+                timestamp:
+                  type: string
+                  format: date-time
+                deviceEventId:
+                  type: string
+                  description: Device-generated unique ID
+                coordinates:
+                  $ref: '#/components/schemas/GeoCoordinates'
+                deviceInfo:
+                  type: object
+                  properties:
+                    platform:
+                      type: string
+                    appVersion:
+                      type: string
+                    deviceId:
+                      type: string
+                offlineSubmitted:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Clock event recorded
+        '422':
+          description: Rejected (geofence, sequence, credential expired)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      operationId: listClockEvents
+      tags: [Time]
+      summary: List clock events for an assignment
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Clock event list
+
+  /v1/assignments/{assignmentId}/timecard:
+    post:
+      operationId: generateTimecard
+      tags: [Time]
+      summary: Generate timecard from clock events
+      description: |
+        Deterministic generation from clock events. Applies break rules,
+        calculates total hours, detects exceptions. Idempotent — returns
+        existing timecard if already generated for this assignment.
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      responses:
+        '201':
+          description: Timecard generated
+        '200':
+          description: Timecard already exists (idempotent)
+
+  /v1/timecards/{timecardId}:
+    get:
+      operationId: getTimecard
+      tags: [Time]
+      summary: Get timecard details
+      parameters:
+        - name: timecardId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Timecard detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Timecard'
+
+  /v1/timecards/{timecardId}/submit:
+    post:
+      operationId: submitTimecard
+      tags: [Time]
+      summary: Submit timecard for approval
+      parameters:
+        - name: timecardId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      responses:
+        '200':
+          description: Timecard submitted for review
+
+  /v1/timecards/{timecardId}/approve:
+    post:
+      operationId: approveTimecard
+      tags: [Time]
+      summary: Approve timecard (client or internal)
+      description: Supports bulk approval via repeated calls with different IDs.
+      parameters:
+        - name: timecardId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      responses:
+        '200':
+          description: Timecard approved
+
+  /v1/timecards/{timecardId}/reject:
+    post:
+      operationId: rejectTimecard
+      tags: [Time]
+      summary: Reject timecard with reason
+      description: |
+        Rejected timecards return to CORRECTED status after worker/admin
+        makes corrections, then can be re-submitted.
+      parameters:
+        - name: timecardId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Timecard rejected
+
+  # ============================================================
+  # Pay & Bill Calculations
+  # ============================================================
+  /v1/timecards/{timecardId}/calculations:
+    post:
+      operationId: calculatePayBill
+      tags: [Finance]
+      summary: Calculate pay and bill for an approved timecard
+      description: |
+        Deterministic calculation. Creates versioned calculation records.
+        A corrected timecard creates a new calculation that supersedes
+        the previous one (previous version preserved for audit).
+      parameters:
+        - name: timecardId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                types:
+                  type: array
+                  items:
+                    type: string
+                    enum: [PAY, BILL]
+                  default: [PAY, BILL]
+      responses:
+        '201':
+          description: Calculations created
+
+  /v1/calculations/{calculationId}:
+    get:
+      operationId: getCalculation
+      tags: [Finance]
+      summary: Get calculation result
+      parameters:
+        - name: calculationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Calculation detail
+
+  /v1/calculations/{calculationId}/explanation:
+    get:
+      operationId: getCalculationExplanation
+      tags: [Finance]
+      summary: Get human-readable rule application trace
+      parameters:
+        - name: calculationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Rule application explanation
+
+  /v1/calculations/{calculationId}/export-preview:
+    post:
+      operationId: generateExportPreview
+      tags: [Finance]
+      summary: Generate export-ready output (Paycom/NetSuite format)
+      description: Preview only — does not post to external system.
+      parameters:
+        - name: calculationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/idempotencyKey'
+      responses:
+        '201':
+          description: Export preview generated
+
+  # ============================================================
+  # Reconciliation
+  # ============================================================
+  /v1/reconciliation-runs:
+    post:
+      operationId: createReconciliationRun
+      tags: [Reconciliation]
+      summary: Trigger a reconciliation run against legacy system
+      parameters:
+        - $ref: '#/components/parameters/idempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain, periodStart, periodEnd]
+              properties:
+                domain:
+                  type: string
+                  enum:
+                    [
+                      ELIGIBILITY,
+                      SHIFT_LIFECYCLE,
+                      TIMECARD_HOURS,
+                      PAY_CALCULATION,
+                      BILL_CALCULATION,
+                    ]
+                periodStart:
+                  type: string
+                  format: date-time
+                periodEnd:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: Reconciliation run started
+
+  /v1/reconciliation-runs/{runId}:
+    get:
+      operationId: getReconciliationRun
+      tags: [Reconciliation]
+      summary: Get reconciliation run status and summary
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Run detail
+
+  /v1/reconciliation-runs/{runId}/exceptions:
+    get:
+      operationId: listReconciliationExceptions
+      tags: [Reconciliation]
+      summary: List exceptions from a reconciliation run
+      parameters:
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/cursor'
+        - $ref: '#/components/parameters/limit'
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [LOW, MEDIUM, HIGH, CRITICAL]
+      responses:
+        '200':
+          description: Exception list

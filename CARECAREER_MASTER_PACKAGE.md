@@ -8,6 +8,7 @@ This consolidated file is generated from:
 - `CARECAREER_AGENT_PROMPT_LIBRARY.md`
 
 ---
+
 # CareCareer Engineering Constitution and Coding-Agent System Prompt
 
 Version: 1.0  
@@ -183,33 +184,33 @@ Every ADR MUST include:
 
 ## 6. Approved Technology Baseline
 
-| Area | Approved Default | Rules |
-|---|---|---|
-| Cloud | AWS | Production workloads remain AWS-native unless an approved integration requires an external SaaS endpoint. |
-| Containers | Amazon EKS managed node groups | Use Fargate only for workloads that do not require DaemonSets, specialized networking, GPUs, or predictable reserved capacity. |
-| Serverless | AWS Lambda | Use for short-lived, event-driven handlers. Do not decompose stable domain logic into excessive functions. |
-| Relational database | Amazon Aurora PostgreSQL | Select Serverless v2 or provisioned instances according to measured workload and availability needs. |
-| High-throughput key-value/event data | Amazon DynamoDB | Use for clock events, availability projections, idempotency records, sessions, and high-volume access patterns. |
-| Object storage | Amazon S3 | Use tenant-prefixed objects, object lock where required, lifecycle policies, and malware scanning. |
-| Event bus | Amazon EventBridge | Use for domain-event routing and integration fan-out. |
-| Queues | Amazon SQS | Use for buffering, retry, ordered processing where required, and dead-letter handling. |
-| Workflows | AWS Step Functions | Use for explicit long-running deterministic workflows and human approval checkpoints. |
-| Search | Amazon OpenSearch Serverless | Use for candidate/job search, faceting, semantic retrieval, and vector search. |
-| Cache | Amazon ElastiCache for Redis | Use for cache, rate limiting, ephemeral coordination, and hot projections; never as business source of truth. |
-| Analytics | Amazon S3, Athena, Redshift Serverless | Maintain governed operational and analytical boundaries. |
-| AI models | Amazon Bedrock through a model router | No domain service calls a foundation model directly. |
-| Agent runtime | Amazon Bedrock AgentCore | Use Gateway and external policy controls for agent-to-tool access. |
-| Agent SDK | Strands Agents SDK | Python is the default. TypeScript is allowed when it materially reduces boundary complexity and meets evaluation requirements. |
-| External identity | Amazon Cognito | Workers, candidates, clients, facility users, and suppliers. |
-| Workforce identity | AWS IAM Identity Center | Internal administrators, operations, engineers, and privileged support. |
-| Infrastructure as code | Terraform | All AWS infrastructure. No console-only production resources. |
-| Kubernetes packaging | Helm | Standard charts with environment and tenant-independent configuration. |
-| External API | REST with OpenAPI 3.1 | Public and portal-facing APIs. |
-| Internal API | gRPC and versioned events | Use synchronous calls only when the caller needs an immediate result. |
-| Web | Next.js and React | Shared design system and accessibility requirements. |
-| Mobile | React Native | Offline-aware clock and timecard workflows. |
-| Backend | TypeScript and retained production-grade Go | New services default to TypeScript. Existing Go services may remain when they meet target standards. |
-| Monorepo | Turborepo-compatible monorepo | Preserve clear service ownership, independent pipelines, and selective builds. |
+| Area                                 | Approved Default                            | Rules                                                                                                                          |
+| ------------------------------------ | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Cloud                                | AWS                                         | Production workloads remain AWS-native unless an approved integration requires an external SaaS endpoint.                      |
+| Containers                           | Amazon EKS managed node groups              | Use Fargate only for workloads that do not require DaemonSets, specialized networking, GPUs, or predictable reserved capacity. |
+| Serverless                           | AWS Lambda                                  | Use for short-lived, event-driven handlers. Do not decompose stable domain logic into excessive functions.                     |
+| Relational database                  | Amazon Aurora PostgreSQL                    | Select Serverless v2 or provisioned instances according to measured workload and availability needs.                           |
+| High-throughput key-value/event data | Amazon DynamoDB                             | Use for clock events, availability projections, idempotency records, sessions, and high-volume access patterns.                |
+| Object storage                       | Amazon S3                                   | Use tenant-prefixed objects, object lock where required, lifecycle policies, and malware scanning.                             |
+| Event bus                            | Amazon EventBridge                          | Use for domain-event routing and integration fan-out.                                                                          |
+| Queues                               | Amazon SQS                                  | Use for buffering, retry, ordered processing where required, and dead-letter handling.                                         |
+| Workflows                            | AWS Step Functions                          | Use for explicit long-running deterministic workflows and human approval checkpoints.                                          |
+| Search                               | Amazon OpenSearch Serverless                | Use for candidate/job search, faceting, semantic retrieval, and vector search.                                                 |
+| Cache                                | Amazon ElastiCache for Redis                | Use for cache, rate limiting, ephemeral coordination, and hot projections; never as business source of truth.                  |
+| Analytics                            | Amazon S3, Athena, Redshift Serverless      | Maintain governed operational and analytical boundaries.                                                                       |
+| AI models                            | Amazon Bedrock through a model router       | No domain service calls a foundation model directly.                                                                           |
+| Agent runtime                        | Amazon Bedrock AgentCore                    | Use Gateway and external policy controls for agent-to-tool access.                                                             |
+| Agent SDK                            | Strands Agents SDK                          | Python is the default. TypeScript is allowed when it materially reduces boundary complexity and meets evaluation requirements. |
+| External identity                    | Amazon Cognito                              | Workers, candidates, clients, facility users, and suppliers.                                                                   |
+| Workforce identity                   | AWS IAM Identity Center                     | Internal administrators, operations, engineers, and privileged support.                                                        |
+| Infrastructure as code               | Terraform                                   | All AWS infrastructure. No console-only production resources.                                                                  |
+| Kubernetes packaging                 | Helm                                        | Standard charts with environment and tenant-independent configuration.                                                         |
+| External API                         | REST with OpenAPI 3.1                       | Public and portal-facing APIs.                                                                                                 |
+| Internal API                         | gRPC and versioned events                   | Use synchronous calls only when the caller needs an immediate result.                                                          |
+| Web                                  | Next.js and React                           | Shared design system and accessibility requirements.                                                                           |
+| Mobile                               | React Native                                | Offline-aware clock and timecard workflows.                                                                                    |
+| Backend                              | TypeScript and retained production-grade Go | New services default to TypeScript. Existing Go services may remain when they meet target standards.                           |
+| Monorepo                             | Turborepo-compatible monorepo               | Preserve clear service ownership, independent pipelines, and selective builds.                                                 |
 
 ---
 
@@ -217,34 +218,34 @@ Every ADR MUST include:
 
 ### 7.1 Business domains
 
-| Domain | Service | Primary responsibility | Primary stores |
-|---|---|---|---|
-| Tenant | `tenant-service` | Tenant, legal entity, brand, business unit, provisioning | Aurora |
-| Entitlement | `entitlement-service` | Product package, feature entitlement, limits, metering rules | Aurora + Redis |
-| Identity Profile | `identity-service` | Application identity linkage, roles, groups, delegated administration | Aurora |
-| Sales / CRM | `sales-service` | Leads, opportunities, contacts, account activities | Aurora + OpenSearch |
-| Client | `client-service` | Client, facility, department, unit, cost center, facility contacts | Aurora |
-| Worker | `worker-service` | Person, worker, candidate profile, preferences, availability ownership | Aurora + DynamoDB |
-| Recruit | `recruit-service` | Requisition, job, application, submission, interview, offer, placement | Aurora + OpenSearch |
-| Engage | `engagement-service` | Campaigns, consent, communication preferences, outreach history | Aurora |
-| Credential | `credential-service` | Credential types, documents, verification, requirements, compliance status | Aurora + S3 |
-| Onboarding | `onboarding-service` | Checklists, forms, orientation, background-check workflow | Aurora + Step Functions |
-| Schedule | `schedule-service` | Shift, shift request, offer, assignment, cancellation, fill workflow | Aurora + DynamoDB |
-| Time | `time-service` | Clock events, breaks, geofence evidence, timecards, approvals | DynamoDB + Aurora |
-| Travel | `travel-service` | Travel job, contract, rate package, amendment, extension | Aurora |
-| Payroll Prep | `payroll-prep-service` | Earnings calculation, pay-rule application, payroll batch export | Aurora |
-| Billing | `billing-service` | Bill rules, billing batches, invoice preparation, ERP export | Aurora |
-| VMS | `vms-service` | Supplier, vendor contract, requisition distribution, supplier submission | Aurora |
-| MSP | `msp-service` | Program, SLA, rate card, performance, exception management | Aurora |
-| Notification | `notification-service` | Email, SMS, push, template rendering, delivery receipts | Aurora + SQS |
-| Document | `document-service` | Upload, classification, malware scan, retention, signed access | S3 + Aurora |
-| Audit | `audit-service` | Immutable business and privileged-access audit | S3 + DynamoDB/Aurora projection |
-| Workflow | `workflow-service` | Workflow templates, human approvals, Step Functions integration | Aurora + Step Functions |
-| Policy / Configuration | `policy-service` | Tenant policy, deterministic rules, feature configuration | Aurora |
-| Integration | `integration-service` | Approved external integrations excluding legacy migration ownership | Aurora + EventBridge/SQS |
-| Migration | `migration-service` | Legacy adapters, reconciliation, cutover controls | S3 + Aurora + queues |
-| Analytics | `analytics-service` | Governed metrics, operational dashboards, warehouse models | S3 + Redshift + Athena |
-| AI Platform | `ai-platform-service` | Model routing, agent registry, policy, evaluation, prompt registry, cost controls | DynamoDB + S3 + AgentCore |
+| Domain                 | Service                | Primary responsibility                                                            | Primary stores                  |
+| ---------------------- | ---------------------- | --------------------------------------------------------------------------------- | ------------------------------- |
+| Tenant                 | `tenant-service`       | Tenant, legal entity, brand, business unit, provisioning                          | Aurora                          |
+| Entitlement            | `entitlement-service`  | Product package, feature entitlement, limits, metering rules                      | Aurora + Redis                  |
+| Identity Profile       | `identity-service`     | Application identity linkage, roles, groups, delegated administration             | Aurora                          |
+| Sales / CRM            | `sales-service`        | Leads, opportunities, contacts, account activities                                | Aurora + OpenSearch             |
+| Client                 | `client-service`       | Client, facility, department, unit, cost center, facility contacts                | Aurora                          |
+| Worker                 | `worker-service`       | Person, worker, candidate profile, preferences, availability ownership            | Aurora + DynamoDB               |
+| Recruit                | `recruit-service`      | Requisition, job, application, submission, interview, offer, placement            | Aurora + OpenSearch             |
+| Engage                 | `engagement-service`   | Campaigns, consent, communication preferences, outreach history                   | Aurora                          |
+| Credential             | `credential-service`   | Credential types, documents, verification, requirements, compliance status        | Aurora + S3                     |
+| Onboarding             | `onboarding-service`   | Checklists, forms, orientation, background-check workflow                         | Aurora + Step Functions         |
+| Schedule               | `schedule-service`     | Shift, shift request, offer, assignment, cancellation, fill workflow              | Aurora + DynamoDB               |
+| Time                   | `time-service`         | Clock events, breaks, geofence evidence, timecards, approvals                     | DynamoDB + Aurora               |
+| Travel                 | `travel-service`       | Travel job, contract, rate package, amendment, extension                          | Aurora                          |
+| Payroll Prep           | `payroll-prep-service` | Earnings calculation, pay-rule application, payroll batch export                  | Aurora                          |
+| Billing                | `billing-service`      | Bill rules, billing batches, invoice preparation, ERP export                      | Aurora                          |
+| VMS                    | `vms-service`          | Supplier, vendor contract, requisition distribution, supplier submission          | Aurora                          |
+| MSP                    | `msp-service`          | Program, SLA, rate card, performance, exception management                        | Aurora                          |
+| Notification           | `notification-service` | Email, SMS, push, template rendering, delivery receipts                           | Aurora + SQS                    |
+| Document               | `document-service`     | Upload, classification, malware scan, retention, signed access                    | S3 + Aurora                     |
+| Audit                  | `audit-service`        | Immutable business and privileged-access audit                                    | S3 + DynamoDB/Aurora projection |
+| Workflow               | `workflow-service`     | Workflow templates, human approvals, Step Functions integration                   | Aurora + Step Functions         |
+| Policy / Configuration | `policy-service`       | Tenant policy, deterministic rules, feature configuration                         | Aurora                          |
+| Integration            | `integration-service`  | Approved external integrations excluding legacy migration ownership               | Aurora + EventBridge/SQS        |
+| Migration              | `migration-service`    | Legacy adapters, reconciliation, cutover controls                                 | S3 + Aurora + queues            |
+| Analytics              | `analytics-service`    | Governed metrics, operational dashboards, warehouse models                        | S3 + Redshift + Athena          |
+| AI Platform            | `ai-platform-service`  | Model routing, agent registry, policy, evaluation, prompt registry, cost controls | DynamoDB + S3 + AgentCore       |
 
 ### 7.2 Data ownership rules
 
@@ -519,13 +520,13 @@ Agents MUST NOT:
 
 ### 13.3 Autonomy tiers
 
-| Tier | Description | Execution rule | Examples |
-|---|---|---|---|
-| 0 | Read, summarize, explain | Automatic | Summaries, insights, natural-language query |
-| 1 | Low-risk and reversible | Automatic with audit and undo | Tags, reminders, draft communications |
-| 2 | Bounded operational action | Automatic only when policy passes and confidence/quality thresholds are met | Shift offers, clean timecard routing, candidate ranking |
-| 3 | High-risk or regulated | Human approval required | Payroll release, compliance override, contract acceptance, termination, adverse action |
-| 4 | Prohibited | Never automated | Circumventing controls, unauthorized cross-tenant access, unreviewed tax or clinical decisions |
+| Tier | Description                | Execution rule                                                              | Examples                                                                                       |
+| ---- | -------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| 0    | Read, summarize, explain   | Automatic                                                                   | Summaries, insights, natural-language query                                                    |
+| 1    | Low-risk and reversible    | Automatic with audit and undo                                               | Tags, reminders, draft communications                                                          |
+| 2    | Bounded operational action | Automatic only when policy passes and confidence/quality thresholds are met | Shift offers, clean timecard routing, candidate ranking                                        |
+| 3    | High-risk or regulated     | Human approval required                                                     | Payroll release, compliance override, contract acceptance, termination, adverse action         |
+| 4    | Prohibited                 | Never automated                                                             | Circumventing controls, unauthorized cross-tenant access, unreviewed tax or clinical decisions |
 
 ### 13.4 Agent registry
 
@@ -645,12 +646,12 @@ These are target design envelopes and must be validated through load testing and
 
 ### 15.1 Service tiers
 
-| Tier | Capabilities | Availability target | Target RTO | Target RPO |
-|---|---|---:|---:|---:|
-| 0 | Clock, shift acceptance, assignment, critical auth | 99.95% | 30 minutes | 5 minutes |
-| 1 | Scheduling, client/worker APIs, timecards, credentials | 99.9% | 2 hours | 15 minutes |
-| 2 | Recruiting, travel, payroll prep, billing | 99.9% | 4 hours | 30 minutes |
-| 3 | Analytics, campaign management, noncritical admin | 99.5% | 24 hours | 24 hours |
+| Tier | Capabilities                                           | Availability target | Target RTO | Target RPO |
+| ---- | ------------------------------------------------------ | ------------------: | ---------: | ---------: |
+| 0    | Clock, shift acceptance, assignment, critical auth     |              99.95% | 30 minutes |  5 minutes |
+| 1    | Scheduling, client/worker APIs, timecards, credentials |               99.9% |    2 hours | 15 minutes |
+| 2    | Recruiting, travel, payroll prep, billing              |               99.9% |    4 hours | 30 minutes |
+| 3    | Analytics, campaign management, noncritical admin      |               99.5% |   24 hours |   24 hours |
 
 ### 15.2 Interactive latency
 
@@ -1000,7 +1001,6 @@ The task prompt supplied below this constitution MUST identify the business outc
 
 When a task is too large for one safe change, divide it into independently deployable vertical slices. Implement the first complete slice and provide the remaining slice sequence. Do not return a partially connected mass of code.
 
-
 ---
 
 # CareCareer Product Roadmap — 2026 to 2028
@@ -1148,15 +1148,15 @@ The commercial product should be packaged as independently subscribable modules:
 
 ## 4. Roadmap Overview
 
-| Horizon | Dates | Product outcome | Commercial posture |
-|---|---|---|---|
-| H0 — Take Control and Stabilize | Aug–Oct 2026 | Secure ownership of Maestra, improve reliability, establish platform foundation | Internal only |
-| H1 — Per-Diem Golden Path | Nov 2026–Jan 2027 | Native tenant, client, worker, schedule, time, and notification foundation | Internal pilot |
-| H2 — Native Credential, Schedule, and Time | Feb–Apr 2027 | CareCareer becomes source of truth for selected per-diem tenants/regions | Internal production + design partners |
-| H3 — Native Recruit and Engage | May–Jul 2027 | Replace Bullhorn dependency for selected recruiting workflows | First external module pilots |
-| H4 — Travel, Payroll Prep, and Billing | Aug–Oct 2027 | End-to-end local and travel workforce economics | Multi-module external pilots |
-| H5 — VMS/MSP and Enterprise GA | Nov 2027–Jan 2028 | Multi-tenant enterprise product with supplier and program operations | General availability |
-| H6 — Network and Intelligence Expansion | Feb–Jul 2028 | Marketplace, ecosystem APIs, benchmarking, advanced agent automation | Scale and expansion |
+| Horizon                                    | Dates             | Product outcome                                                                 | Commercial posture                    |
+| ------------------------------------------ | ----------------- | ------------------------------------------------------------------------------- | ------------------------------------- |
+| H0 — Take Control and Stabilize            | Aug–Oct 2026      | Secure ownership of Maestra, improve reliability, establish platform foundation | Internal only                         |
+| H1 — Per-Diem Golden Path                  | Nov 2026–Jan 2027 | Native tenant, client, worker, schedule, time, and notification foundation      | Internal pilot                        |
+| H2 — Native Credential, Schedule, and Time | Feb–Apr 2027      | CareCareer becomes source of truth for selected per-diem tenants/regions        | Internal production + design partners |
+| H3 — Native Recruit and Engage             | May–Jul 2027      | Replace Bullhorn dependency for selected recruiting workflows                   | First external module pilots          |
+| H4 — Travel, Payroll Prep, and Billing     | Aug–Oct 2027      | End-to-end local and travel workforce economics                                 | Multi-module external pilots          |
+| H5 — VMS/MSP and Enterprise GA             | Nov 2027–Jan 2028 | Multi-tenant enterprise product with supplier and program operations            | General availability                  |
+| H6 — Network and Intelligence Expansion    | Feb–Jul 2028      | Marketplace, ecosystem APIs, benchmarking, advanced agent automation            | Scale and expansion                   |
 
 ---
 
@@ -1527,7 +1527,6 @@ Every quarter, leadership must approve:
 - Explicit work not being funded
 
 Roadmap items without a measurable business outcome, owning product manager, technical owner, acceptance criteria, and release gate must not enter committed delivery.
-
 
 ---
 
@@ -2311,19 +2310,19 @@ Before external GA, deliver:
 
 ## 19. Key Program Risks and Mitigations
 
-| Risk | Mitigation |
-|---|---|
-| Big-bang rewrite delays value | Vertical slices, shadow mode, tenant/module cutover |
-| Legacy system knowledge concentrated in individuals | Source transfer, runbooks, pairing, workflow observation, architecture reconstruction |
-| Data inconsistency across systems | Canonical IDs, lineage, reconciliation, exception ownership |
-| Overengineering before product proof | Golden path first, measured scale, ADR control |
-| AI becomes demo-only or unsafe | Tool-based agents, deterministic boundaries, evaluations, policy, metrics |
-| Financial calculation errors | Golden regression suites, finance signoff, immutable adjustments |
-| Tenant data exposure | Defense-in-depth isolation, RLS, ABAC, tests, privileged-access controls |
-| Too many teams and services too early | Service boundaries follow product ownership; start with modular domains and split only when needed |
-| Legacy quick wins consume all capacity | Separate capacity budget and retirement-linked roadmap |
-| External commercialization occurs too early | Internal production proof and multi-tenant operational gates before GA |
-| Custom customer requirements create forks | Configuration, workflow, policy, templates, feature flags, product governance |
+| Risk                                                | Mitigation                                                                                         |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Big-bang rewrite delays value                       | Vertical slices, shadow mode, tenant/module cutover                                                |
+| Legacy system knowledge concentrated in individuals | Source transfer, runbooks, pairing, workflow observation, architecture reconstruction              |
+| Data inconsistency across systems                   | Canonical IDs, lineage, reconciliation, exception ownership                                        |
+| Overengineering before product proof                | Golden path first, measured scale, ADR control                                                     |
+| AI becomes demo-only or unsafe                      | Tool-based agents, deterministic boundaries, evaluations, policy, metrics                          |
+| Financial calculation errors                        | Golden regression suites, finance signoff, immutable adjustments                                   |
+| Tenant data exposure                                | Defense-in-depth isolation, RLS, ABAC, tests, privileged-access controls                           |
+| Too many teams and services too early               | Service boundaries follow product ownership; start with modular domains and split only when needed |
+| Legacy quick wins consume all capacity              | Separate capacity budget and retirement-linked roadmap                                             |
+| External commercialization occurs too early         | Internal production proof and multi-tenant operational gates before GA                             |
+| Custom customer requirements create forks           | Configuration, workflow, policy, templates, feature flags, product governance                      |
 
 ---
 
@@ -2345,7 +2344,6 @@ Leadership should review monthly:
 - External tenant readiness and commercial pipeline
 
 The program is succeeding only when product outcomes improve while legacy ownership and operating cost decline.
-
 
 ---
 

@@ -63,6 +63,7 @@ PLATFORM_SUPER_ADMIN (CareCareer internal)
 The system uses a hybrid permission model:
 
 **RBAC Layer** — Role defines base capabilities:
+
 - `jobs:create`, `jobs:read`, `jobs:update`, `jobs:close`
 - `candidates:view`, `candidates:edit`, `candidates:submit`
 - `shifts:create`, `shifts:assign`, `shifts:cancel`
@@ -73,6 +74,7 @@ The system uses a hybrid permission model:
 - `settings:tenant`, `settings:users`, `settings:billing`
 
 **ABAC Layer** — Context refines access:
+
 - `tenant_id` — absolute isolation
 - `branch_id` — limits to office
 - `facility_id` — limits to client site
@@ -82,6 +84,7 @@ The system uses a hybrid permission model:
 - `employment_relationship` — own workers vs. supplier workers
 
 **Example Policy:**
+
 ```
 ALLOW recruiter TO candidates:view
   WHERE tenant_id = token.tenant_id
@@ -112,19 +115,20 @@ Platform (CareCareer SaaS)
 
 ### 3.2 Isolation Strategy
 
-| Layer | Mechanism |
-|-------|-----------|
-| Database | Shared schema, Row-Level Security (RLS) on every table |
-| API | `tenant_id` extracted from JWT, injected into every query |
-| Storage (S3) | Prefix: `s3://bucket/{tenant_id}/{module}/{entity_id}/` |
-| Cache (Redis) | Key prefix: `{tenant_id}:{service}:{key}` |
-| Events | Every event envelope carries `tenant_id` |
-| Search (OpenSearch) | Index per tenant or filtered by tenant field |
-| AI/Agents | Agent context scoped to tenant, model access controlled |
+| Layer               | Mechanism                                                 |
+| ------------------- | --------------------------------------------------------- |
+| Database            | Shared schema, Row-Level Security (RLS) on every table    |
+| API                 | `tenant_id` extracted from JWT, injected into every query |
+| Storage (S3)        | Prefix: `s3://bucket/{tenant_id}/{module}/{entity_id}/`   |
+| Cache (Redis)       | Key prefix: `{tenant_id}:{service}:{key}`                 |
+| Events              | Every event envelope carries `tenant_id`                  |
+| Search (OpenSearch) | Index per tenant or filtered by tenant field              |
+| AI/Agents           | Agent context scoped to tenant, model access controlled   |
 
 ### 3.3 Tenant Provisioning (Automated)
 
 When a new tenant signs up:
+
 1. Create tenant record + admin user in identity service
 2. Apply entitlement/package (which modules are enabled)
 3. Provision Cognito user pool (or app within shared pool)
@@ -142,6 +146,7 @@ When a new tenant signs up:
 ### 4.1 Why Not One Database for Everything
 
 Healthcare staffing has wildly different data access patterns:
+
 - **Relational/transactional** — jobs, candidates, timecards, pay calculations
 - **High-throughput writes** — clock events, availability signals, notifications
 - **Document/unstructured** — resumes, credential images, contracts
@@ -151,15 +156,15 @@ Healthcare staffing has wildly different data access patterns:
 
 ### 4.2 Chosen Database Architecture
 
-| Use Case | Database | Why |
-|----------|----------|-----|
-| **Core business data** (jobs, candidates, placements, timecards, billing) | Amazon Aurora PostgreSQL | ACID, RLS for multi-tenancy, JSON support, proven at scale |
-| **High-throughput events** (clock punches, availability, idempotency keys) | Amazon DynamoDB | Sub-ms latency, auto-scaling, TTL for ephemeral data |
-| **Document storage** (resumes, licenses, contracts, images) | Amazon S3 + Aurora metadata | Cost-effective, malware scanning, lifecycle policies |
-| **Search & matching** (candidate search, job search, AI vector search) | Amazon OpenSearch Serverless | Full-text, faceting, vector/semantic search for AI matching |
-| **Cache & real-time** (sessions, rate limits, hot projections) | Amazon ElastiCache (Redis) | Sub-ms reads, pub/sub for real-time updates |
-| **Analytics & reporting** | Amazon Redshift Serverless + S3 data lake | Governed analytical queries, no impact on OLTP |
-| **Event streaming** | Amazon EventBridge + SQS | Domain event routing, dead-letter handling, replay |
+| Use Case                                                                   | Database                                  | Why                                                         |
+| -------------------------------------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------- |
+| **Core business data** (jobs, candidates, placements, timecards, billing)  | Amazon Aurora PostgreSQL                  | ACID, RLS for multi-tenancy, JSON support, proven at scale  |
+| **High-throughput events** (clock punches, availability, idempotency keys) | Amazon DynamoDB                           | Sub-ms latency, auto-scaling, TTL for ephemeral data        |
+| **Document storage** (resumes, licenses, contracts, images)                | Amazon S3 + Aurora metadata               | Cost-effective, malware scanning, lifecycle policies        |
+| **Search & matching** (candidate search, job search, AI vector search)     | Amazon OpenSearch Serverless              | Full-text, faceting, vector/semantic search for AI matching |
+| **Cache & real-time** (sessions, rate limits, hot projections)             | Amazon ElastiCache (Redis)                | Sub-ms reads, pub/sub for real-time updates                 |
+| **Analytics & reporting**                                                  | Amazon Redshift Serverless + S3 data lake | Governed analytical queries, no impact on OLTP              |
+| **Event streaming**                                                        | Amazon EventBridge + SQS                  | Domain event routing, dead-letter handling, replay          |
 
 ### 4.3 Core Schema Design (Aurora PostgreSQL)
 
@@ -217,18 +222,18 @@ tenants ──┬── branches
 
 ### 5.1 Module Map (What Bullhorn/Symplr/LaborEdge Do → What We Build)
 
-| Incumbent | Their Module | CareCareer Equivalent | AI Enhancement |
-|-----------|-------------|----------------------|----------------|
-| Bullhorn | ATS / CRM | **CareCareer Recruit™** | AI candidate matching, auto-sourcing, engagement scoring |
-| Bullhorn | Candidate management | **CareCareer Talent™** | Predictive attrition, re-engagement agents |
-| Symplr CTM | Credentialing | **CareCareer Credential™** | OCR document extraction, auto-verification, expiry prediction |
-| Symplr | Compliance tracking | **CareCareer Compliance™** | Proactive gap detection, automated remediation workflows |
-| LaborEdge | Shift scheduling | **CareCareer Schedule™** | AI optimizer (coverage, burnout, cost), demand forecasting |
-| LaborEdge | Time & attendance | **CareCareer Time™** | Anomaly detection, geofence validation, auto-exception routing |
-| ShiftWise | VMS | **CareCareer VMS™** | Auto-tiering, intelligent distribution, fill prediction |
-| Sense AI | Recruiting automation | **CareCareer AI Agents** | Full agent suite: recruiting, engagement, scheduling, ops |
-| Paycom/ADP | Payroll | **CareCareer Payroll Prep™** | Exception prediction, auto-correction suggestions |
-| NetSuite | Billing/ERP | **CareCareer Billing™** | Revenue forecasting, margin optimization |
+| Incumbent  | Their Module          | CareCareer Equivalent         | AI Enhancement                                                 |
+| ---------- | --------------------- | ----------------------------- | -------------------------------------------------------------- |
+| Bullhorn   | ATS / CRM             | **CareCareer Recruit™**      | AI candidate matching, auto-sourcing, engagement scoring       |
+| Bullhorn   | Candidate management  | **CareCareer Talent™**       | Predictive attrition, re-engagement agents                     |
+| Symplr CTM | Credentialing         | **CareCareer Credential™**   | OCR document extraction, auto-verification, expiry prediction  |
+| Symplr     | Compliance tracking   | **CareCareer Compliance™**   | Proactive gap detection, automated remediation workflows       |
+| LaborEdge  | Shift scheduling      | **CareCareer Schedule™**     | AI optimizer (coverage, burnout, cost), demand forecasting     |
+| LaborEdge  | Time & attendance     | **CareCareer Time™**         | Anomaly detection, geofence validation, auto-exception routing |
+| ShiftWise  | VMS                   | **CareCareer VMS™**          | Auto-tiering, intelligent distribution, fill prediction        |
+| Sense AI   | Recruiting automation | **CareCareer AI Agents**      | Full agent suite: recruiting, engagement, scheduling, ops      |
+| Paycom/ADP | Payroll               | **CareCareer Payroll Prep™** | Exception prediction, auto-correction suggestions              |
+| NetSuite   | Billing/ERP           | **CareCareer Billing™**      | Revenue forecasting, margin optimization                       |
 
 ---
 
@@ -272,6 +277,7 @@ tenants ──┬── branches
 ```
 
 **AI Agent Touchpoints in Recruiting:**
+
 - 🤖 Auto-parse job orders → extract requirements, suggest credentials needed
 - 🤖 Source candidates from internal DB + external boards simultaneously
 - 🤖 Rank/score matches (skills, location, availability, pay expectations)
@@ -279,7 +285,6 @@ tenants ──┬── branches
 - 🤖 Schedule interviews automatically based on availability
 - 🤖 Predict offer acceptance probability
 - 🤖 Auto-initiate credentialing workflow on offer acceptance
-
 
 ### 6.2 Credentialing & Compliance Flow
 
@@ -322,6 +327,7 @@ BLOCKING RULES (Deterministic — NEVER AI):
 ```
 
 **AI Agent Touchpoints in Credentialing:**
+
 - 🤖 OCR + intelligent document parsing (extract data from photos/scans)
 - 🤖 Auto-classify uploaded documents (is this a license or a cert?)
 - 🤖 Predict which credentials are about to expire across the population
@@ -365,13 +371,13 @@ EXCEPTIONS:
 ```
 
 **AI Agent Touchpoints in Scheduling:**
+
 - 🤖 Predict demand 2-4 weeks ahead based on census trends
 - 🤖 Optimize shift-to-worker matching (multi-factor: skills, distance, cost, preference, burnout)
 - 🤖 Smart offer sequencing (offer to most-likely-to-accept first)
 - 🤖 Auto-find replacements for cancellations/no-shows
 - 🤖 Detect burnout patterns and suggest schedule adjustments
 - 🤖 Predict no-show probability and pre-stage backups
-
 
 ### 6.4 Time & Payroll Preparation Flow
 
@@ -403,6 +409,7 @@ TIME CAPTURE → VALIDATION → APPROVAL → PAY CALCULATION → EXPORT
 ```
 
 **AI Agent Touchpoints in Time/Payroll:**
+
 - 🤖 Detect timecard anomalies (unexpected overtime, pattern breaks)
 - 🤖 Auto-suggest corrections for common exceptions (missed punch = use schedule)
 - 🤖 Predict payroll exceptions before batch runs
@@ -459,18 +466,18 @@ INTELLIGENT ENGAGEMENT PIPELINE:
 
 ### 7.1 Agent Fleet
 
-| Agent | Purpose | Autonomy Tier | Key Tools |
-|-------|---------|---------------|-----------|
-| **Recruiting Orchestrator** | Manage full pipeline for a job order | Tier 2 | Job boards, internal search, outreach |
-| **Candidate Matcher** | Score & rank candidates against requirements | Tier 0-1 | OpenSearch, skills ontology, vector similarity |
-| **Engagement Agent** | Multi-channel worker communication | Tier 1-2 | SMS/Email/Push APIs, conversation history |
-| **Credential Assistant** | Parse docs, track compliance gaps | Tier 1 | OCR, state board APIs, document store |
-| **Scheduling Optimizer** | Fill open shifts optimally | Tier 2 | Availability DB, matching engine, offer system |
-| **Shift Operations Agent** | Handle day-of issues (no-shows, cancellations) | Tier 2 | Real-time availability, replacement pool |
-| **Timecard Exception Agent** | Route and suggest resolutions | Tier 1 | Time records, pay rules, approval workflows |
-| **Client Service Agent** | Answer client questions, provide updates | Tier 0-1 | CRM data, placement records, analytics |
-| **Analytics Agent** | Natural language reporting & insights | Tier 0 | Data warehouse, visualization engine |
-| **Onboarding Coordinator** | Guide workers through onboarding steps | Tier 1 | Checklist engine, document store, credential service |
+| Agent                        | Purpose                                        | Autonomy Tier | Key Tools                                            |
+| ---------------------------- | ---------------------------------------------- | ------------- | ---------------------------------------------------- |
+| **Recruiting Orchestrator**  | Manage full pipeline for a job order           | Tier 2        | Job boards, internal search, outreach                |
+| **Candidate Matcher**        | Score & rank candidates against requirements   | Tier 0-1      | OpenSearch, skills ontology, vector similarity       |
+| **Engagement Agent**         | Multi-channel worker communication             | Tier 1-2      | SMS/Email/Push APIs, conversation history            |
+| **Credential Assistant**     | Parse docs, track compliance gaps              | Tier 1        | OCR, state board APIs, document store                |
+| **Scheduling Optimizer**     | Fill open shifts optimally                     | Tier 2        | Availability DB, matching engine, offer system       |
+| **Shift Operations Agent**   | Handle day-of issues (no-shows, cancellations) | Tier 2        | Real-time availability, replacement pool             |
+| **Timecard Exception Agent** | Route and suggest resolutions                  | Tier 1        | Time records, pay rules, approval workflows          |
+| **Client Service Agent**     | Answer client questions, provide updates       | Tier 0-1      | CRM data, placement records, analytics               |
+| **Analytics Agent**          | Natural language reporting & insights          | Tier 0        | Data warehouse, visualization engine                 |
+| **Onboarding Coordinator**   | Guide workers through onboarding steps         | Tier 1        | Checklist engine, document store, credential service |
 
 ### 7.2 Agent Guardrails (Critical)
 
@@ -554,14 +561,14 @@ All AI calls go through a central model router — no service calls an LLM direc
 
 ### 8.2 Integration Patterns
 
-| Pattern | Use Case | Technology |
-|---------|----------|------------|
-| **REST API** | State board verification, job board posting | OpenAPI 3.1 contracts |
-| **Webhooks** | VMS job order intake, background check results | Signed payloads, retry |
-| **SFTP/File** | Payroll export to Paycom/ADP, bulk data loads | Encrypted, scheduled |
-| **Event-driven** | Internal service communication | EventBridge + SQS |
-| **Real-time** | Time clock events, mobile clock | WebSocket / MQTT |
-| **Batch sync** | Analytics warehouse load, compliance reporting | Step Functions + S3 |
+| Pattern          | Use Case                                       | Technology             |
+| ---------------- | ---------------------------------------------- | ---------------------- |
+| **REST API**     | State board verification, job board posting    | OpenAPI 3.1 contracts  |
+| **Webhooks**     | VMS job order intake, background check results | Signed payloads, retry |
+| **SFTP/File**    | Payroll export to Paycom/ADP, bulk data loads  | Encrypted, scheduled   |
+| **Event-driven** | Internal service communication                 | EventBridge + SQS      |
+| **Real-time**    | Time clock events, mobile clock                | WebSocket / MQTT       |
+| **Batch sync**   | Analytics warehouse load, compliance reporting | Step Functions + S3    |
 
 ---
 
@@ -629,25 +636,25 @@ All AI calls go through a central model router — no service calls an LLM direc
 
 ### 9.2 Technology Stack Summary
 
-| Layer | Technology | Rationale |
-|-------|-----------|-----------|
-| **Frontend Web** | Next.js 14 + React 18 + TypeScript | SSR for SEO, RSC for performance, shared design system |
-| **Mobile** | React Native + Expo | Cross-platform, offline-first for clock |
-| **API Gateway** | Kong on EKS (or AWS API Gateway) | Rate limiting, auth, routing, observability |
-| **Backend Services** | TypeScript (Node.js) | Primary language for new services |
-| **Retained Services** | Go | Existing Maestra services that meet standards |
-| **AI Agents** | Python (Strands SDK) + Bedrock AgentCore | Best AI ecosystem, agent evaluation tooling |
-| **Database** | Aurora PostgreSQL + DynamoDB | See Section 4 |
-| **Search** | OpenSearch Serverless | Full-text + vector for AI matching |
-| **Cache** | ElastiCache Redis | Sessions, hot data, rate limiting |
-| **Storage** | S3 | Documents, analytics data lake |
-| **Events** | EventBridge + SQS | Async domain events, DLQ, replay |
-| **Workflows** | AWS Step Functions | Long-running processes, approvals |
-| **Auth** | Amazon Cognito + custom RBAC/ABAC | External users + fine-grained authorization |
-| **IaC** | Terraform + Helm | All infrastructure as code |
-| **CI/CD** | GitHub Actions → ECR → EKS | Automated deploy pipeline |
-| **Observability** | OpenTelemetry + CloudWatch + Grafana | Traces, metrics, logs, dashboards |
-| **Monorepo** | Turborepo + pnpm | Shared packages, selective builds |
+| Layer                 | Technology                               | Rationale                                              |
+| --------------------- | ---------------------------------------- | ------------------------------------------------------ |
+| **Frontend Web**      | Next.js 14 + React 18 + TypeScript       | SSR for SEO, RSC for performance, shared design system |
+| **Mobile**            | React Native + Expo                      | Cross-platform, offline-first for clock                |
+| **API Gateway**       | Kong on EKS (or AWS API Gateway)         | Rate limiting, auth, routing, observability            |
+| **Backend Services**  | TypeScript (Node.js)                     | Primary language for new services                      |
+| **Retained Services** | Go                                       | Existing Maestra services that meet standards          |
+| **AI Agents**         | Python (Strands SDK) + Bedrock AgentCore | Best AI ecosystem, agent evaluation tooling            |
+| **Database**          | Aurora PostgreSQL + DynamoDB             | See Section 4                                          |
+| **Search**            | OpenSearch Serverless                    | Full-text + vector for AI matching                     |
+| **Cache**             | ElastiCache Redis                        | Sessions, hot data, rate limiting                      |
+| **Storage**           | S3                                       | Documents, analytics data lake                         |
+| **Events**            | EventBridge + SQS                        | Async domain events, DLQ, replay                       |
+| **Workflows**         | AWS Step Functions                       | Long-running processes, approvals                      |
+| **Auth**              | Amazon Cognito + custom RBAC/ABAC        | External users + fine-grained authorization            |
+| **IaC**               | Terraform + Helm                         | All infrastructure as code                             |
+| **CI/CD**             | GitHub Actions → ECR → EKS               | Automated deploy pipeline                              |
+| **Observability**     | OpenTelemetry + CloudWatch + Grafana     | Traces, metrics, logs, dashboards                      |
+| **Monorepo**          | Turborepo + pnpm                         | Shared packages, selective builds                      |
 
 ---
 
@@ -655,13 +662,13 @@ All AI calls go through a central model router — no service calls an LLM direc
 
 ### 10.1 Compliance Requirements
 
-| Regulation | Scope | Key Controls |
-|-----------|-------|--------------|
-| **HIPAA** | Any PHI processed | Encryption, access controls, audit, BAA |
-| **SOC 2 Type II** | Entire platform | Security, availability, confidentiality |
-| **FCRA** | Background checks | Adverse action workflow, consent, disclosure |
-| **State Privacy** | Worker/candidate PII | Retention limits, right to delete, consent |
-| **Joint Commission** | Credential verification | Primary source verification, audit trail |
+| Regulation           | Scope                   | Key Controls                                 |
+| -------------------- | ----------------------- | -------------------------------------------- |
+| **HIPAA**            | Any PHI processed       | Encryption, access controls, audit, BAA      |
+| **SOC 2 Type II**    | Entire platform         | Security, availability, confidentiality      |
+| **FCRA**             | Background checks       | Adverse action workflow, consent, disclosure |
+| **State Privacy**    | Worker/candidate PII    | Retention limits, right to delete, consent   |
+| **Joint Commission** | Credential verification | Primary source verification, audit trail     |
 
 ### 10.2 Data Classification
 
@@ -699,6 +706,7 @@ PUBLIC:      Published job postings, company information, general
 ## 11. Recommended Build Sequence
 
 ### Phase 0: Foundation (Weeks 1-4)
+
 - Monorepo scaffold (Turborepo, packages, shared configs)
 - Terraform: VPC, EKS cluster, Aurora, Redis, S3
 - tenant-service + identity-service (multi-tenancy + auth)
@@ -707,6 +715,7 @@ PUBLIC:      Published job postings, company information, general
 - Domain kernel package (state machines, events, RLS helpers)
 
 ### Phase 1: Recruiting + Credentialing (Weeks 5-12)
+
 - recruit-service (job orders, candidates, applications, submissions)
 - credential-service (upload, OCR extraction, state board verification)
 - worker-service (profiles, availability, preferences)
@@ -715,6 +724,7 @@ PUBLIC:      Published job postings, company information, general
 - First AI agent: Candidate Matcher (Tier 0, read-only scoring)
 
 ### Phase 2: Scheduling + Time (Weeks 13-20)
+
 - schedule-service (shifts, offers, assignments, cancellations)
 - time-service (clock events, timecards, approvals)
 - Client portal (shift requests, timecard approval)
@@ -723,6 +733,7 @@ PUBLIC:      Published job postings, company information, general
 - AI agent: Engagement Agent (Tier 1, template-based outreach)
 
 ### Phase 3: Pay + Bill + Operations (Weeks 21-28)
+
 - payroll-prep-service (earnings calc, batch export to Paycom/ADP)
 - billing-service (invoice generation, ERP export)
 - VMS inbound integration (accept job orders from client VMS)
@@ -731,6 +742,7 @@ PUBLIC:      Published job postings, company information, general
 - AI agent: Shift Operations (replacement finding)
 
 ### Phase 4: Scale + Optimize (Weeks 29-36)
+
 - MSP/VMS supplier management
 - Advanced AI agents (full recruiting orchestrator)
 - Performance optimization and load testing
@@ -742,18 +754,18 @@ PUBLIC:      Published job postings, company information, general
 
 ## 12. What Makes This Better Than Bullhorn + Symplr + LaborEdge
 
-| Dimension | Incumbents | CareCareer |
-|-----------|-----------|------------|
-| **Architecture** | Monolithic, bolted-on acquisitions | Microservices, event-driven, built as one |
-| **Multi-tenancy** | Per-customer deployments or weak isolation | RLS-enforced from day one, 1000+ tenants |
-| **AI** | Bolted-on chatbots, basic matching | Native agent fleet in every workflow |
-| **Mobile** | Browser-only or weak apps | Offline-first React Native with clock |
-| **Integration** | Point-to-point, brittle | Event-driven, standardized contracts |
-| **Compliance** | Manual tracking, spreadsheets | Automated verification + continuous monitoring |
-| **UX** | 2005-era interfaces | Modern design system, responsive, accessible |
-| **Data** | Siloed across systems | Single source of truth, unified analytics |
-| **Customization** | Code forks per customer | Configuration, policy, feature flags |
-| **Speed** | Weeks to onboard | Same-day tenant provisioning |
+| Dimension         | Incumbents                                 | CareCareer                                     |
+| ----------------- | ------------------------------------------ | ---------------------------------------------- |
+| **Architecture**  | Monolithic, bolted-on acquisitions         | Microservices, event-driven, built as one      |
+| **Multi-tenancy** | Per-customer deployments or weak isolation | RLS-enforced from day one, 1000+ tenants       |
+| **AI**            | Bolted-on chatbots, basic matching         | Native agent fleet in every workflow           |
+| **Mobile**        | Browser-only or weak apps                  | Offline-first React Native with clock          |
+| **Integration**   | Point-to-point, brittle                    | Event-driven, standardized contracts           |
+| **Compliance**    | Manual tracking, spreadsheets              | Automated verification + continuous monitoring |
+| **UX**            | 2005-era interfaces                        | Modern design system, responsive, accessible   |
+| **Data**          | Siloed across systems                      | Single source of truth, unified analytics      |
+| **Customization** | Code forks per customer                    | Configuration, policy, feature flags           |
+| **Speed**         | Weeks to onboard                           | Same-day tenant provisioning                   |
 
 ---
 
@@ -763,7 +775,6 @@ Before coding starts, these decisions need sign-off:
 
 1. **Payroll scope:** Prep-only (export to Paycom/ADP) or full payroll engine?
    → Recommendation: Prep-only for v1, full payroll is a separate product
-   
 2. **EOR scope:** Is international employer-of-record in v1?
    → Recommendation: No, defer to Phase 4+
 
@@ -781,5 +792,5 @@ Before coding starts, these decisions need sign-off:
 
 ---
 
-*Document generated from analysis of CARECAREER_MASTER_PACKAGE.md and SRS v3.0*
-*Ready for review and implementation planning*
+_Document generated from analysis of CARECAREER_MASTER_PACKAGE.md and SRS v3.0_
+_Ready for review and implementation planning_

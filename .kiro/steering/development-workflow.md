@@ -47,24 +47,28 @@ inclusion: always
 ## 3. Code Review Checklist (What Reviewers Check)
 
 ### Correctness
+
 - [ ] Does it solve the stated problem?
 - [ ] Are edge cases handled?
 - [ ] Is error handling proper (not swallowed)?
 - [ ] Are state transitions valid?
 
 ### Security
+
 - [ ] Tenant isolation maintained?
 - [ ] Input validated at boundary?
 - [ ] No sensitive data in logs?
 - [ ] Authorization checked?
 
 ### Quality
+
 - [ ] Tests are meaningful (not just coverage-padding)?
 - [ ] Code is readable without comments explaining the obvious?
 - [ ] No duplication (DRY within reason)?
 - [ ] Functions are small and focused?
 
 ### Operations
+
 - [ ] Structured logging added for important operations?
 - [ ] Errors are observable (logged, can be alerted on)?
 - [ ] Database queries are efficient (indexed)?
@@ -73,6 +77,7 @@ inclusion: always
 ## 4. Definition of Done
 
 A feature is DONE when ALL of these are true:
+
 - [ ] Code compiles with zero errors and zero warnings
 - [ ] All tests pass (unit + integration + e2e if applicable)
 - [ ] Coverage meets thresholds
@@ -88,6 +93,7 @@ A feature is DONE when ALL of these are true:
 ## 5. What Breaks the Build (Immediate Fix Required)
 
 These block ALL other work until resolved:
+
 - Test failure on main branch
 - Type error on main branch
 - Lint error on main branch
@@ -98,6 +104,7 @@ These block ALL other work until resolved:
 ## 6. Mobile Development Notes (For Future Reference)
 
 Since we'll add React Native (Android + iOS) later:
+
 - Keep business logic in shared packages (not in web-specific code)
 - API contracts (Zod schemas) are shared between web and mobile
 - Design system components have web AND mobile variants
@@ -106,6 +113,7 @@ Since we'll add React Native (Android + iOS) later:
 - Push notification infrastructure (notification-service) serves both web and mobile
 
 ### Mobile-specific later:
+
 - React Native + Expo (managed workflow)
 - Expo Router for navigation
 - Light theme as default (matching web)
@@ -116,6 +124,7 @@ Since we'll add React Native (Android + iOS) later:
 ## 7. UI/UX Standards
 
 ### Theme: LIGHT (clean, professional, healthcare-appropriate)
+
 - White/light gray backgrounds
 - High contrast for accessibility (WCAG 2.1 AA minimum)
 - Consistent with shadcn/ui defaults (customized to CareCareer brand)
@@ -123,6 +132,7 @@ Since we'll add React Native (Android + iOS) later:
 - Mobile-responsive from day one
 
 ### Component Library:
+
 - shadcn/ui as base (light theme default)
 - Tailwind CSS for styling
 - Shared `packages/ui` consumed by all portals

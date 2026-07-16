@@ -1,0 +1,31 @@
+# CareCareer Code Ownership
+# Require review from designated owners for critical paths.
+
+# Default — all changes require at least one reviewer
+* @carecareer/engineering
+
+# Architecture and contracts — require architecture review
+/docs/adr/ @carecareer/architecture
+/docs/architecture/ @carecareer/architecture
+/docs/contracts/ @carecareer/architecture
+/docs/security/ @carecareer/security
+
+# Shared packages — require platform team review
+/packages/ @carecareer/platform
+
+# Database schemas and migrations — require database review
+**/prisma/ @carecareer/database
+**/migrations/ @carecareer/database
+**/init.sql @carecareer/database
+
+# Security-sensitive files
+/.github/workflows/ @carecareer/platform @carecareer/security
+/infrastructure/ @carecareer/platform
+/.env.example @carecareer/security
+
+# Root configuration — require platform review
+/package.json @carecareer/platform
+/tsconfig.base.json @carecareer/platform
+/turbo.json @carecareer/platform
+/eslint.config.mjs @carecareer/platform
+/pnpm-workspace.yaml @carecareer/platform

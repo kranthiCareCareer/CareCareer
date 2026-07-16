@@ -9,6 +9,7 @@ inclusion: always
 Zero warnings policy. If ESLint warns, it's treated as an error in CI.
 
 ### Key Rules Enforced:
+
 ```
 @typescript-eslint/strict-type-checked      — strict type checking
 @typescript-eslint/no-explicit-any          — error (never use any)
@@ -23,6 +24,7 @@ import/no-cycle                             — prevent circular dependencies
 ```
 
 ### Import Order (enforced):
+
 ```typescript
 // 1. Node.js built-ins
 import { readFile } from 'node:fs/promises';
@@ -61,6 +63,7 @@ Non-negotiable. Prettier formats, developers don't argue about style.
 ## 3. Git Hooks (Husky + lint-staged)
 
 ### Pre-commit hook:
+
 ```bash
 # Only runs on staged files (fast)
 lint-staged:
@@ -70,6 +73,7 @@ lint-staged:
 ```
 
 ### Pre-push hook:
+
 ```bash
 # Full type check + tests for affected packages
 pnpm type-check
@@ -99,6 +103,7 @@ indent_style = tab
 ## 5. Restricted Patterns
 
 ### Never allowed in production code:
+
 ```typescript
 console.log()         // Use structured logger
 console.error()       // Use structured logger
@@ -112,6 +117,7 @@ setTimeout(fn, 0)     // Use proper async patterns
 ```
 
 ### Never in committed code:
+
 ```
 .only (test.only, describe.only)    — skips other tests
 .skip (test.skip)                   — dead tests accumulate

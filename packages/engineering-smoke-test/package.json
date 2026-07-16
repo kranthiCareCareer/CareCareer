@@ -1,0 +1,16 @@
+{
+  "name": "@carecareer/engineering-smoke-test",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Pipeline validation fixture — proves CI baseline works end-to-end",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rimraf dist"
+  },
+  "devDependencies": {
+    "vitest": "3.2.3"
+  }
+}

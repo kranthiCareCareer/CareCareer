@@ -10,63 +10,69 @@ Then migrate to AWS when ready for production. No premature cloud complexity.
 ## The Stack
 
 ### Backend
-| Layer | Technology | Why |
-|-------|-----------|-----|
-| **Language** | TypeScript (Node.js 20+) | Single language front-to-back, strong typing, huge ecosystem |
-| **Framework** | NestJS | Enterprise-grade, modular, built-in DI, OpenAPI generation, guards/interceptors for auth |
-| **API Style** | REST (OpenAPI 3.1) | External/portal APIs. gRPC later for internal service-to-service if needed |
-| **Validation** | Zod + class-validator | Runtime type safety at boundaries |
-| **ORM** | Prisma | Type-safe queries, migrations, great DX. Supports Postgres natively |
-| **Event Bus** | BullMQ (Redis-backed) | Job queues, event processing, retries, DLQ — locally. Replace with SQS/EventBridge in AWS |
-| **Auth** | Custom JWT + Passport.js | Locally. Swap to Cognito in AWS. RBAC+ABAC middleware from day one |
-| **File Storage** | MinIO (S3-compatible) | Runs locally, identical API to S3. Zero code changes when migrating |
-| **Search** | Meilisearch or OpenSearch (Docker) | Full-text + faceting locally. Swap to OpenSearch Serverless in AWS |
+
+| Layer            | Technology                         | Why                                                                                       |
+| ---------------- | ---------------------------------- | ----------------------------------------------------------------------------------------- |
+| **Language**     | TypeScript (Node.js 20+)           | Single language front-to-back, strong typing, huge ecosystem                              |
+| **Framework**    | NestJS                             | Enterprise-grade, modular, built-in DI, OpenAPI generation, guards/interceptors for auth  |
+| **API Style**    | REST (OpenAPI 3.1)                 | External/portal APIs. gRPC later for internal service-to-service if needed                |
+| **Validation**   | Zod + class-validator              | Runtime type safety at boundaries                                                         |
+| **ORM**          | Prisma                             | Type-safe queries, migrations, great DX. Supports Postgres natively                       |
+| **Event Bus**    | BullMQ (Redis-backed)              | Job queues, event processing, retries, DLQ — locally. Replace with SQS/EventBridge in AWS |
+| **Auth**         | Custom JWT + Passport.js           | Locally. Swap to Cognito in AWS. RBAC+ABAC middleware from day one                        |
+| **File Storage** | MinIO (S3-compatible)              | Runs locally, identical API to S3. Zero code changes when migrating                       |
+| **Search**       | Meilisearch or OpenSearch (Docker) | Full-text + faceting locally. Swap to OpenSearch Serverless in AWS                        |
 
 ### Frontend
-| Layer | Technology | Why |
-|-------|-----------|-----|
-| **Web Framework** | Next.js 14 (App Router) | SSR, RSC, API routes, great DX |
-| **UI Library** | React 18 + TypeScript | Industry standard |
-| **Component System** | shadcn/ui + Tailwind CSS | Beautiful, accessible, customizable. No vendor lock-in |
-| **State** | TanStack Query (React Query) | Server state management, caching, optimistic updates |
-| **Forms** | React Hook Form + Zod | Performant forms with schema validation |
-| **Tables/Data** | TanStack Table | Complex data grids (timecards, schedules, candidate lists) |
+
+| Layer                | Technology                   | Why                                                        |
+| -------------------- | ---------------------------- | ---------------------------------------------------------- |
+| **Web Framework**    | Next.js 14 (App Router)      | SSR, RSC, API routes, great DX                             |
+| **UI Library**       | React 18 + TypeScript        | Industry standard                                          |
+| **Component System** | shadcn/ui + Tailwind CSS     | Beautiful, accessible, customizable. No vendor lock-in     |
+| **State**            | TanStack Query (React Query) | Server state management, caching, optimistic updates       |
+| **Forms**            | React Hook Form + Zod        | Performant forms with schema validation                    |
+| **Tables/Data**      | TanStack Table               | Complex data grids (timecards, schedules, candidate lists) |
 
 ### Mobile
-| Layer | Technology | Why |
-|-------|-----------|-----|
-| **Framework** | React Native + Expo | Cross-platform, shared TypeScript, OTA updates |
-| **Navigation** | Expo Router | File-based routing like Next.js |
-| **Offline** | WatermelonDB or MMKV | Offline clock events, sync when connected |
-| **Location** | expo-location | Geofence for clock-in validation |
+
+| Layer          | Technology           | Why                                            |
+| -------------- | -------------------- | ---------------------------------------------- |
+| **Framework**  | React Native + Expo  | Cross-platform, shared TypeScript, OTA updates |
+| **Navigation** | Expo Router          | File-based routing like Next.js                |
+| **Offline**    | WatermelonDB or MMKV | Offline clock events, sync when connected      |
+| **Location**   | expo-location        | Geofence for clock-in validation               |
 
 ### Databases (All in Docker locally)
-| Database | Use Case | Local | AWS Later |
-|----------|----------|-------|-----------|
-| **PostgreSQL 16** | Core business data (workers, jobs, shifts, timecards, billing) | Docker | Aurora PostgreSQL |
-| **Redis 7** | Cache, sessions, job queues (BullMQ), rate limiting | Docker | ElastiCache |
-| **MinIO** | Document storage (resumes, credentials, contracts) | Docker | S3 |
-| **Meilisearch** | Candidate search, job search, matching | Docker | OpenSearch Serverless |
+
+| Database          | Use Case                                                       | Local  | AWS Later             |
+| ----------------- | -------------------------------------------------------------- | ------ | --------------------- |
+| **PostgreSQL 16** | Core business data (workers, jobs, shifts, timecards, billing) | Docker | Aurora PostgreSQL     |
+| **Redis 7**       | Cache, sessions, job queues (BullMQ), rate limiting            | Docker | ElastiCache           |
+| **MinIO**         | Document storage (resumes, credentials, contracts)             | Docker | S3                    |
+| **Meilisearch**   | Candidate search, job search, matching                         | Docker | OpenSearch Serverless |
 
 ### AI Layer
-| Layer | Technology | Why |
-|-------|-----------|-----|
-| **SDK** | Vercel AI SDK or LangChain.js | TypeScript-native, streaming, tool-calling |
-| **Models (local dev)** | OpenAI API or Anthropic API | Use API keys for dev. Swap to Bedrock in production |
-| **Model Router** | Custom service | Abstracts provider — swap OpenAI → Bedrock without code changes |
-| **OCR** | Tesseract.js (local) | Document extraction. Swap to AWS Textract in production |
+
+| Layer                  | Technology                    | Why                                                             |
+| ---------------------- | ----------------------------- | --------------------------------------------------------------- |
+| **SDK**                | Vercel AI SDK or LangChain.js | TypeScript-native, streaming, tool-calling                      |
+| **Models (local dev)** | OpenAI API or Anthropic API   | Use API keys for dev. Swap to Bedrock in production             |
+| **Model Router**       | Custom service                | Abstracts provider — swap OpenAI → Bedrock without code changes |
+| **OCR**                | Tesseract.js (local)          | Document extraction. Swap to AWS Textract in production         |
 
 ### DevOps & Tooling
-| Tool | Purpose |
-|------|---------|
-| **Docker Compose** | Run all services + databases locally with one command |
-| **Turborepo** | Monorepo management, shared packages, selective builds |
-| **pnpm** | Fast, disk-efficient package manager |
-| **Prisma Migrate** | Database schema migrations |
-| **Vitest** | Unit + integration testing |
-| **Playwright** | E2E testing |
-| **ESLint + Prettier** | Code quality |
-| **GitHub Actions** | CI (lint, test, build) — runs locally too via act |
+
+| Tool                  | Purpose                                                |
+| --------------------- | ------------------------------------------------------ |
+| **Docker Compose**    | Run all services + databases locally with one command  |
+| **Turborepo**         | Monorepo management, shared packages, selective builds |
+| **pnpm**              | Fast, disk-efficient package manager                   |
+| **Prisma Migrate**    | Database schema migrations                             |
+| **Vitest**            | Unit + integration testing                             |
+| **Playwright**        | E2E testing                                            |
+| **ESLint + Prettier** | Code quality                                           |
+| **GitHub Actions**    | CI (lint, test, build) — runs locally too via act      |
 
 ---
 
@@ -76,15 +82,15 @@ Then migrate to AWS when ready for production. No premature cloud complexity.
 
 Here's why:
 
-| Factor | ECS Fargate | EKS |
-|--------|-------------|-----|
-| **Complexity** | Low — AWS manages everything | High — you manage cluster, nodes, upgrades |
-| **Team size needed** | 1-2 DevOps people | 2-3 dedicated Kubernetes engineers |
-| **Cost (small scale)** | Lower — pay per task | Higher — control plane + nodes always running |
-| **Learning curve** | Small — just task definitions | Massive — Helm, kubectl, networking, RBAC |
-| **Scaling** | Auto — Fargate scales per task | Manual node scaling + HPA |
-| **When to use** | Teams <30 engineers, <50 services | Teams 50+, 100+ services, multi-cloud needed |
-| **Docker Compose → ?** | Direct mapping (service = task) | Need Helm charts, manifests, operators |
+| Factor                 | ECS Fargate                       | EKS                                           |
+| ---------------------- | --------------------------------- | --------------------------------------------- |
+| **Complexity**         | Low — AWS manages everything      | High — you manage cluster, nodes, upgrades    |
+| **Team size needed**   | 1-2 DevOps people                 | 2-3 dedicated Kubernetes engineers            |
+| **Cost (small scale)** | Lower — pay per task              | Higher — control plane + nodes always running |
+| **Learning curve**     | Small — just task definitions     | Massive — Helm, kubectl, networking, RBAC     |
+| **Scaling**            | Auto — Fargate scales per task    | Manual node scaling + HPA                     |
+| **When to use**        | Teams <30 engineers, <50 services | Teams 50+, 100+ services, multi-cloud needed  |
+| **Docker Compose → ?** | Direct mapping (service = task)   | Need Helm charts, manifests, operators        |
 
 **Recommendation:** Start local with Docker Compose. Deploy to ECS Fargate when ready.
 Each Docker container becomes an ECS Task Definition. The mapping is 1:1.
@@ -211,19 +217,19 @@ carecareer/
 
 The whole point is: **zero architecture changes when moving to cloud.**
 
-| Local (Docker Compose) | AWS Production | Code Changes Needed |
-|----------------------|----------------|-------------------|
-| PostgreSQL container | Aurora PostgreSQL | Change connection string only |
-| Redis container | ElastiCache Redis | Change connection string only |
-| MinIO container | S3 | Zero — same SDK, same API |
-| Meilisearch container | OpenSearch Serverless | Swap search client adapter |
-| BullMQ (Redis queues) | SQS + EventBridge | Swap queue adapter (interface stays same) |
-| Docker Compose services | ECS Fargate tasks | Dockerfile stays same, add task definition |
-| Local JWT auth | Cognito + JWT | Swap token issuer, keep RBAC/ABAC logic |
-| Tesseract.js (OCR) | AWS Textract | Swap OCR adapter |
-| OpenAI API | Amazon Bedrock | Swap model router provider |
-| Mailpit (dev email) | SES or SendGrid | Swap email adapter |
-| GitHub Actions | GitHub Actions → ECR → ECS | Add deploy step |
+| Local (Docker Compose)  | AWS Production             | Code Changes Needed                        |
+| ----------------------- | -------------------------- | ------------------------------------------ |
+| PostgreSQL container    | Aurora PostgreSQL          | Change connection string only              |
+| Redis container         | ElastiCache Redis          | Change connection string only              |
+| MinIO container         | S3                         | Zero — same SDK, same API                  |
+| Meilisearch container   | OpenSearch Serverless      | Swap search client adapter                 |
+| BullMQ (Redis queues)   | SQS + EventBridge          | Swap queue adapter (interface stays same)  |
+| Docker Compose services | ECS Fargate tasks          | Dockerfile stays same, add task definition |
+| Local JWT auth          | Cognito + JWT              | Swap token issuer, keep RBAC/ABAC logic    |
+| Tesseract.js (OCR)      | AWS Textract               | Swap OCR adapter                           |
+| OpenAI API              | Amazon Bedrock             | Swap model router provider                 |
+| Mailpit (dev email)     | SES or SendGrid            | Swap email adapter                         |
+| GitHub Actions          | GitHub Actions → ECR → ECS | Add deploy step                            |
 
 **Pattern: Every external dependency is behind an interface (adapter pattern).**
 Swap the adapter, keep the business logic unchanged.
@@ -347,21 +353,21 @@ Middleware chain:
 
 ## Summary
 
-| Question | Answer |
-|----------|--------|
-| Language? | TypeScript everywhere |
-| Backend? | NestJS (modular, enterprise-grade) |
-| Frontend? | Next.js + shadcn/ui + Tailwind |
-| Mobile? | React Native + Expo |
-| Database? | PostgreSQL (shared instance, schema-per-service) |
-| Cache? | Redis (sessions, queues, cache) |
-| Search? | Meilisearch (local) → OpenSearch (AWS) |
-| Files? | MinIO (local) → S3 (AWS) |
-| AI? | OpenAI/Anthropic API → Bedrock (AWS) |
-| Queue? | BullMQ/Redis → SQS/EventBridge (AWS) |
-| Deployment (local)? | Docker Compose |
-| Deployment (prod)? | ECS Fargate (NOT EKS) |
-| Monorepo? | Turborepo + pnpm |
-| Testing? | Vitest + Playwright |
+| Question            | Answer                                           |
+| ------------------- | ------------------------------------------------ |
+| Language?           | TypeScript everywhere                            |
+| Backend?            | NestJS (modular, enterprise-grade)               |
+| Frontend?           | Next.js + shadcn/ui + Tailwind                   |
+| Mobile?             | React Native + Expo                              |
+| Database?           | PostgreSQL (shared instance, schema-per-service) |
+| Cache?              | Redis (sessions, queues, cache)                  |
+| Search?             | Meilisearch (local) → OpenSearch (AWS)           |
+| Files?              | MinIO (local) → S3 (AWS)                         |
+| AI?                 | OpenAI/Anthropic API → Bedrock (AWS)             |
+| Queue?              | BullMQ/Redis → SQS/EventBridge (AWS)             |
+| Deployment (local)? | Docker Compose                                   |
+| Deployment (prod)?  | ECS Fargate (NOT EKS)                            |
+| Monorepo?           | Turborepo + pnpm                                 |
+| Testing?            | Vitest + Playwright                              |
 
 **Next step: Scaffold the monorepo and get `docker compose up` running.**

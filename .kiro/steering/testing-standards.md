@@ -6,13 +6,13 @@ inclusion: always
 
 ## 1. Coverage Requirements
 
-| Layer | Minimum Coverage | Target Coverage |
-|-------|-----------------|-----------------|
-| Domain logic (state machines, calculations, rules) | 95% | 100% |
-| Application layer (use cases, commands) | 85% | 95% |
-| Infrastructure adapters | 80% | 90% |
-| HTTP controllers | 80% | 90% |
-| Overall per service | 85% | 95% |
+| Layer                                              | Minimum Coverage | Target Coverage |
+| -------------------------------------------------- | ---------------- | --------------- |
+| Domain logic (state machines, calculations, rules) | 95%              | 100%            |
+| Application layer (use cases, commands)            | 85%              | 95%             |
+| Infrastructure adapters                            | 80%              | 90%             |
+| HTTP controllers                                   | 80%              | 90%             |
+| Overall per service                                | 85%              | 95%             |
 
 Coverage is enforced in CI. A PR with coverage below thresholds is blocked.
 
@@ -31,6 +31,7 @@ Coverage is enforced in CI. A PR with coverage below thresholds is blocked.
 ## 3. What Each Layer Tests
 
 ### Unit Tests (Vitest)
+
 - Domain entities and value objects
 - State machine transitions (every valid AND invalid transition)
 - Business rules and calculations (pay rules, eligibility, validation)
@@ -40,6 +41,7 @@ Coverage is enforced in CI. A PR with coverage below thresholds is blocked.
 - Must run in <5 seconds total per service
 
 ### Integration Tests (Vitest + Testcontainers)
+
 - Repository implementations against real PostgreSQL (via Testcontainers)
 - Event publishing and consuming
 - External adapter behavior (MinIO, Redis, search)
@@ -48,6 +50,7 @@ Coverage is enforced in CI. A PR with coverage below thresholds is blocked.
 - Transaction boundaries (rollback on failure)
 
 ### E2E Tests (Vitest + Supertest or Playwright)
+
 - Full HTTP request/response cycles
 - Authentication and authorization flows
 - Multi-step workflows (create job → submit candidate → approve)
@@ -57,6 +60,7 @@ Coverage is enforced in CI. A PR with coverage below thresholds is blocked.
 ## 4. Test Writing Rules
 
 ### Every test MUST have:
+
 - Descriptive name: `should reject shift assignment when worker credential is expired`
 - Arrange/Act/Assert (AAA) pattern clearly separated
 - Single assertion focus (one logical assertion per test)
@@ -64,6 +68,7 @@ Coverage is enforced in CI. A PR with coverage below thresholds is blocked.
 - Cleanup after itself (database, files, etc.)
 
 ### Test naming convention:
+
 ```typescript
 describe('ShiftService', () => {
   describe('assignWorker', () => {
@@ -77,6 +82,7 @@ describe('ShiftService', () => {
 ```
 
 ### Factories over raw data:
+
 ```typescript
 // ✅ GOOD — use factories
 const worker = WorkerFactory.create({ status: 'ACTIVE', tenantId: tenantA });
@@ -96,6 +102,7 @@ const worker = { id: 'abc', firstName: 'John', ... };
 ## 6. When to Ask Requirements
 
 If any of these are unclear, STOP and ask before implementing:
+
 - Business rule ambiguity (what happens when X AND Y are both true?)
 - Edge cases with financial impact (rounding, overtime thresholds)
 - Compliance implications (what must be blocked vs warned?)

@@ -27,14 +27,15 @@ console.log(`Assigned ${workerId} to ${shiftId}`);
 
 ## 2. Log Levels (Use Correctly)
 
-| Level | When to Use | Example |
-|-------|-------------|---------|
-| `error` | Something failed and requires action | Database connection lost, payment failed |
-| `warn` | Something unexpected but handled | Retry succeeded on 2nd attempt, rate limit approaching |
-| `info` | Significant business event happened | Shift created, worker placed, timecard approved |
-| `debug` | Detailed flow for troubleshooting | Query parameters, cache hit/miss, function entry/exit |
+| Level   | When to Use                          | Example                                                |
+| ------- | ------------------------------------ | ------------------------------------------------------ |
+| `error` | Something failed and requires action | Database connection lost, payment failed               |
+| `warn`  | Something unexpected but handled     | Retry succeeded on 2nd attempt, rate limit approaching |
+| `info`  | Significant business event happened  | Shift created, worker placed, timecard approved        |
+| `debug` | Detailed flow for troubleshooting    | Query parameters, cache hit/miss, function entry/exit  |
 
 ### Rules:
+
 - Production runs at `info` level (debug is off)
 - NEVER log at `error` for expected business rejections (use `warn` or `info`)
 - NEVER log sensitive data: passwords, SSN, tokens, full credit cards, PHI
@@ -47,29 +48,30 @@ Every log entry MUST include:
 ```typescript
 {
   // WHO
-  tenantId: string;          // Which tenant
-  userId: string;            // Who performed the action (or 'system')
+  tenantId: string; // Which tenant
+  userId: string; // Who performed the action (or 'system')
   actorType: 'user' | 'service' | 'agent' | 'system';
 
   // WHAT
-  event: string;             // Dot-notation event name
-  service: string;           // Which service produced this log
+  event: string; // Dot-notation event name
+  service: string; // Which service produced this log
 
   // WHEN
-  timestamp: string;         // ISO 8601 (auto by logger)
+  timestamp: string; // ISO 8601 (auto by logger)
 
   // TRACE
-  correlationId: string;     // Request correlation (trace across services)
-  requestId: string;         // Individual request ID
+  correlationId: string; // Request correlation (trace across services)
+  requestId: string; // Individual request ID
 
   // WHERE
-  environment: string;       // dev | staging | production
+  environment: string; // dev | staging | production
 }
 ```
 
 ## 4. Correlation IDs (Cross-Service Tracing)
 
 Every incoming HTTP request gets a `correlationId`:
+
 - If request header `X-Correlation-ID` exists, use it
 - Otherwise, generate a new UUID
 - Pass it to ALL downstream service calls, events, jobs
@@ -117,6 +119,7 @@ Every HTTP request and response is logged automatically by middleware:
 ## 6. Domain Event Logging
 
 Every published domain event is logged:
+
 ```typescript
 {
   event: 'domain.event.published',
@@ -131,6 +134,7 @@ Every published domain event is logged:
 ## 7. Performance Logging
 
 Log timing for any operation >100ms:
+
 ```typescript
 {
   event: 'performance.slow_query',
@@ -144,6 +148,7 @@ Log timing for any operation >100ms:
 ## 8. Health Checks
 
 Every service exposes:
+
 - `GET /health` — am I alive? (200 OK or 503)
 - `GET /health/ready` — am I ready to serve traffic? (checks DB, Redis, etc.)
 - `GET /health/detailed` — internal only, shows dependency status

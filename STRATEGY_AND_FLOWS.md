@@ -9,7 +9,9 @@
 **What they do:** End-to-end staffing platform (ATS + CRM + Middle Office + Back Office)
 
 **Their Core Modules:**
+
 1. **Front Office (ATS + CRM)**
+
    - Candidate database with resume parsing
    - Job order management (from clients)
    - Sales pipeline (leads → clients)
@@ -19,6 +21,7 @@
    - Reporting and dashboards
 
 2. **Middle Office**
+
    - Time & expense capture
    - Compliance tracking
    - Pay/bill rate management
@@ -32,6 +35,7 @@
    - GL/ERP integration
 
 **Key Flows We're Taking:**
+
 - Job Order → Source → Screen → Submit → Interview → Place
 - Candidate lifecycle tracking (lead → active → alumni)
 - Client relationship management + sales pipeline
@@ -44,7 +48,9 @@
 **What they do:** Healthcare operations platform focused on provider/worker credentialing
 
 **Their Core Modules:**
+
 1. **Credentialing (CTM - Contingent Talent Management)**
+
    - Credential tracking per worker (licenses, certs, skills)
    - Primary source verification (direct from state boards)
    - Automated expiration monitoring and alerts
@@ -53,11 +59,13 @@
    - Compliance dashboards (who's expiring, who's non-compliant)
 
 2. **Provider Data Management**
+
    - Single source of truth for all provider/worker data
    - Automated data validation against primary sources
    - Privileging workflows (can this person work at this facility?)
 
 3. **Workforce Management**
+
    - Scheduling and shift management
    - On-call scheduling
    - Clinical collaboration / secure messaging
@@ -68,6 +76,7 @@
    - Visitor management and access control
 
 **Key Flows We're Taking:**
+
 - Credential requirement setup per facility/department
 - Upload → OCR/Extract → Verify against state board → Approve/Reject
 - Continuous monitoring (expiry alerts at 90/60/30 days)
@@ -81,7 +90,9 @@
 **What they do:** Healthcare staffing technology connecting hospitals, agencies, and talent
 
 **Their Product Suite:**
+
 1. **NexusATS (Agencies)**
+
    - Healthcare-specific applicant tracking
    - Compliance management (built-in, not bolted on)
    - Per-diem / PRN, Travel, Local, and Permanent staffing segments
@@ -91,6 +102,7 @@
    - Apply → Respond → Accept workflow (fast shift filling)
 
 2. **NexusVMS (Hospitals)**
+
    - Vendor management for facilities
    - Order distribution to staffing agencies
    - Rate management and spend analytics
@@ -98,6 +110,7 @@
    - Cost reduction (cut agency fees 25%+)
 
 3. **NexusMobile**
+
    - White-label mobile app for agencies
    - Shift searches and scheduling
    - Virtual timesheet submission
@@ -110,6 +123,7 @@
    - Cost tracking and reduction
 
 **Key Flows We're Taking:**
+
 - Per-diem shift marketplace (Apply/Respond/Accept pattern)
 - Candidate self-service (profile, availability, schedule, timesheets)
 - Client portal (order posting, candidate review, timecard approval)
@@ -124,7 +138,9 @@
 **What they do:** AI-powered recruiting automation that layers on top of an ATS
 
 **Their Core Capabilities:**
+
 1. **AI Chatbot (Grace)**
+
    - Natural language conversations with candidates
    - Pre-screening via chat (asks qualifying questions)
    - 72% of candidates think they're talking to a human
@@ -133,27 +149,32 @@
    - Live chat handoff to recruiter when needed
 
 2. **Workflows (Automation Engine)**
+
    - Multi-step automated sequences (SMS, email, WhatsApp)
    - Trigger-based (application received, credential expiring, idle worker)
    - AI job matching (match candidates to jobs 24/7)
    - Claimed 50% increase in recruiter productivity
 
 3. **Pre-Screen**
+
    - Automated qualification assessment
    - Generates shortlist of qualified candidates
    - Increases hiring speed by up to 55%
 
 4. **AI Video Interviewer**
+
    - Conversational AI video interviews for screening
    - Async (candidate records on their schedule)
    - AI evaluates responses
 
 5. **Conversational Voice AI**
+
    - Automated voice calls for pre-screening
    - Collects and evaluates candidate details
    - Schedules interviews for qualified candidates
 
 6. **Journeys (Candidate Experience)**
+
    - Personalized candidate journeys (onboarding, redeployment)
    - Multi-channel touchpoints
    - Engagement scoring
@@ -164,6 +185,7 @@
    - Matches historical candidates to new openings
 
 **Key Flows We're Taking:**
+
 - AI chatbot for 24/7 candidate engagement and screening
 - Automated multi-channel outreach sequences
 - AI-powered candidate matching and scoring
@@ -808,16 +830,16 @@ WEEKS 21-24: VMS + SCALE
 
 ## SUMMARY: What's Different About Our Approach
 
-| Traditional Approach | CareCareer Approach |
-|---------------------|-------------------|
-| Build Bullhorn clone first | Build the SHIFT LIFECYCLE first (revenue path) |
-| Add AI later | AI agents from Week 5 (credential classification) |
-| Compliance as afterthought | Compliance BLOCKS workflow from day one |
-| Mobile as Phase 3 | Mobile clock-in is Week 9 (core to revenue) |
-| Monolith then split | Microservices from day one (but only build what's needed) |
-| Single database | Right database for each pattern (Postgres + DynamoDB + OpenSearch) |
-| Build everything | Build smallest revenue-generating slice, expand from there |
+| Traditional Approach       | CareCareer Approach                                                |
+| -------------------------- | ------------------------------------------------------------------ |
+| Build Bullhorn clone first | Build the SHIFT LIFECYCLE first (revenue path)                     |
+| Add AI later               | AI agents from Week 5 (credential classification)                  |
+| Compliance as afterthought | Compliance BLOCKS workflow from day one                            |
+| Mobile as Phase 3          | Mobile clock-in is Week 9 (core to revenue)                        |
+| Monolith then split        | Microservices from day one (but only build what's needed)          |
+| Single database            | Right database for each pattern (Postgres + DynamoDB + OpenSearch) |
+| Build everything           | Build smallest revenue-generating slice, expand from there         |
 
 ---
 
-*Ready to start coding. Next step: scaffold the monorepo and build tenant-service.*
+_Ready to start coding. Next step: scaffold the monorepo and build tenant-service._

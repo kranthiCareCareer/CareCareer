@@ -15,6 +15,7 @@ inclusion: always
 ```
 
 ### Types:
+
 - `feat` — New feature (user-facing behavior change)
 - `fix` — Bug fix
 - `refactor` — Code restructure with no behavior change
@@ -25,6 +26,7 @@ inclusion: always
 - `security` — Security fix or improvement
 
 ### Scope = service or package name:
+
 ```
 feat(schedule-service): add shift cancellation with replacement workflow
 fix(credential-service): correct expiry date timezone handling
@@ -33,6 +35,7 @@ refactor(shared-types): extract common event envelope type
 ```
 
 ### Rules:
+
 - Subject line max 72 characters
 - Body wraps at 80 characters
 - Reference issue/ticket: `Closes #123` or `Refs CC-456`
@@ -121,6 +124,7 @@ Rules:
 ## 6. PR Requirements
 
 A PR is mergeable ONLY when:
+
 - [ ] All CI checks pass (green)
 - [ ] Coverage thresholds met
 - [ ] At least 1 code review approval

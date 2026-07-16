@@ -1,5 +1,9 @@
 node_modules
 dist
 .next
+.turbo
 coverage
 pnpm-lock.yaml
+*.pdf
+*.xlsx
+*.docx

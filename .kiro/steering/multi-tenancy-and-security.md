@@ -7,6 +7,7 @@ inclusion: always
 ## 1. Tenant Isolation — Non-Negotiable Rules
 
 ### Every database query MUST be tenant-scoped:
+
 ```typescript
 // ✅ CORRECT — tenant context is always applied
 const shifts = await this.shiftRepository.findMany({
@@ -20,7 +21,9 @@ const shifts = await this.shiftRepository.findMany({
 ```
 
 ### RLS (Row-Level Security) as safety net:
+
 Even if application code has a bug, the database layer blocks cross-tenant access.
+
 ```sql
 -- Every tenant-owned table:
 ALTER TABLE shifts ENABLE ROW LEVEL SECURITY;
@@ -30,6 +33,7 @@ CREATE POLICY tenant_isolation ON shifts
 ```
 
 ### Tenant context propagation:
+
 - Extracted from JWT at API gateway
 - Set in database session (`SET app.tenant_id = '...'`)
 - Passed to all downstream service calls (header)
@@ -38,7 +42,9 @@ CREATE POLICY tenant_isolation ON shifts
 - Used in all S3 paths (prefix)
 
 ### Testing tenant isolation:
+
 Every service MUST have tests that prove:
+
 ```typescript
 it('should NOT return data from another tenant', async () => {
   // Create data for tenant A
@@ -53,6 +59,7 @@ it('should NOT return data from another tenant', async () => {
 ## 2. Authentication Standards
 
 ### JWT Structure:
+
 ```typescript
 {
   sub: string;           // User ID
@@ -66,6 +73,7 @@ it('should NOT return data from another tenant', async () => {
 ```
 
 ### Token Rules:
+
 - Access tokens: 15-minute expiry
 - Refresh tokens: 7-day expiry, rotated on use
 - Tokens stored in httpOnly cookies (web) or secure storage (mobile)
@@ -74,6 +82,7 @@ it('should NOT return data from another tenant', async () => {
 ## 3. Authorization — RBAC + ABAC
 
 ### Every API endpoint MUST declare required permissions:
+
 ```typescript
 @UseGuards(AuthGuard, PermissionGuard)
 @RequirePermissions('shifts:create')
@@ -84,6 +93,7 @@ async createShift(@Body() dto: CreateShiftDto, @TenantCtx() ctx: TenantContext) 
 ```
 
 ### ABAC checks for fine-grained access:
+
 ```typescript
 // Beyond role: check attribute-based conditions
 @UseGuards(AuthGuard, PermissionGuard, FacilityAccessGuard)
@@ -94,21 +104,24 @@ async createShift(@Body() dto: CreateShiftDto, @TenantCtx() ctx: TenantContext) 
 ## 4. Input Validation
 
 ### Every external input is validated with Zod at the boundary:
+
 ```typescript
-const CreateShiftSchema = z.object({
-  facilityId: z.string().uuid(),
-  departmentId: z.string().uuid(),
-  role: z.enum(['RN', 'LPN', 'CNA', 'RT', 'ALLIED']),
-  startTime: z.string().datetime(),
-  endTime: z.string().datetime(),
-  payRate: z.number().positive().max(500), // sanity cap
-}).refine(
-  (data) => new Date(data.endTime) > new Date(data.startTime),
-  { message: 'End time must be after start time' }
-);
+const CreateShiftSchema = z
+  .object({
+    facilityId: z.string().uuid(),
+    departmentId: z.string().uuid(),
+    role: z.enum(['RN', 'LPN', 'CNA', 'RT', 'ALLIED']),
+    startTime: z.string().datetime(),
+    endTime: z.string().datetime(),
+    payRate: z.number().positive().max(500), // sanity cap
+  })
+  .refine((data) => new Date(data.endTime) > new Date(data.startTime), {
+    message: 'End time must be after start time',
+  });
 ```
 
 ### Never trust client input for:
+
 - `tenantId` (always from JWT, never from request body)
 - `userId` (always from JWT)
 - Role/permissions (always from JWT)
@@ -117,17 +130,20 @@ const CreateShiftSchema = z.object({
 ## 5. Secrets Management
 
 ### Local development:
+
 - `.env` file (gitignored) with local-only values
 - `.env.example` committed with placeholder descriptions
 - No real API keys in `.env.example`
 
 ### Production:
+
 - AWS Secrets Manager for all secrets
 - Rotated automatically where possible
 - Never in environment variables at build time
 - Never in Docker images
 
 ### What counts as a secret:
+
 - Database passwords
 - API keys (any external service)
 - JWT signing keys
@@ -140,11 +156,11 @@ const CreateShiftSchema = z.object({
 ```typescript
 // Mark sensitive fields explicitly
 interface Worker {
-  id: string;                    // INTERNAL
-  tenantId: string;              // INTERNAL
-  firstName: string;             // CONFIDENTIAL
-  lastName: string;              // CONFIDENTIAL
-  email: string;                 // CONFIDENTIAL
+  id: string; // INTERNAL
+  tenantId: string; // INTERNAL
+  firstName: string; // CONFIDENTIAL
+  lastName: string; // CONFIDENTIAL
+  email: string; // CONFIDENTIAL
   /** @classification RESTRICTED — never log, always encrypt at rest */
   ssn?: string;
   /** @classification RESTRICTED */
@@ -153,6 +169,7 @@ interface Worker {
 ```
 
 ### API responses MUST NOT leak restricted data:
+
 - Worker SSN: never returned in API responses
 - Full credentials: return status only, not document content
 - Internal IDs of other tenants: never

@@ -7,6 +7,7 @@ inclusion: always
 ## 1. Code Quality Rules
 
 ### TypeScript Strictness
+
 - `strict: true` in all tsconfig.json — no exceptions
 - No `any` types. Use `unknown` + type guards if type is truly unknown
 - No `@ts-ignore` or `@ts-expect-error` without a linked issue explaining why
@@ -14,6 +15,7 @@ inclusion: always
 - All parameters must be typed — no implicit `any`
 
 ### Naming Conventions
+
 - **Files:** kebab-case (`worker-service.ts`, `create-shift.handler.ts`)
 - **Classes:** PascalCase (`WorkerService`, `ShiftCreatedEvent`)
 - **Interfaces:** PascalCase, no `I` prefix (`WorkerRepository` not `IWorkerRepository`)
@@ -24,6 +26,7 @@ inclusion: always
 - **Event types:** dot-separated past tense (`schedule.shift.confirmed.v1`)
 
 ### Code Structure per Service
+
 ```
 services/{service-name}/
 ├── src/
@@ -54,6 +57,7 @@ services/{service-name}/
 ```
 
 ### Function/Method Rules
+
 - Max function length: 30 lines (extract helpers if longer)
 - Max file length: 300 lines (split into modules if longer)
 - Max parameters: 3 (use an options object if more)
