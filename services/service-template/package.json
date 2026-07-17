@@ -1,14 +1,14 @@
 {
-  "name": "@carecareer/service-core",
+  "name": "@carecareer/service-template",
   "version": "0.1.0",
   "private": true,
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "tsc",
+    "dev": "ts-node --esm src/main.ts",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
-    "test": "echo 'Unit tests use NestJS testing module — run via service-template'",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "clean": "rimraf dist"
   },
   "dependencies": {
@@ -19,8 +19,10 @@
     "@carecareer/idempotency": "workspace:*",
     "@carecareer/observability": "workspace:*",
     "@carecareer/request-context": "workspace:*",
+    "@carecareer/service-core": "workspace:*",
     "@nestjs/common": "11.1.3",
     "@nestjs/core": "11.1.3",
+    "@nestjs/platform-express": "11.1.3",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2"
   },

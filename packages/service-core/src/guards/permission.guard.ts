@@ -1,4 +1,9 @@
-import { type CanActivate, type ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  type CanActivate,
+  type ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 import type { AuthenticatedPrincipal, AuthorizationService } from '@carecareer/auth';
@@ -24,10 +29,10 @@ export class PermissionGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const requiredPermission = this.reflector.getAllAndOverride<string | undefined>(PERMISSION_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const requiredPermission = this.reflector.getAllAndOverride<string | undefined>(
+      PERMISSION_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     const requireTenant = this.reflector.getAllAndOverride<boolean | undefined>(TENANT_KEY, [
       context.getHandler(),

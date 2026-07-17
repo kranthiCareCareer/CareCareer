@@ -1,4 +1,10 @@
-import { type ArgumentsHost, Catch, type ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  type ArgumentsHost,
+  Catch,
+  type ExceptionFilter,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 
 import { StandardErrorEnvelope } from '@carecareer/observability';
 import { getContext } from '@carecareer/request-context';
@@ -37,28 +43,36 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         code = typeof resp['error'] === 'string' ? resp['error'] : this.httpStatusToCode(status);
       }
 
-      response.status(status).json(
-        StandardErrorEnvelope.build({ code, message, correlationId, requestId }),
-      );
+      response
+        .status(status)
+        .json(StandardErrorEnvelope.build({ code, message, correlationId, requestId }));
       return;
     }
 
     // Unknown errors — never expose internals
-    response.status(HttpStatus.INTERNAL_SERVER_ERROR).json(
-      StandardErrorEnvelope.internalError({ correlationId, requestId }),
-    );
+    response
+      .status(HttpStatus.INTERNAL_SERVER_ERROR)
+      .json(StandardErrorEnvelope.internalError({ correlationId, requestId }));
   }
 
   private httpStatusToCode(status: number): string {
     switch (status) {
-      case 400: return 'BAD_REQUEST';
-      case 401: return 'AUTHENTICATION_REQUIRED';
-      case 403: return 'PERMISSION_DENIED';
-      case 404: return 'RESOURCE_NOT_FOUND';
-      case 409: return 'CONFLICT';
-      case 422: return 'UNPROCESSABLE_ENTITY';
-      case 429: return 'RATE_LIMIT_EXCEEDED';
-      default: return 'INTERNAL_ERROR';
+      case 400:
+        return 'BAD_REQUEST';
+      case 401:
+        return 'AUTHENTICATION_REQUIRED';
+      case 403:
+        return 'PERMISSION_DENIED';
+      case 404:
+        return 'RESOURCE_NOT_FOUND';
+      case 409:
+        return 'CONFLICT';
+      case 422:
+        return 'UNPROCESSABLE_ENTITY';
+      case 429:
+        return 'RATE_LIMIT_EXCEEDED';
+      default:
+        return 'INTERNAL_ERROR';
     }
   }
 }

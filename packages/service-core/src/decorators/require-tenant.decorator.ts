@@ -11,5 +11,4 @@ export const TENANT_KEY = 'require_tenant';
  * @Get('/facilities')
  * async listFacilities() {}
  */
-export const RequireTenant = (): MethodDecorator & ClassDecorator =>
-  SetMetadata(TENANT_KEY, true);
+export const RequireTenant = (): MethodDecorator & ClassDecorator => SetMetadata(TENANT_KEY, true);

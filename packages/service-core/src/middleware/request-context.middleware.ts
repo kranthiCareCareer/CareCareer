@@ -14,7 +14,11 @@ import {
  */
 @Injectable()
 export class RequestContextMiddleware implements NestMiddleware {
-  use(req: { headers: Record<string, string | string[] | undefined> }, _res: unknown, next: () => void): void {
+  use(
+    req: { headers: Record<string, string | string[] | undefined> },
+    _res: unknown,
+    next: () => void,
+  ): void {
     const rawCorrelationId = Array.isArray(req.headers['x-correlation-id'])
       ? req.headers['x-correlation-id'][0]
       : req.headers['x-correlation-id'];

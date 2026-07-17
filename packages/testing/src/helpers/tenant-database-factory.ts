@@ -35,10 +35,7 @@ export function createTestTenantDatabase(connectionUri: string): {
       await client.query('BEGIN');
 
       const txClient: TransactionClient = {
-        async $executeRaw(
-          strings: TemplateStringsArray,
-          ...values: unknown[]
-        ): Promise<number> {
+        async $executeRaw(strings: TemplateStringsArray, ...values: unknown[]): Promise<number> {
           // Build parameterized query from template literal
           let query = '';
           for (let i = 0; i < strings.length; i++) {
