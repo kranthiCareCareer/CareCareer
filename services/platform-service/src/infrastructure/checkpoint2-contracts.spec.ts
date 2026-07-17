@@ -57,20 +57,20 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
   }
 
   const mockAdminDb = {
-    execute: vi.fn().mockImplementation(
-      async (_params: unknown, fn: (tx: unknown) => Promise<unknown>) => {
+    execute: vi
+      .fn()
+      .mockImplementation(async (_params: unknown, fn: (tx: unknown) => Promise<unknown>) => {
         commandInvoked = true;
         return fn({ $executeRaw: vi.fn().mockResolvedValue(1) });
-      },
-    ),
+      }),
   };
 
   const mockTenantDb = {
-    execute: vi.fn().mockImplementation(
-      async (_tenantId: string, fn: (tx: unknown) => Promise<unknown>) => {
+    execute: vi
+      .fn()
+      .mockImplementation(async (_tenantId: string, fn: (tx: unknown) => Promise<unknown>) => {
         return fn({ $executeRaw: vi.fn().mockResolvedValue(1) });
-      },
-    ),
+      }),
   };
 
   const mockRepo = {
@@ -147,7 +147,9 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
   function platformAdminToken(): string {
     return signDemoToken({
       sub: 'platform-admin-001',
-      tenants: [{ tenantId: 'platform', roles: ['PLATFORM_ADMIN'], branchIds: [], status: 'active' }],
+      tenants: [
+        { tenantId: 'platform', roles: ['PLATFORM_ADMIN'], branchIds: [], status: 'active' },
+      ],
     });
   }
 
@@ -161,7 +163,14 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
   function readOnlyAuditorToken(): string {
     return signDemoToken({
       sub: 'auditor-001',
-      tenants: [{ tenantId: ACTIVE_TENANT_ID, roles: ['READ_ONLY_AUDITOR'], branchIds: [], status: 'active' }],
+      tenants: [
+        {
+          tenantId: ACTIVE_TENANT_ID,
+          roles: ['READ_ONLY_AUDITOR'],
+          branchIds: [],
+          status: 'active',
+        },
+      ],
     });
   }
 
@@ -176,7 +185,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should reject organization creation with 409 TENANT_INACTIVE', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/organizations`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-org-1')
@@ -188,7 +198,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should reject entitlement update with 409 TENANT_INACTIVE', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .put(`/v1/tenants/${ACTIVE_TENANT_ID}/entitlements`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('X-Actor-Id', 'platform-admin-001')
@@ -199,7 +210,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should reject feature update with 409 TENANT_INACTIVE', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .put(`/v1/tenants/${ACTIVE_TENANT_ID}/features/scheduling.auto_confirm_enabled`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('X-Actor-Id', 'platform-admin-001')
@@ -210,7 +222,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should produce NO domain changes when suspended', async () => {
-        await supertest.default(app.getHttpServer())
+        await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/organizations`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-org-2')
@@ -221,7 +234,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should produce NO outbox events when suspended', async () => {
-        await supertest.default(app.getHttpServer())
+        await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/organizations`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-org-3')
@@ -238,7 +252,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should reject organization creation with 409', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/organizations`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-org-deact-1')
@@ -250,7 +265,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should reject entitlement update with 409', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .put(`/v1/tenants/${ACTIVE_TENANT_ID}/entitlements`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('X-Actor-Id', 'platform-admin-001')
@@ -261,7 +277,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should produce NO side effects when deactivated', async () => {
-        await supertest.default(app.getHttpServer())
+        await supertest
+          .default(app.getHttpServer())
           .put(`/v1/tenants/${ACTIVE_TENANT_ID}/entitlements`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('X-Actor-Id', 'platform-admin-001')
@@ -272,7 +289,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('DEACTIVATED remains terminal — cannot reactivate', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/activate`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-react-1')
@@ -289,7 +307,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should reject business mutations for PROVISIONING tenant', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/organizations`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-org-prov-1')
@@ -309,7 +328,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should allow organization creation for ACTIVE tenant', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/organizations`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-org-active-1')
@@ -321,7 +341,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should allow entitlement update for ACTIVE tenant', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .put(`/v1/tenants/${ACTIVE_TENANT_ID}/entitlements`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('X-Actor-Id', 'platform-admin-001')
@@ -338,7 +359,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
 
       it('should return 404 when tenant does not exist', async () => {
         const nonExistentId = '01912345-9999-7000-8000-000000000099';
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${nonExistentId}/organizations`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-org-notfound')
@@ -358,7 +380,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
 
   describe('Authorization Enforcement', () => {
     it('tenant admin cannot provision new tenants (403)', async () => {
-      const res = await supertest.default(app.getHttpServer())
+      const res = await supertest
+        .default(app.getHttpServer())
         .post('/v1/tenants')
         .set('Authorization', `Bearer ${tenantAdminToken()}`)
         .set('Idempotency-Key', 'idem-authz-1')
@@ -370,7 +393,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
     });
 
     it('read-only auditor cannot create organizations (403)', async () => {
-      const res = await supertest.default(app.getHttpServer())
+      const res = await supertest
+        .default(app.getHttpServer())
         .post(`/v1/tenants/${ACTIVE_TENANT_ID}/organizations`)
         .set('Authorization', `Bearer ${readOnlyAuditorToken()}`)
         .set('Idempotency-Key', 'idem-authz-2')
@@ -387,7 +411,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
   describe('Request Validation', () => {
     describe('Provisioning endpoint validation', () => {
       it('should reject unknown JSON fields (strict mode)', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post('/v1/tenants')
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-val-1')
@@ -398,7 +423,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should reject missing required fields', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post('/v1/tenants')
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-val-2')
@@ -409,7 +435,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should reject blank names', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post('/v1/tenants')
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-val-3')
@@ -420,7 +447,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should reject invalid slug format (uppercase)', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post('/v1/tenants')
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-val-4')
@@ -432,7 +460,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
 
       it('should reject oversized names (>200 chars)', async () => {
         const longName = 'x'.repeat(201);
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post('/v1/tenants')
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-val-5')
@@ -443,7 +472,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should reject slug shorter than 2 chars', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post('/v1/tenants')
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-val-6')
@@ -454,7 +484,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should NOT invoke command handler on validation failure', async () => {
-        await supertest.default(app.getHttpServer())
+        await supertest
+          .default(app.getHttpServer())
           .post('/v1/tenants')
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-val-7')
@@ -468,7 +499,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
 
     describe('Organization creation validation', () => {
       it('should reject unknown fields in organization body', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/organizations`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-orgval-1')
@@ -479,7 +511,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should reject blank organization name', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/organizations`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-orgval-2')
@@ -492,7 +525,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
 
     describe('Lifecycle transition validation', () => {
       it('should reject missing reason in lifecycle body', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/activate`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-lcval-1')
@@ -503,7 +537,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should reject invalid version (non-positive)', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/activate`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-lcval-2')
@@ -514,7 +549,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should reject non-integer version', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/activate`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-lcval-3')
@@ -527,7 +563,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
 
     describe('Entitlements validation', () => {
       it('should reject entitlements without version', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .put(`/v1/tenants/${ACTIVE_TENANT_ID}/entitlements`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('X-Actor-Id', 'platform-admin-001')
@@ -537,7 +574,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       });
 
       it('should reject entitlements with unknown fields', async () => {
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .put(`/v1/tenants/${ACTIVE_TENANT_ID}/entitlements`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('X-Actor-Id', 'platform-admin-001')
@@ -554,7 +592,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
 
   describe('Header Validation', () => {
     it('should reject provisioning without Idempotency-Key header', async () => {
-      const res = await supertest.default(app.getHttpServer())
+      const res = await supertest
+        .default(app.getHttpServer())
         .post('/v1/tenants')
         .set('Authorization', `Bearer ${platformAdminToken()}`)
         .set('X-Actor-Id', 'platform-admin-001')
@@ -565,7 +604,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
     });
 
     it('should reject provisioning without X-Actor-Id header', async () => {
-      const res = await supertest.default(app.getHttpServer())
+      const res = await supertest
+        .default(app.getHttpServer())
         .post('/v1/tenants')
         .set('Authorization', `Bearer ${platformAdminToken()}`)
         .set('Idempotency-Key', 'idem-hdr-1')
@@ -576,7 +616,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
     });
 
     it('should reject organization creation without Idempotency-Key', async () => {
-      const res = await supertest.default(app.getHttpServer())
+      const res = await supertest
+        .default(app.getHttpServer())
         .post(`/v1/tenants/${ACTIVE_TENANT_ID}/organizations`)
         .set('Authorization', `Bearer ${platformAdminToken()}`)
         .set('X-Actor-Id', 'platform-admin-001')
@@ -586,7 +627,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
     });
 
     it('should reject lifecycle transition without Idempotency-Key', async () => {
-      const res = await supertest.default(app.getHttpServer())
+      const res = await supertest
+        .default(app.getHttpServer())
         .post(`/v1/tenants/${ACTIVE_TENANT_ID}/activate`)
         .set('Authorization', `Bearer ${platformAdminToken()}`)
         .set('X-Actor-Id', 'platform-admin-001')
@@ -596,7 +638,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
     });
 
     it('should reject lifecycle transition without X-Actor-Id', async () => {
-      const res = await supertest.default(app.getHttpServer())
+      const res = await supertest
+        .default(app.getHttpServer())
         .post(`/v1/tenants/${ACTIVE_TENANT_ID}/activate`)
         .set('Authorization', `Bearer ${platformAdminToken()}`)
         .set('Idempotency-Key', 'idem-hdr-2')
@@ -616,7 +659,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
         mockTenantStatus = 'PROVISIONING';
         mockTenantVersion = 1;
 
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/activate`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-lc-1')
@@ -631,7 +675,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
         mockTenantStatus = 'ACTIVE';
         mockTenantVersion = 2;
 
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/suspend`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-lc-2')
@@ -646,7 +691,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
         mockTenantStatus = 'SUSPENDED';
         mockTenantVersion = 3;
 
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/activate`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-lc-3')
@@ -661,7 +707,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
         mockTenantStatus = 'ACTIVE';
         mockTenantVersion = 2;
 
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/deactivate`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-lc-4')
@@ -676,7 +723,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
         mockTenantStatus = 'SUSPENDED';
         mockTenantVersion = 3;
 
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/deactivate`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-lc-5')
@@ -700,7 +748,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
           }),
         );
 
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/suspend`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-lc-inv-1')
@@ -716,7 +765,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
         mockTenantStatus = 'DEACTIVATED';
         mockTenantVersion = 4;
 
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/activate`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-lc-inv-2')
@@ -730,7 +780,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
         mockTenantStatus = 'DEACTIVATED';
         mockTenantVersion = 4;
 
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/suspend`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-lc-inv-3')
@@ -746,7 +797,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
         mockTenantStatus = 'ACTIVE';
         mockTenantVersion = 5; // Actual version is 5
 
-        const res = await supertest.default(app.getHttpServer())
+        const res = await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/suspend`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-lc-vc-1')
@@ -763,7 +815,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
         mockTenantStatus = 'DEACTIVATED';
         mockTenantVersion = 4;
 
-        await supertest.default(app.getHttpServer())
+        await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/activate`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-lc-nse-1')
@@ -777,7 +830,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
         mockTenantStatus = 'ACTIVE';
         mockTenantVersion = 5;
 
-        await supertest.default(app.getHttpServer())
+        await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/suspend`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-lc-nse-2')
@@ -790,7 +844,8 @@ describe('Checkpoint 2: Tenant-State Enforcement & Controller Contracts', () => 
       it('tenant not found creates no outbox event', async () => {
         mockTenantExists = false;
 
-        await supertest.default(app.getHttpServer())
+        await supertest
+          .default(app.getHttpServer())
           .post(`/v1/tenants/${ACTIVE_TENANT_ID}/suspend`)
           .set('Authorization', `Bearer ${platformAdminToken()}`)
           .set('Idempotency-Key', 'idem-lc-nse-3')

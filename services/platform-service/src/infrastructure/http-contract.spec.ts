@@ -19,10 +19,12 @@ describe('HTTP Contract Tests (Real NestJS + Mock Persistence)', () => {
 
   // Mock persistence that tracks whether commands were invoked
   const mockAdminDb = {
-    execute: vi.fn().mockImplementation(async (_params: unknown, fn: (tx: unknown) => Promise<unknown>) => {
-      provisionCalled = true;
-      return fn({ $executeRaw: vi.fn().mockResolvedValue(1) });
-    }),
+    execute: vi
+      .fn()
+      .mockImplementation(async (_params: unknown, fn: (tx: unknown) => Promise<unknown>) => {
+        provisionCalled = true;
+        return fn({ $executeRaw: vi.fn().mockResolvedValue(1) });
+      }),
   };
 
   const mockTenantDb = {
@@ -39,7 +41,13 @@ describe('HTTP Contract Tests (Real NestJS + Mock Persistence)', () => {
     createBranch: vi.fn(),
     findBranchesByOrganization: vi.fn().mockResolvedValue([]),
     saveEntitlements: vi.fn().mockResolvedValue(undefined),
-    getEntitlements: vi.fn().mockResolvedValue({ tenantId: 'x', modules: { core: true }, version: 1, updatedAt: new Date(), updatedBy: 'sys' }),
+    getEntitlements: vi.fn().mockResolvedValue({
+      tenantId: 'x',
+      modules: { core: true },
+      version: 1,
+      updatedAt: new Date(),
+      updatedBy: 'sys',
+    }),
     saveFeature: vi.fn(),
     getFeatureValue: vi.fn().mockResolvedValue(undefined),
     getAllFeatures: vi.fn().mockResolvedValue([]),
@@ -83,7 +91,9 @@ describe('HTTP Contract Tests (Real NestJS + Mock Persistence)', () => {
   function platformAdminToken(): string {
     return signDemoToken({
       sub: 'platform-admin-001',
-      tenants: [{ tenantId: 'platform', roles: ['PLATFORM_ADMIN'], branchIds: [], status: 'active' }],
+      tenants: [
+        { tenantId: 'platform', roles: ['PLATFORM_ADMIN'], branchIds: [], status: 'active' },
+      ],
     });
   }
 
@@ -97,7 +107,8 @@ describe('HTTP Contract Tests (Real NestJS + Mock Persistence)', () => {
   describe('401 Unauthorized — Authentication Failures', () => {
     it('missing Authorization header → 401', async () => {
       resetMocks();
-      const res = await supertest.default(app.getHttpServer())
+      const res = await supertest
+        .default(app.getHttpServer())
         .post('/v1/tenants')
         .send({ name: 'Test', slug: 'test', organizationName: 'Org' });
 
@@ -107,7 +118,8 @@ describe('HTTP Contract Tests (Real NestJS + Mock Persistence)', () => {
 
     it('malformed Bearer header → 401', async () => {
       resetMocks();
-      const res = await supertest.default(app.getHttpServer())
+      const res = await supertest
+        .default(app.getHttpServer())
         .post('/v1/tenants')
         .set('Authorization', 'Basic dXNlcjpwYXNz');
 
@@ -120,7 +132,8 @@ describe('HTTP Contract Tests (Real NestJS + Mock Persistence)', () => {
       const token = platformAdminToken();
       const tampered = token.slice(0, -5) + 'ZZZZZ';
 
-      const res = await supertest.default(app.getHttpServer())
+      const res = await supertest
+        .default(app.getHttpServer())
         .post('/v1/tenants')
         .set('Authorization', `Bearer ${tampered}`);
 
@@ -132,11 +145,14 @@ describe('HTTP Contract Tests (Real NestJS + Mock Persistence)', () => {
       resetMocks();
       const token = signDemoToken({
         sub: 'admin',
-        tenants: [{ tenantId: 'platform', roles: ['PLATFORM_ADMIN'], branchIds: [], status: 'active' }],
+        tenants: [
+          { tenantId: 'platform', roles: ['PLATFORM_ADMIN'], branchIds: [], status: 'active' },
+        ],
         exp: Math.floor(Date.now() / 1000) - 3600,
       });
 
-      const res = await supertest.default(app.getHttpServer())
+      const res = await supertest
+        .default(app.getHttpServer())
         .post('/v1/tenants')
         .set('Authorization', `Bearer ${token}`);
 
@@ -148,7 +164,8 @@ describe('HTTP Contract Tests (Real NestJS + Mock Persistence)', () => {
   describe('403 Forbidden — Authorization Failures', () => {
     it('tenant admin attempting provisioning → 403', async () => {
       resetMocks();
-      const res = await supertest.default(app.getHttpServer())
+      const res = await supertest
+        .default(app.getHttpServer())
         .post('/v1/tenants')
         .set('Authorization', `Bearer ${tenantAdminToken()}`)
         .set('Idempotency-Key', 'idem-1')
@@ -168,7 +185,8 @@ describe('HTTP Contract Tests (Real NestJS + Mock Persistence)', () => {
   describe('201 Created — Authorized Provisioning', () => {
     it('platform administrator provisioning → calls command handler', async () => {
       resetMocks();
-      const res = await supertest.default(app.getHttpServer())
+      const res = await supertest
+        .default(app.getHttpServer())
         .post('/v1/tenants')
         .set('Authorization', `Bearer ${platformAdminToken()}`)
         .set('Idempotency-Key', 'idem-provision-1')
@@ -184,8 +202,7 @@ describe('HTTP Contract Tests (Real NestJS + Mock Persistence)', () => {
 
   describe('Health endpoint — no auth required', () => {
     it('GET /health/live → 200 without authentication', async () => {
-      const res = await supertest.default(app.getHttpServer())
-        .get('/health/live');
+      const res = await supertest.default(app.getHttpServer()).get('/health/live');
 
       expect(res.status).toBe(200);
     });
@@ -194,7 +211,8 @@ describe('HTTP Contract Tests (Real NestJS + Mock Persistence)', () => {
   describe('Auth failures do not invoke commands', () => {
     it('no command, audit, or outbox effects after 401', async () => {
       resetMocks();
-      await supertest.default(app.getHttpServer())
+      await supertest
+        .default(app.getHttpServer())
         .post('/v1/tenants')
         .send({ name: 'X', slug: 'x', organizationName: 'Y' });
 

@@ -1,0 +1,716 @@
+openapi: 3.1.0
+info:
+  title: CareCareer Platform Service API
+  version: 0.1.0
+  description: |
+    Platform control plane API for tenant provisioning, lifecycle management,
+    entitlements, feature configuration, and administrative operations.
+  contact:
+    name: CareCareer Engineering
+servers:
+  - url: http://localhost:3001
+    description: Local development
+  - url: http://localhost:3000
+    description: Docker container
+
+security:
+  - BearerAuth: []
+
+paths:
+  /health/live:
+    get:
+      operationId: healthLiveness
+      summary: Liveness probe
+      security: []
+      tags: [Health]
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /health/ready:
+    get:
+      operationId: healthReadiness
+      summary: Readiness probe
+      security: []
+      tags: [Health]
+      responses:
+        '200':
+          description: Service is ready to handle traffic
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /v1/tenants:
+    post:
+      operationId: provisionTenant
+      summary: Provision a new tenant
+      description: |
+        Creates a new tenant with initial organization and default entitlements.
+        Requires platform.tenant.provision permission (PLATFORM_ADMIN role).
+        Uses idempotency key to prevent duplicate provisioning.
+      tags: [Tenants]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ActorId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProvisionTenantRequest'
+      responses:
+        '201':
+          description: Tenant provisioned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProvisionTenantResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/tenants/{tenantId}:
+    get:
+      operationId: getTenant
+      summary: Get tenant details
+      tags: [Tenants]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Tenant details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Tenant'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/tenants/{tenantId}/activate:
+    post:
+      operationId: activateTenant
+      summary: Activate a tenant (PROVISIONING→ACTIVE or SUSPENDED→ACTIVE)
+      tags: [Lifecycle]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ActorId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+      responses:
+        '200':
+          description: Tenant activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LifecycleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/tenants/{tenantId}/suspend:
+    post:
+      operationId: suspendTenant
+      summary: Suspend a tenant (ACTIVE→SUSPENDED)
+      tags: [Lifecycle]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ActorId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+      responses:
+        '200':
+          description: Tenant suspended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LifecycleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/tenants/{tenantId}/deactivate:
+    post:
+      operationId: deactivateTenant
+      summary: Deactivate a tenant permanently (ACTIVE→DEACTIVATED or SUSPENDED→DEACTIVATED)
+      description: |
+        DEACTIVATED is a terminal state. This action cannot be reversed.
+      tags: [Lifecycle]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ActorId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LifecycleTransitionRequest'
+      responses:
+        '200':
+          description: Tenant deactivated (terminal)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LifecycleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/tenants/{tenantId}/organizations:
+    get:
+      operationId: listOrganizations
+      summary: List organizations for a tenant
+      tags: [Organizations]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Organization list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Organization'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createOrganization
+      summary: Create an organization within a tenant
+      description: |
+        Requires tenant to be in ACTIVE state.
+        Uses idempotency key to prevent duplicates.
+      tags: [Organizations]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/ActorId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationRequest'
+      responses:
+        '201':
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      organizationId:
+                        type: string
+                        format: uuid
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/tenants/{tenantId}/entitlements:
+    get:
+      operationId: getEntitlements
+      summary: Get entitlements for a tenant
+      tags: [Entitlements]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Entitlement set
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/EntitlementSet'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      operationId: updateEntitlements
+      summary: Update entitlements for a tenant
+      description: |
+        Requires tenant to be in ACTIVE state.
+        Uses optimistic concurrency via version field.
+      tags: [Entitlements]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/ActorId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateEntitlementsRequest'
+      responses:
+        '200':
+          description: Entitlements updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: updated
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/tenants/{tenantId}/features:
+    get:
+      operationId: getFeatureConfigurations
+      summary: Get all feature configurations for a tenant
+      tags: [Features]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      responses:
+        '200':
+          description: Feature configuration list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FeatureConfiguration'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/tenants/{tenantId}/features/{featureKey}:
+    put:
+      operationId: updateFeature
+      summary: Update a feature configuration
+      description: |
+        Requires tenant to be in ACTIVE state.
+        Requires the tenant to have the appropriate module entitlement.
+        Feature value is validated against the feature's type schema.
+      tags: [Features]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - name: featureKey
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/FeatureKey'
+        - $ref: '#/components/parameters/ActorId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFeatureRequest'
+      responses:
+        '200':
+          description: Feature updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: updated
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          description: Entitlement required for this feature
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token containing subject, tenant memberships, and roles.
+        Platform admin operations require PLATFORM_ADMIN role.
+        Demo mode uses HS256 signed tokens.
+
+  parameters:
+    TenantId:
+      name: tenantId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Tenant identifier (UUID v7)
+
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 255
+      description: |
+        Client-generated idempotency key.
+        Same key + same payload = replayed response.
+        Same key + different payload = 409 IDEMPOTENCY_CONFLICT.
+
+    ActorId:
+      name: X-Actor-Id
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Actor performing the operation (from JWT subject)
+
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: false
+      schema:
+        type: string
+        format: uuid
+      description: |
+        Request correlation ID for distributed tracing.
+        Generated server-side if absent.
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy]
+
+    TenantStatus:
+      type: string
+      enum: [PROVISIONING, ACTIVE, SUSPENDED, DEACTIVATED]
+      description: |
+        Allowed transitions:
+        - PROVISIONING → ACTIVE
+        - ACTIVE → SUSPENDED
+        - ACTIVE → DEACTIVATED
+        - SUSPENDED → ACTIVE
+        - SUSPENDED → DEACTIVATED
+        DEACTIVATED is terminal.
+
+    Tenant:
+      type: object
+      required: [id, name, slug, status, version, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+          pattern: '^[a-z][a-z0-9-]*$'
+        status:
+          $ref: '#/components/schemas/TenantStatus'
+        version:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+
+    Organization:
+      type: object
+      required: [id, tenantId, name, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        version:
+          type: integer
+          minimum: 1
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+
+    ModuleKey:
+      type: string
+      enum:
+        - core
+        - workforce
+        - credentialing
+        - scheduling
+        - timekeeping
+        - pay_bill_preview
+        - recruiting
+        - engagement
+        - vms
+        - analytics
+
+    FeatureKey:
+      type: string
+      enum:
+        - scheduling.auto_confirm_enabled
+        - scheduling.max_workers_per_shift
+        - timekeeping.geofence_required
+        - timekeeping.allowed_clock_in_minutes_before
+        - timekeeping.allowed_clock_in_minutes_after
+        - timekeeping.break_reminder_enabled
+        - recruiting.auto_post_to_boards
+        - notifications.sms_enabled
+        - notifications.push_enabled
+
+    EntitlementSet:
+      type: object
+      required: [tenantId, modules, version]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        modules:
+          type: object
+          additionalProperties:
+            type: boolean
+          description: Map of ModuleKey to enabled/disabled
+        version:
+          type: integer
+          minimum: 1
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+
+    FeatureConfiguration:
+      type: object
+      required: [tenantId, featureKey, value, version]
+      properties:
+        tenantId:
+          type: string
+          format: uuid
+        featureKey:
+          $ref: '#/components/schemas/FeatureKey'
+        value:
+          description: Typed value (boolean, integer, etc.) depending on feature
+        version:
+          type: integer
+          minimum: 1
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+
+    ProvisionTenantRequest:
+      type: object
+      required: [name, slug, organizationName]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        slug:
+          type: string
+          minLength: 2
+          maxLength: 50
+          pattern: '^[a-z][a-z0-9-]*$'
+        organizationName:
+          type: string
+          minLength: 1
+          maxLength: 200
+
+    ProvisionTenantResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            tenantId:
+              type: string
+              format: uuid
+            organizationId:
+              type: string
+              format: uuid
+
+    LifecycleTransitionRequest:
+      type: object
+      required: [reason, version]
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 200
+        version:
+          type: integer
+          minimum: 1
+          description: Expected current version for optimistic concurrency
+
+    LifecycleResponse:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/TenantStatus'
+
+    CreateOrganizationRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+
+    UpdateEntitlementsRequest:
+      type: object
+      required: [modules, version]
+      additionalProperties: false
+      properties:
+        modules:
+          type: object
+          additionalProperties:
+            type: boolean
+          description: Partial map of module keys to enable/disable
+        version:
+          type: integer
+          minimum: 1
+          description: Expected current version for optimistic concurrency
+
+    UpdateFeatureRequest:
+      type: object
+      required: [value]
+      additionalProperties: false
+      properties:
+        value:
+          description: Feature value matching the feature's type schema
+
+    ErrorEnvelope:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+        message:
+          type: string
+        code:
+          type: string
+          description: Machine-readable error code
+          enum:
+            - VERSION_CONFLICT
+            - INVALID_STATE_TRANSITION
+            - TENANT_INACTIVE
+            - IDEMPOTENCY_CONFLICT
+            - RESOURCE_NOT_FOUND
+            - BAD_REQUEST
+            - ENTITLEMENT_REQUIRED
+        error:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Validation error (invalid body, missing headers, malformed values)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    Forbidden:
+      description: Insufficient permissions for this operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    NotFound:
+      description: Resource not found (or cross-tenant access denied)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+    Conflict:
+      description: |
+        State conflict. Possible codes:
+        - VERSION_CONFLICT: stale expected version
+        - INVALID_STATE_TRANSITION: transition not allowed from current state
+        - TENANT_INACTIVE: tenant is suspended/deactivated/provisioning
+        - IDEMPOTENCY_CONFLICT: same key with different payload
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'

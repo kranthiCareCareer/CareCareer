@@ -1,15 +1,18 @@
 # GP-02 / DEMO-01 Execution Status
 
 ## Current state
+
 - Branch: master
 - Commit: 31e8ecf
 - Working tree: clean
 
 ## Completed checkpoints
+
 - **Checkpoint 1: HTTP Authentication and Authorization** — COMPLETE
 - **Checkpoint 2: Tenant-State Enforcement and Controller Contracts** — COMPLETE
 
 ## Checkpoint 2 completion report
+
 - Commit: 31e8ecf
 - Files changed: 2 (tenant.controller.ts, checkpoint2-contracts.spec.ts)
 - Controller changes:
@@ -40,6 +43,7 @@
   - 409 Conflict: VERSION_CONFLICT, INVALID_STATE_TRANSITION, TENANT_INACTIVE
 
 ## Next checkpoint: Checkpoint 3
+
 - OpenAPI contract generation and validation
 - Docker build verification (non-root, production-only deps)
 - `docker:verify` script
@@ -47,6 +51,7 @@
 - Tag: gp-02-platform-service-final
 
 ## Next automatic action
+
 - Generate OpenAPI spec from controllers
 - Add docker:verify script
 - Build Docker image and validate constraints

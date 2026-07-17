@@ -74,14 +74,18 @@ describe('HTTP Authentication and Authorization', () => {
     it('should reject token without subject', async () => {
       // Manually create a token without sub
       const { createHmac } = await import('node:crypto');
-      const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
-      const payload = Buffer.from(JSON.stringify({
-        iss: 'carecareer-demo',
-        aud: 'carecareer-api',
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 900,
-        tenants: [],
-      })).toString('base64url');
+      const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString(
+        'base64url',
+      );
+      const payload = Buffer.from(
+        JSON.stringify({
+          iss: 'carecareer-demo',
+          aud: 'carecareer-api',
+          iat: Math.floor(Date.now() / 1000),
+          exp: Math.floor(Date.now() / 1000) + 900,
+          tenants: [],
+        }),
+      ).toString('base64url');
       const sig = createHmac('sha256', secret).update(`${header}.${payload}`).digest('base64url');
       const token = `${header}.${payload}.${sig}`;
 
@@ -99,7 +103,9 @@ describe('HTTP Authentication and Authorization', () => {
       });
 
       const principal = await validator.validate(token);
-      const membership = principal.tenantMemberships.find((m) => m.roles.includes('PLATFORM_ADMIN'));
+      const membership = principal.tenantMemberships.find((m) =>
+        m.roles.includes('PLATFORM_ADMIN'),
+      );
       expect(membership).toBeDefined();
     });
 
@@ -112,7 +118,9 @@ describe('HTTP Authentication and Authorization', () => {
       });
 
       const principal = await validator.validate(token);
-      const platformMembership = principal.tenantMemberships.find((m) => m.roles.includes('PLATFORM_ADMIN'));
+      const platformMembership = principal.tenantMemberships.find((m) =>
+        m.roles.includes('PLATFORM_ADMIN'),
+      );
       expect(platformMembership).toBeUndefined();
     });
 
@@ -137,7 +145,9 @@ describe('HTTP Authentication and Authorization', () => {
       });
 
       const principal = await validator.validate(token);
-      const crossTenantMembership = principal.tenantMemberships.find((m) => m.tenantId === 'tenant-b');
+      const crossTenantMembership = principal.tenantMemberships.find(
+        (m) => m.tenantId === 'tenant-b',
+      );
       expect(crossTenantMembership).toBeUndefined();
     });
   });

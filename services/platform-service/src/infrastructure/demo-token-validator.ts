@@ -1,6 +1,12 @@
 import { createHmac } from 'node:crypto';
 
-import { InvalidTokenError, TokenExpiredError, type AuthenticatedPrincipal, type TenantMembershipClaim, type TokenValidator } from '@carecareer/auth';
+import {
+  InvalidTokenError,
+  TokenExpiredError,
+  type AuthenticatedPrincipal,
+  type TenantMembershipClaim,
+  type TokenValidator,
+} from '@carecareer/auth';
 
 /**
  * Demo-only token validator using HS256.
@@ -34,9 +40,10 @@ export class DemoTokenValidator implements TokenValidator {
     if (signature !== expectedSig) throw new InvalidTokenError('Invalid signature');
 
     // Decode payload
-    const payload = JSON.parse(
-      Buffer.from(payloadB64!, 'base64url').toString(),
-    ) as Record<string, unknown>;
+    const payload = JSON.parse(Buffer.from(payloadB64!, 'base64url').toString()) as Record<
+      string,
+      unknown
+    >;
 
     // Verify issuer
     if (payload['iss'] !== this.issuer) {
@@ -67,9 +74,10 @@ export class DemoTokenValidator implements TokenValidator {
           tenantId: String(t['tenantId'] ?? ''),
           roles: Array.isArray(t['roles']) ? t['roles'].map(String) : [],
           branchIds: Array.isArray(t['branchIds']) ? t['branchIds'].map(String) : [],
-          status: (t['status'] === 'active' || t['status'] === 'inactive' || t['status'] === 'suspended')
-            ? t['status']
-            : 'active' as const,
+          status:
+            t['status'] === 'active' || t['status'] === 'inactive' || t['status'] === 'suspended'
+              ? t['status']
+              : ('active' as const),
         }))
       : [];
 

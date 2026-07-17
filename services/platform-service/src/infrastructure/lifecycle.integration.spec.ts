@@ -5,7 +5,11 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import { Client } from 'pg';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { AdministrativeDatabase, type PrismaLikeClient, type TransactionClient } from '@carecareer/database';
+import {
+  AdministrativeDatabase,
+  type PrismaLikeClient,
+  type TransactionClient,
+} from '@carecareer/database';
 import { OutboxWriter } from '@carecareer/events';
 
 import { provisionTenant } from '../application/commands/provision-tenant.command.js';
@@ -68,14 +72,17 @@ describe('Lifecycle Enforcement (Real PostgreSQL)', () => {
 
   async function provisionAndActivate(): Promise<{ tenantId: string }> {
     const result = await provisionTenant(adminDb, repo, outboxWriter, {
-      name: `LC-${Date.now()}`, slug: `lc-${Date.now()}`, organizationName: 'LC Org',
-      actorId: 'admin', correlationId: `clc-${Date.now()}`, idempotencyKey: `ilc-${Date.now()}`,
+      name: `LC-${Date.now()}`,
+      slug: `lc-${Date.now()}`,
+      organizationName: 'LC Org',
+      actorId: 'admin',
+      correlationId: `clc-${Date.now()}`,
+      idempotencyKey: `ilc-${Date.now()}`,
     });
     // Activate directly in DB (simulating successful activation command)
-    await superClient.query(
-      "UPDATE tenants SET status = 'ACTIVE', version = 2 WHERE id = $1",
-      [result.tenantId],
-    );
+    await superClient.query("UPDATE tenants SET status = 'ACTIVE', version = 2 WHERE id = $1", [
+      result.tenantId,
+    ]);
     return { tenantId: result.tenantId };
   }
 
@@ -88,21 +95,28 @@ describe('Lifecycle Enforcement (Real PostgreSQL)', () => {
         [tenantId],
       );
 
-      const row = await superClient.query('SELECT status, version FROM tenants WHERE id = $1', [tenantId]);
+      const row = await superClient.query('SELECT status, version FROM tenants WHERE id = $1', [
+        tenantId,
+      ]);
       expect(row.rows[0].status).toBe('SUSPENDED');
       expect(row.rows[0].version).toBe(3);
     });
 
     it('SUSPENDED → ACTIVE should persist', async () => {
       const { tenantId } = await provisionAndActivate();
-      await superClient.query("UPDATE tenants SET status = 'SUSPENDED', version = 3 WHERE id = $1", [tenantId]);
+      await superClient.query(
+        "UPDATE tenants SET status = 'SUSPENDED', version = 3 WHERE id = $1",
+        [tenantId],
+      );
 
       await superClient.query(
         "UPDATE tenants SET status = 'ACTIVE', version = 4 WHERE id = $1 AND version = 3",
         [tenantId],
       );
 
-      const row = await superClient.query('SELECT status, version FROM tenants WHERE id = $1', [tenantId]);
+      const row = await superClient.query('SELECT status, version FROM tenants WHERE id = $1', [
+        tenantId,
+      ]);
       expect(row.rows[0].status).toBe('ACTIVE');
       expect(row.rows[0].version).toBe(4);
     });
@@ -115,20 +129,27 @@ describe('Lifecycle Enforcement (Real PostgreSQL)', () => {
         [tenantId],
       );
 
-      const row = await superClient.query('SELECT status, version FROM tenants WHERE id = $1', [tenantId]);
+      const row = await superClient.query('SELECT status, version FROM tenants WHERE id = $1', [
+        tenantId,
+      ]);
       expect(row.rows[0].status).toBe('DEACTIVATED');
     });
 
     it('SUSPENDED → DEACTIVATED should persist', async () => {
       const { tenantId } = await provisionAndActivate();
-      await superClient.query("UPDATE tenants SET status = 'SUSPENDED', version = 3 WHERE id = $1", [tenantId]);
+      await superClient.query(
+        "UPDATE tenants SET status = 'SUSPENDED', version = 3 WHERE id = $1",
+        [tenantId],
+      );
 
       await superClient.query(
         "UPDATE tenants SET status = 'DEACTIVATED', version = 4 WHERE id = $1 AND version = 3",
         [tenantId],
       );
 
-      const row = await superClient.query('SELECT status, version FROM tenants WHERE id = $1', [tenantId]);
+      const row = await superClient.query('SELECT status, version FROM tenants WHERE id = $1', [
+        tenantId,
+      ]);
       expect(row.rows[0].status).toBe('DEACTIVATED');
     });
   });
@@ -151,7 +172,9 @@ describe('Lifecycle Enforcement (Real PostgreSQL)', () => {
       expect(result.rowCount).toBe(0);
 
       // Tenant unchanged
-      const row = await superClient.query('SELECT status, version FROM tenants WHERE id = $1', [tenantId]);
+      const row = await superClient.query('SELECT status, version FROM tenants WHERE id = $1', [
+        tenantId,
+      ]);
       expect(row.rows[0].status).toBe('ACTIVE');
       expect(row.rows[0].version).toBe(2);
     });
@@ -206,7 +229,9 @@ describe('Lifecycle Enforcement (Real PostgreSQL)', () => {
         [tenantId],
       );
 
-      expect(parseInt(outboxAfter.rows[0].count, 10)).toBe(parseInt(outboxBefore.rows[0].count, 10));
+      expect(parseInt(outboxAfter.rows[0].count, 10)).toBe(
+        parseInt(outboxBefore.rows[0].count, 10),
+      );
       expect(parseInt(auditAfter.rows[0].count, 10)).toBe(parseInt(auditBefore.rows[0].count, 10));
     });
   });
@@ -224,7 +249,9 @@ function createPrismaLike(connectionUri: string): PrismaLikeClient {
             let query = '';
             for (let i = 0; i < strings.length; i++) {
               query += strings[i];
-              if (i < values.length) { query += `$${String(i + 1)}`; }
+              if (i < values.length) {
+                query += `$${String(i + 1)}`;
+              }
             }
             const result = await client.query(query, values);
             return result.rowCount ?? 0;

@@ -26,7 +26,9 @@ import { TenantController } from './interface/http/tenant.controller.js';
       provide: TOKEN_VALIDATOR,
       useFactory: (): DemoTokenValidator =>
         new DemoTokenValidator({
-          secret: process.env['DEMO_AUTH_SECRET'] ?? 'carecareer-demo-secret-for-testing-only-do-not-use-in-production',
+          secret:
+            process.env['DEMO_AUTH_SECRET'] ??
+            'carecareer-demo-secret-for-testing-only-do-not-use-in-production',
           issuer: 'carecareer-demo',
           audience: 'carecareer-api',
         }),
@@ -41,14 +43,23 @@ import { TenantController } from './interface/http/tenant.controller.js';
         new InMemoryAuthorizationService({
           rolePermissions: {
             PLATFORM_ADMIN: [
-              'platform.tenant.provision', 'platform.tenant.read', 'platform.tenant.update',
-              'platform.organization.create', 'platform.branch.create',
-              'platform.entitlements.manage', 'platform.features.manage', 'platform.audit.read',
+              'platform.tenant.provision',
+              'platform.tenant.read',
+              'platform.tenant.update',
+              'platform.organization.create',
+              'platform.branch.create',
+              'platform.entitlements.manage',
+              'platform.features.manage',
+              'platform.audit.read',
             ],
             TENANT_ADMIN: [
-              'platform.tenant.read', 'platform.tenant.update',
-              'platform.organization.create', 'platform.branch.create',
-              'platform.entitlements.manage', 'platform.features.manage', 'platform.audit.read',
+              'platform.tenant.read',
+              'platform.tenant.update',
+              'platform.organization.create',
+              'platform.branch.create',
+              'platform.entitlements.manage',
+              'platform.features.manage',
+              'platform.audit.read',
             ],
             READ_ONLY_AUDITOR: ['platform.tenant.read', 'platform.audit.read'],
           },
@@ -58,14 +69,25 @@ import { TenantController } from './interface/http/tenant.controller.js';
     {
       provide: ADMINISTRATIVE_DATABASE,
       useFactory: (): AdministrativeDatabase =>
-        new AdministrativeDatabase({ $transaction: async () => { throw new Error('No database configured'); } } as never),
+        new AdministrativeDatabase({
+          $transaction: async () => {
+            throw new Error('No database configured');
+          },
+        } as never),
     },
     {
       provide: TENANT_DATABASE,
       useFactory: (): TenantAwareTransaction =>
-        new TenantAwareTransaction({ $transaction: async () => { throw new Error('No database configured'); } } as never),
+        new TenantAwareTransaction({
+          $transaction: async () => {
+            throw new Error('No database configured');
+          },
+        } as never),
     },
-    { provide: OUTBOX_WRITER, useFactory: (): OutboxWriter => new OutboxWriter('platform-service') },
+    {
+      provide: OUTBOX_WRITER,
+      useFactory: (): OutboxWriter => new OutboxWriter('platform-service'),
+    },
   ],
 })
 export class PlatformModule {}

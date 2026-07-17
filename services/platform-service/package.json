@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "dev": "ts-node --esm src/main.ts",
     "lint": "eslint --config eslint.config.mjs src/",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "docker:verify": "node scripts/docker-verify.mjs",
     "clean": "rimraf dist"
   },
   "dependencies": {

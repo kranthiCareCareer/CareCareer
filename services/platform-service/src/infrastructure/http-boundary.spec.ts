@@ -43,10 +43,7 @@ describe('HTTP Authentication + Authorization Decision Path', () => {
         'platform.features.manage',
         'platform.audit.read',
       ],
-      READ_ONLY_AUDITOR: [
-        'platform.tenant.read',
-        'platform.audit.read',
-      ],
+      READ_ONLY_AUDITOR: ['platform.tenant.read', 'platform.audit.read'],
     },
   });
 
@@ -65,7 +62,11 @@ describe('HTTP Authentication + Authorization Decision Path', () => {
     });
 
     it('expired token → rejected', async () => {
-      const token = signDemoToken({ sub: 'user', tenants: [], exp: Math.floor(Date.now() / 1000) - 60 });
+      const token = signDemoToken({
+        sub: 'user',
+        tenants: [],
+        exp: Math.floor(Date.now() / 1000) - 60,
+      });
       await expect(validator.validate(token)).rejects.toThrow();
     });
 
@@ -84,7 +85,9 @@ describe('HTTP Authentication + Authorization Decision Path', () => {
     it('tenant admin cannot provision tenants (missing platform.tenant.provision)', async () => {
       const token = signDemoToken({
         sub: 'tenant-admin-001',
-        tenants: [{ tenantId: 'tenant-a', roles: ['TENANT_ADMIN'], branchIds: [], status: 'active' }],
+        tenants: [
+          { tenantId: 'tenant-a', roles: ['TENANT_ADMIN'], branchIds: [], status: 'active' },
+        ],
       });
 
       const principal = await validator.validate(token);
@@ -101,7 +104,9 @@ describe('HTTP Authentication + Authorization Decision Path', () => {
     it('read-only auditor cannot manage entitlements', async () => {
       const token = signDemoToken({
         sub: 'auditor-001',
-        tenants: [{ tenantId: 'tenant-a', roles: ['READ_ONLY_AUDITOR'], branchIds: [], status: 'active' }],
+        tenants: [
+          { tenantId: 'tenant-a', roles: ['READ_ONLY_AUDITOR'], branchIds: [], status: 'active' },
+        ],
       });
 
       const principal = await validator.validate(token);
@@ -134,7 +139,9 @@ describe('HTTP Authentication + Authorization Decision Path', () => {
     it('cross-tenant access denied — user cannot access another tenant', async () => {
       const token = signDemoToken({
         sub: 'user-a',
-        tenants: [{ tenantId: 'tenant-a', roles: ['TENANT_ADMIN'], branchIds: [], status: 'active' }],
+        tenants: [
+          { tenantId: 'tenant-a', roles: ['TENANT_ADMIN'], branchIds: [], status: 'active' },
+        ],
       });
 
       const principal = await validator.validate(token);
@@ -153,7 +160,9 @@ describe('HTTP Authentication + Authorization Decision Path', () => {
     it('platform admin can provision tenants', async () => {
       const token = signDemoToken({
         sub: 'platform-admin-001',
-        tenants: [{ tenantId: 'platform', roles: ['PLATFORM_ADMIN'], branchIds: [], status: 'active' }],
+        tenants: [
+          { tenantId: 'platform', roles: ['PLATFORM_ADMIN'], branchIds: [], status: 'active' },
+        ],
       });
 
       const principal = await validator.validate(token);
@@ -170,7 +179,9 @@ describe('HTTP Authentication + Authorization Decision Path', () => {
     it('platform admin can manage entitlements', async () => {
       const token = signDemoToken({
         sub: 'platform-admin-001',
-        tenants: [{ tenantId: 'platform', roles: ['PLATFORM_ADMIN'], branchIds: [], status: 'active' }],
+        tenants: [
+          { tenantId: 'platform', roles: ['PLATFORM_ADMIN'], branchIds: [], status: 'active' },
+        ],
       });
 
       const principal = await validator.validate(token);
@@ -186,7 +197,9 @@ describe('HTTP Authentication + Authorization Decision Path', () => {
     it('tenant admin can read their own tenant', async () => {
       const token = signDemoToken({
         sub: 'tenant-admin-001',
-        tenants: [{ tenantId: 'tenant-a', roles: ['TENANT_ADMIN'], branchIds: [], status: 'active' }],
+        tenants: [
+          { tenantId: 'tenant-a', roles: ['TENANT_ADMIN'], branchIds: [], status: 'active' },
+        ],
       });
 
       const principal = await validator.validate(token);
@@ -202,7 +215,9 @@ describe('HTTP Authentication + Authorization Decision Path', () => {
     it('read-only auditor can read audit', async () => {
       const token = signDemoToken({
         sub: 'auditor-001',
-        tenants: [{ tenantId: 'tenant-a', roles: ['READ_ONLY_AUDITOR'], branchIds: [], status: 'active' }],
+        tenants: [
+          { tenantId: 'tenant-a', roles: ['READ_ONLY_AUDITOR'], branchIds: [], status: 'active' },
+        ],
       });
 
       const principal = await validator.validate(token);

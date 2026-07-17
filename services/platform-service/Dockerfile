@@ -15,7 +15,7 @@ COPY packages/idempotency/package.json packages/idempotency/
 COPY packages/observability/package.json packages/observability/
 COPY packages/service-core/package.json packages/service-core/
 COPY services/platform-service/package.json services/platform-service/
-RUN pnpm install --frozen-lockfile --prod
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 # ─── Stage 2: Build ───
 FROM node:20-alpine AS build

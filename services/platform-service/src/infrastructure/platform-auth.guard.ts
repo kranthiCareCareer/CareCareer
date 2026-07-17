@@ -1,4 +1,10 @@
-import { type CanActivate, type ExecutionContext, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  type CanActivate,
+  type ExecutionContext,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 
 import { AuthenticationError, type TokenValidator } from '@carecareer/auth';
 
@@ -10,9 +16,7 @@ import { TOKEN_VALIDATOR } from '../application/ports/injection-tokens.js';
  */
 @Injectable()
 export class PlatformAuthGuard implements CanActivate {
-  constructor(
-    @Inject(TOKEN_VALIDATOR) private readonly tokenValidator: TokenValidator,
-  ) {}
+  constructor(@Inject(TOKEN_VALIDATOR) private readonly tokenValidator: TokenValidator) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<{

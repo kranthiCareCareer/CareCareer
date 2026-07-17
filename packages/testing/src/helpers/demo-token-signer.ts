@@ -67,7 +67,10 @@ export function verifyDemoToken(token: string): Record<string, unknown> {
 
   if (signature !== expectedSig) throw new Error('Invalid signature');
 
-  const payload = JSON.parse(Buffer.from(payloadB64!, 'base64url').toString()) as Record<string, unknown>;
+  const payload = JSON.parse(Buffer.from(payloadB64!, 'base64url').toString()) as Record<
+    string,
+    unknown
+  >;
 
   const now = Math.floor(Date.now() / 1000);
   if (typeof payload['exp'] === 'number' && payload['exp'] < now) {
