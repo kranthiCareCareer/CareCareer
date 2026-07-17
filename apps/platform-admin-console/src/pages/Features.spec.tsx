@@ -105,7 +105,7 @@ describe('Features', () => {
     // geofence_required is false, toggling should send true
     const checkboxes = screen.getAllByRole('checkbox');
     // Find the geofence checkbox (second boolean feature in order)
-    await userEvent.click(checkboxes[1]);
+    await userEvent.click(checkboxes[1]!);
 
     await waitFor(() => {
       expect(mockUpdateFeature).toHaveBeenCalledWith(
@@ -124,7 +124,7 @@ describe('Features', () => {
       expect(screen.getAllByRole('checkbox').length).toBeGreaterThan(0);
     });
 
-    await userEvent.click(screen.getAllByRole('checkbox')[0]);
+    await userEvent.click(screen.getAllByRole('checkbox')[0]!);
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeInTheDocument();

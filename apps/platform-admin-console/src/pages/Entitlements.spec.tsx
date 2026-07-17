@@ -108,7 +108,7 @@ describe('Entitlements', () => {
       expect(screen.getByText('Workforce Management')).toBeInTheDocument();
     });
 
-    const workforceCheckbox = screen.getAllByRole('checkbox')[1]; // workforce is second
+    const workforceCheckbox = screen.getAllByRole('checkbox')[1]!; // workforce is second
     await userEvent.click(workforceCheckbox);
 
     await waitFor(() => {
@@ -127,7 +127,7 @@ describe('Entitlements', () => {
       expect(screen.getAllByRole('checkbox').length).toBe(10);
     });
 
-    const checkbox = screen.getAllByRole('checkbox')[2]; // credentialing
+    const checkbox = screen.getAllByRole('checkbox')[2]!; // credentialing
     await userEvent.click(checkbox);
 
     await waitFor(() => {

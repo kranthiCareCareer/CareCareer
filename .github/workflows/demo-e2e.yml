@@ -1,0 +1,182 @@
+name: DEMO-01 E2E
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'apps/platform-admin-console/**'
+      - 'services/platform-service/**'
+      - 'packages/**'
+      - 'scripts/**'
+      - 'docker-compose.demo.yml'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'apps/platform-admin-console/**'
+      - 'services/platform-service/**'
+      - 'packages/**'
+      - 'scripts/**'
+      - 'docker-compose.demo.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: demo-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  demo-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: carecareer_admin
+          POSTGRES_PASSWORD: demo_password_not_for_production
+          POSTGRES_DB: carecareer_demo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://carecareer_admin:demo_password_not_for_production@localhost:5432/carecareer_demo
+      NODE_ENV: development
+      DEMO_MODE: 'true'
+      DEMO_AUTH_SECRET: carecareer-demo-secret-for-testing-only-do-not-use-in-production
+      PORT: '3001'
+      HOST: '0.0.0.0'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: npx playwright install chromium --with-deps
+
+      - name: Apply migrations
+        run: |
+          # Apply schema migrations
+          if [ -f services/platform-service/prisma/migrations/001_initial_schema.sql ]; then
+            PGPASSWORD=demo_password_not_for_production psql -h localhost -U carecareer_admin -d carecareer_demo \
+              -f services/platform-service/prisma/migrations/001_initial_schema.sql
+          fi
+
+      - name: Create roles and grants
+        run: |
+          PGPASSWORD=demo_password_not_for_production psql -h localhost -U carecareer_admin -d carecareer_demo -c "
+            DO \$\$ BEGIN
+              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_service') THEN
+                CREATE ROLE app_service NOINHERIT LOGIN PASSWORD 'app_pw';
+              END IF;
+            END \$\$;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_service;
+          "
+
+      - name: Seed demo data
+        run: |
+          if [ -f services/platform-service/prisma/seed-demo.sql ]; then
+            PGPASSWORD=demo_password_not_for_production psql -h localhost -U carecareer_admin -d carecareer_demo \
+              -f services/platform-service/prisma/seed-demo.sql
+          fi
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Start backend
+        run: |
+          cd services/platform-service
+          echo "DATABASE_URL=$DATABASE_URL" > .env
+          echo "PORT=3001" >> .env
+          echo "HOST=0.0.0.0" >> .env
+          echo "NODE_ENV=development" >> .env
+          echo "DEMO_MODE=true" >> .env
+          echo "DEMO_AUTH_SECRET=carecareer-demo-secret-for-testing-only-do-not-use-in-production" >> .env
+          nohup npx ts-node src/main.ts > /tmp/backend.log 2>&1 &
+          echo $! > /tmp/backend.pid
+
+      - name: Start frontend
+        run: |
+          cd apps/platform-admin-console
+          nohup npx vite --port 4000 --host > /tmp/frontend.log 2>&1 &
+          echo $! > /tmp/frontend.pid
+
+      - name: Wait for readiness
+        run: |
+          echo "Waiting for backend..."
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:3001/health > /dev/null 2>&1; then
+              echo "Backend ready"
+              break
+            fi
+            sleep 2
+          done
+
+          echo "Waiting for frontend..."
+          for i in $(seq 1 30); do
+            if curl -s http://localhost:4000 > /dev/null 2>&1; then
+              echo "Frontend ready"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Run Chromium E2E tests
+        run: pnpm --filter @carecareer/platform-admin-console e2e
+        continue-on-error: false
+
+      - name: Check for test.only
+        run: |
+          if grep -r "test\.only\|describe\.only\|it\.only" apps/platform-admin-console/e2e/ 2>/dev/null; then
+            echo "ERROR: Found .only in test files"
+            exit 1
+          fi
+
+      - name: Check working tree
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "ERROR: Working tree has uncommitted changes"
+            git status
+            exit 1
+          fi
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/platform-admin-console/playwright-report/
+          retention-days: 14
+
+      - name: Upload screenshots and traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            apps/platform-admin-console/test-results/
+            apps/platform-admin-console/artifacts/demo-screenshots/
+          retention-days: 14
+
+      - name: Cleanup
+        if: always()
+        run: |
+          [ -f /tmp/backend.pid ] && kill $(cat /tmp/backend.pid) 2>/dev/null || true
+          [ -f /tmp/frontend.pid ] && kill $(cat /tmp/frontend.pid) 2>/dev/null || true

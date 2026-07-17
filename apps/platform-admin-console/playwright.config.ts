@@ -13,13 +13,18 @@ export default defineConfig({
   forbidOnly: !!process.env['CI'],
   retries: process.env['CI'] ? 1 : 0,
   workers: 1, // Single worker for stateful demo flows
-  reporter: [['html', { open: 'never' }]],
+  reporter: [
+    ['html', { open: 'never', outputFolder: 'playwright-report' }],
+    ['list'],
+  ],
   use: {
     baseURL: 'http://localhost:4000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     viewport: { width: 1440, height: 900 },
+    actionTimeout: 10000,
+    navigationTimeout: 15000,
   },
   projects: [
     {

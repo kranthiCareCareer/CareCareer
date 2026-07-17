@@ -87,7 +87,7 @@ describe('PlatformApiClient', () => {
       const [, opts] = mockFetch.mock.calls[0] as [string, RequestInit];
       const headers = opts.headers as Record<string, string>;
       expect(headers['X-Correlation-Id']).toBeDefined();
-      expect(headers['X-Correlation-Id'].length).toBeGreaterThan(0);
+      expect(headers['X-Correlation-Id']!.length).toBeGreaterThan(0);
     });
 
     it('should return correlation ID from the server response', async () => {

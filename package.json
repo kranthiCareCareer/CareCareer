@@ -31,6 +31,8 @@
     "demo:e2e:ui": "pnpm --filter @carecareer/platform-admin-console e2e:ui",
     "demo:e2e:debug": "pnpm --filter @carecareer/platform-admin-console e2e:debug",
     "demo:e2e:report": "pnpm --filter @carecareer/platform-admin-console e2e:report",
+    "demo:e2e:record": "pnpm --filter @carecareer/platform-admin-console e2e:record",
+    "demo:verify": "node scripts/demo-verify.mjs",
     "prepare": "husky"
   },
   "devDependencies": {
