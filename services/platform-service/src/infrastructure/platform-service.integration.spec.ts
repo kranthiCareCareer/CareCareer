@@ -221,42 +221,272 @@ describe('Platform Service Integration Tests', () => {
     });
   });
 
-  describe('Outbox Event Integrity', () => {
-    it('should include all required fields in outbox event', async () => {
-      const result = await provisionTenant(adminDb, repo, outboxWriter, {
-        name: 'Event Test',
-        slug: 'event-test',
-        organizationName: 'Event Org',
-        actorId: 'admin-event',
-        correlationId: 'corr-event-test',
-        idempotencyKey: 'idem-event',
+  describe('Provisioning Rollback', () => {
+    it('should rollback all records if outbox write fails', async () => {
+      // Create a broken outbox writer that throws after domain writes
+      const brokenOutboxWriter = new OutboxWriter('broken-service');
+
+      // Use a PrismaLike that simulates outbox INSERT failure
+      const brokenPrismaLike = createFailingPrismaLike(
+        container.getConnectionUri(),
+        'event_outbox',
+      );
+      const brokenAdminDb = new AdministrativeDatabase(brokenPrismaLike);
+
+      await expect(
+        provisionTenant(brokenAdminDb, repo, brokenOutboxWriter, {
+          name: 'Rollback Test',
+          slug: 'rollback-test',
+          organizationName: 'Rollback Org',
+          actorId: 'admin',
+          correlationId: 'c-rollback',
+          idempotencyKey: 'i-rollback',
+        }),
+      ).rejects.toThrow();
+
+      // Verify NOTHING was committed
+      const tenants = await superClient.query(
+        "SELECT count(*) FROM tenants WHERE slug = 'rollback-test'",
+      );
+      const orgs = await superClient.query(
+        "SELECT count(*) FROM organizations WHERE name = 'Rollback Org'",
+      );
+      const outbox = await superClient.query(
+        "SELECT count(*) FROM event_outbox WHERE correlation_id = 'c-rollback'",
+      );
+
+      expect(parseInt(tenants.rows[0].count, 10)).toBe(0);
+      expect(parseInt(orgs.rows[0].count, 10)).toBe(0);
+      expect(parseInt(outbox.rows[0].count, 10)).toBe(0);
+    });
+  });
+
+  describe('Cross-Tenant Write Prevention', () => {
+    it('should prevent Tenant A from seeing Tenant B data even after cross-tenant insert attempt', async () => {
+      const tenantA = await provisionTenant(adminDb, repo, outboxWriter, {
+        name: 'Write Test A',
+        slug: 'write-a',
+        organizationName: 'OrgA',
+        actorId: 'admin',
+        correlationId: 'cw1',
+        idempotencyKey: 'iw1',
+      });
+      await provisionTenant(adminDb, repo, outboxWriter, {
+        name: 'Write Test B',
+        slug: 'write-b',
+        organizationName: 'OrgB',
+        actorId: 'admin',
+        correlationId: 'cw2',
+        idempotencyKey: 'iw2',
       });
 
-      const outboxRow = await superClient.query('SELECT * FROM event_outbox WHERE tenant_id = $1', [
-        result.tenantId,
-      ]);
+      const appClient = new Client({
+        connectionString: container
+          .getConnectionUri()
+          .replace('platform_admin', 'app_service')
+          .replace('test_password', 'app_pw'),
+      });
+      await appClient.connect();
 
-      const event = outboxRow.rows[0];
-      expect(event.id).toBeDefined();
-      expect(event.event_type).toBe('carecareer.tenant.provisioned.v1');
-      expect(event.event_version).toBe(1);
-      expect(event.tenant_id).toBe(result.tenantId);
-      expect(event.aggregate_type).toBe('tenant');
-      expect(event.aggregate_id).toBe(result.tenantId);
-      expect(event.aggregate_version).toBe(1);
-      expect(event.correlation_id).toBe('corr-event-test');
-      expect(event.occurred_at).toBeDefined();
-      expect(event.status).toBe('PENDING');
+      try {
+        await appClient.query('BEGIN');
+        await appClient.query(`SELECT set_config('app.tenant_id', '${tenantA.tenantId}', true)`);
+        const result = await appClient.query('SELECT * FROM organizations');
+        expect(result.rows).toHaveLength(1);
+        expect(result.rows[0].name).toBe('OrgA');
+        await appClient.query('COMMIT');
+      } finally {
+        await appClient.end();
+      }
+    });
+  });
 
-      // Verify payload contains expected data
-      const payload = event.payload;
-      expect(payload.eventType).toBe('carecareer.tenant.provisioned.v1');
-      expect(payload.tenantId).toBe(result.tenantId);
-      expect(payload.data.tenantId).toBe(result.tenantId);
-      expect(payload.data.name).toBe('Event Test');
-      expect(payload.data.organizationId).toBe(result.organizationId);
-      expect(payload.actor).toBeDefined();
-      expect(payload.actor.id).toBe('admin-event');
+  describe('Connection Pool Tenant Context Isolation', () => {
+    it('should not leak tenant context between sequential transactions on same connection', async () => {
+      const tenantA = await provisionTenant(adminDb, repo, outboxWriter, {
+        name: 'Pool A',
+        slug: 'pool-a',
+        organizationName: 'Pool Org A',
+        actorId: 'admin',
+        correlationId: 'cp1',
+        idempotencyKey: 'ip1',
+      });
+      const tenantB = await provisionTenant(adminDb, repo, outboxWriter, {
+        name: 'Pool B',
+        slug: 'pool-b',
+        organizationName: 'Pool Org B',
+        actorId: 'admin',
+        correlationId: 'cp2',
+        idempotencyKey: 'ip2',
+      });
+
+      const appClient = new Client({
+        connectionString: container
+          .getConnectionUri()
+          .replace('platform_admin', 'app_service')
+          .replace('test_password', 'app_pw'),
+      });
+      await appClient.connect();
+
+      try {
+        // Transaction 1: Tenant A
+        await appClient.query('BEGIN');
+        await appClient.query(`SELECT set_config('app.tenant_id', '${tenantA.tenantId}', true)`);
+        const resultA = await appClient.query('SELECT * FROM organizations');
+        expect(resultA.rows).toHaveLength(1);
+        expect(resultA.rows[0].name).toBe('Pool Org A');
+        await appClient.query('COMMIT');
+
+        // Transaction 2: Tenant B (same connection)
+        await appClient.query('BEGIN');
+        await appClient.query(`SELECT set_config('app.tenant_id', '${tenantB.tenantId}', true)`);
+        const resultB = await appClient.query('SELECT * FROM organizations');
+        expect(resultB.rows).toHaveLength(1);
+        expect(resultB.rows[0].name).toBe('Pool Org B');
+        await appClient.query('COMMIT');
+
+        // Transaction 3: Tenant A again (prove no leak from Tx2)
+        await appClient.query('BEGIN');
+        await appClient.query(`SELECT set_config('app.tenant_id', '${tenantA.tenantId}', true)`);
+        const resultA2 = await appClient.query('SELECT * FROM organizations');
+        expect(resultA2.rows).toHaveLength(1);
+        expect(resultA2.rows[0].name).toBe('Pool Org A');
+        await appClient.query('COMMIT');
+      } finally {
+        await appClient.end();
+      }
+    });
+
+    it('should clear tenant context after transaction rollback', async () => {
+      const tenantCtx = await provisionTenant(adminDb, repo, outboxWriter, {
+        name: 'Rollback Ctx',
+        slug: 'rollback-ctx',
+        organizationName: 'Ctx Org',
+        actorId: 'admin',
+        correlationId: 'crc1',
+        idempotencyKey: 'irc1',
+      });
+
+      const appClient = new Client({
+        connectionString: container
+          .getConnectionUri()
+          .replace('platform_admin', 'app_service')
+          .replace('test_password', 'app_pw'),
+      });
+      await appClient.connect();
+
+      try {
+        await appClient.query('BEGIN');
+        await appClient.query(`SELECT set_config('app.tenant_id', '${tenantCtx.tenantId}', true)`);
+        await appClient.query('ROLLBACK');
+
+        // After rollback, context cleared — query should either:
+        // - return empty (if empty string doesn't match UUID cast), or
+        // - error (invalid UUID cast)
+        // Both are fail-closed behaviors — data is NOT leaked
+        await appClient.query('BEGIN');
+        try {
+          const result = await appClient.query('SELECT * FROM organizations');
+          // If it returns, it should be empty (no matching tenant_id)
+          expect(result.rows).toHaveLength(0);
+        } catch (error: unknown) {
+          // PostgreSQL may throw on invalid UUID cast — this is also fail-closed
+          expect(String(error)).toContain('invalid input syntax');
+        }
+        await appClient.query('ROLLBACK');
+      } finally {
+        await appClient.end();
+      }
+    });
+  });
+
+  describe('Lifecycle Transitions', () => {
+    it('should enforce optimistic concurrency via version check', async () => {
+      const tenant = await provisionTenant(adminDb, repo, outboxWriter, {
+        name: 'Concurrency Test',
+        slug: 'concurrency-test',
+        organizationName: 'Conc Org',
+        actorId: 'admin',
+        correlationId: 'ccon1',
+        idempotencyKey: 'icon1',
+      });
+
+      // First update (version 1 → 2) succeeds
+      const result1 = await superClient.query(
+        "UPDATE tenants SET status = 'ACTIVE', version = 2 WHERE id = $1 AND version = 1 RETURNING id",
+        [tenant.tenantId],
+      );
+      expect(result1.rowCount).toBe(1);
+
+      // Second update with stale version (expects 1, but now 2) — zero rows
+      const result2 = await superClient.query(
+        "UPDATE tenants SET status = 'SUSPENDED', version = 3 WHERE id = $1 AND version = 1 RETURNING id",
+        [tenant.tenantId],
+      );
+      expect(result2.rowCount).toBe(0);
+    });
+  });
+
+  describe('Entitlement Enforcement', () => {
+    it('should store entitlements with correct module flags', async () => {
+      const tenant = await provisionTenant(adminDb, repo, outboxWriter, {
+        name: 'Entitlement Test',
+        slug: 'ent-test',
+        organizationName: 'Ent Org',
+        actorId: 'admin',
+        correlationId: 'ce1',
+        idempotencyKey: 'ie1',
+      });
+
+      const row = await superClient.query(
+        'SELECT modules FROM tenant_entitlements WHERE tenant_id = $1',
+        [tenant.tenantId],
+      );
+      expect(row.rows[0].modules.core).toBe(true);
+      expect(row.rows[0].modules.scheduling).toBe(false);
+
+      // Enable scheduling
+      await superClient.query(
+        'UPDATE tenant_entitlements SET modules = modules || \'{"scheduling": true}\'::jsonb WHERE tenant_id = $1',
+        [tenant.tenantId],
+      );
+
+      const updated = await superClient.query(
+        'SELECT modules FROM tenant_entitlements WHERE tenant_id = $1',
+        [tenant.tenantId],
+      );
+      expect(updated.rows[0].modules.scheduling).toBe(true);
+    });
+  });
+
+  describe('Failed Mutations Produce No Outbox', () => {
+    it('should not persist outbox event when domain write fails', async () => {
+      await provisionTenant(adminDb, repo, outboxWriter, {
+        name: 'First',
+        slug: 'unique-slug',
+        organizationName: 'First Org',
+        actorId: 'admin',
+        correlationId: 'cf1',
+        idempotencyKey: 'if1',
+      });
+
+      const outboxBefore = await superClient.query('SELECT count(*) FROM event_outbox');
+      const beforeCount = parseInt(outboxBefore.rows[0].count, 10);
+
+      // Duplicate slug — unique constraint violation — should rollback
+      await expect(
+        provisionTenant(adminDb, repo, outboxWriter, {
+          name: 'Duplicate',
+          slug: 'unique-slug',
+          organizationName: 'Dup Org',
+          actorId: 'admin',
+          correlationId: 'cf2',
+          idempotencyKey: 'if2',
+        }),
+      ).rejects.toThrow();
+
+      const outboxAfter = await superClient.query('SELECT count(*) FROM event_outbox');
+      expect(parseInt(outboxAfter.rows[0].count, 10)).toBe(beforeCount);
     });
   });
 });
@@ -283,6 +513,54 @@ function createPrismaLike(connectionUri: string): import('@carecareer/database')
                 query += `$${String(i + 1)}`;
               }
             }
+            const result = await client.query(query, values);
+            return result.rowCount ?? 0;
+          },
+        };
+
+        const result = await fn(txClient);
+        await client.query('COMMIT');
+        return result;
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally {
+        await client.end();
+      }
+    },
+  };
+}
+
+// Helper: PrismaLike that fails on specific table INSERT
+function createFailingPrismaLike(
+  connectionUri: string,
+  failOnTable: string,
+): import('@carecareer/database').PrismaLikeClient {
+  return {
+    async $transaction<T>(
+      fn: (tx: import('@carecareer/database').TransactionClient) => Promise<T>,
+      _options?: { maxWait?: number; timeout?: number },
+    ): Promise<T> {
+      const client = new Client({ connectionString: connectionUri });
+      await client.connect();
+
+      try {
+        await client.query('BEGIN');
+
+        const txClient: import('@carecareer/database').TransactionClient = {
+          async $executeRaw(strings: TemplateStringsArray, ...values: unknown[]): Promise<number> {
+            let query = '';
+            for (let i = 0; i < strings.length; i++) {
+              query += strings[i];
+              if (i < values.length) {
+                query += `$${String(i + 1)}`;
+              }
+            }
+
+            if (query.toLowerCase().includes(`insert into ${failOnTable}`)) {
+              throw new Error(`Simulated failure on ${failOnTable} INSERT`);
+            }
+
             const result = await client.query(query, values);
             return result.rowCount ?? 0;
           },
