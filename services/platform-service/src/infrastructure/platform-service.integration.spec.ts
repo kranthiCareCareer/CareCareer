@@ -44,6 +44,8 @@ describe('Platform Service Integration Tests', () => {
         END IF;
       END $$;
       GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_service;
+      -- Restrict audit_records: INSERT and SELECT only (immutable)
+      REVOKE UPDATE, DELETE, TRUNCATE ON audit_records FROM app_service;
     `);
 
     // Set up administrative database using superuser connection
@@ -592,6 +594,125 @@ describe('Platform Service Integration Tests', () => {
           [tenantB.tenantId],
         );
         expect(parseInt(bOrg.rows[0].count, 10)).toBe(1);
+      } finally {
+        await appClient.end();
+      }
+    });
+  });
+
+  describe('Audit Record Immutability', () => {
+    it('should allow INSERT on audit_records via app_service role', async () => {
+      const tenant = await provisionTenant(adminDb, repo, outboxWriter, {
+        name: 'Audit Immut',
+        slug: 'audit-immut',
+        organizationName: 'AI Org',
+        actorId: 'admin',
+        correlationId: 'cai1',
+        idempotencyKey: 'iai1',
+      });
+
+      // Verify audit record was inserted (already proven in provisioning test)
+      const auditRow = await superClient.query(
+        "SELECT * FROM audit_records WHERE tenant_id = $1 AND action = 'platform.tenant.provision'",
+        [tenant.tenantId],
+      );
+      expect(auditRow.rows).toHaveLength(1);
+    });
+
+    it('should DENY UPDATE on audit_records via app_service role', async () => {
+      const tenant = await provisionTenant(adminDb, repo, outboxWriter, {
+        name: 'Audit Deny Update',
+        slug: 'audit-deny-upd',
+        organizationName: 'ADU Org',
+        actorId: 'admin',
+        correlationId: 'cadu1',
+        idempotencyKey: 'iadu1',
+      });
+
+      const appClient = new Client({
+        connectionString: container
+          .getConnectionUri()
+          .replace('platform_admin', 'app_service')
+          .replace('test_password', 'app_pw'),
+      });
+      await appClient.connect();
+
+      try {
+        // Attempt to UPDATE an audit record — should be denied
+        await expect(
+          appClient.query("UPDATE audit_records SET outcome = 'TAMPERED' WHERE tenant_id = $1", [
+            tenant.tenantId,
+          ]),
+        ).rejects.toThrow(/permission denied/);
+
+        // Verify record unchanged
+        const row = await superClient.query(
+          'SELECT outcome FROM audit_records WHERE tenant_id = $1',
+          [tenant.tenantId],
+        );
+        expect(row.rows[0].outcome).toBe('SUCCESS');
+      } finally {
+        await appClient.end();
+      }
+    });
+
+    it('should DENY DELETE on audit_records via app_service role', async () => {
+      const tenant = await provisionTenant(adminDb, repo, outboxWriter, {
+        name: 'Audit Deny Delete',
+        slug: 'audit-deny-del',
+        organizationName: 'ADD Org',
+        actorId: 'admin',
+        correlationId: 'cadd1',
+        idempotencyKey: 'iadd1',
+      });
+
+      const appClient = new Client({
+        connectionString: container
+          .getConnectionUri()
+          .replace('platform_admin', 'app_service')
+          .replace('test_password', 'app_pw'),
+      });
+      await appClient.connect();
+
+      try {
+        // Attempt to DELETE an audit record — should be denied
+        await expect(
+          appClient.query('DELETE FROM audit_records WHERE tenant_id = $1', [tenant.tenantId]),
+        ).rejects.toThrow(/permission denied/);
+
+        // Verify record still exists
+        const row = await superClient.query(
+          'SELECT count(*) FROM audit_records WHERE tenant_id = $1',
+          [tenant.tenantId],
+        );
+        expect(parseInt(row.rows[0].count, 10)).toBeGreaterThan(0);
+      } finally {
+        await appClient.end();
+      }
+    });
+
+    it('should DENY TRUNCATE on audit_records via app_service role', async () => {
+      await provisionTenant(adminDb, repo, outboxWriter, {
+        name: 'Audit Deny Trunc',
+        slug: 'audit-deny-trunc',
+        organizationName: 'ADT Org',
+        actorId: 'admin',
+        correlationId: 'cadt1',
+        idempotencyKey: 'iadt1',
+      });
+
+      const appClient = new Client({
+        connectionString: container
+          .getConnectionUri()
+          .replace('platform_admin', 'app_service')
+          .replace('test_password', 'app_pw'),
+      });
+      await appClient.connect();
+
+      try {
+        await expect(appClient.query('TRUNCATE audit_records')).rejects.toThrow(
+          /permission denied/,
+        );
       } finally {
         await appClient.end();
       }
