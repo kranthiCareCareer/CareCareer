@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
   Headers,
   HttpCode,
@@ -11,9 +12,11 @@ import {
   Param,
   Post,
   Put,
+  Req,
   UnprocessableEntityException,
 } from '@nestjs/common';
 
+import type { AuthenticatedPrincipal } from '@carecareer/auth';
 import type { AdministrativeDatabase, TenantAwareTransaction } from '@carecareer/database';
 import type { OutboxWriter } from '@carecareer/events';
 
@@ -69,11 +72,20 @@ export class TenantController {
   @Post('tenants')
   @HttpCode(HttpStatus.CREATED)
   async provisionTenant(
+    @Req() req: { principal?: AuthenticatedPrincipal },
     @Body() body: unknown,
     @Headers('idempotency-key') idempotencyKey: string,
     @Headers('x-actor-id') actorId: string,
     @Headers('x-correlation-id') correlationId: string,
   ): Promise<{ data: { tenantId: string; organizationId: string } }> {
+    // Permission check: only PLATFORM_ADMIN can provision
+    const principal = req.principal;
+    if (!principal) throw new ForbiddenException('No authenticated principal');
+    const hasPlatformAdmin = principal.tenantMemberships.some(
+      (m) => m.roles.includes('PLATFORM_ADMIN') && m.status === 'active',
+    );
+    if (!hasPlatformAdmin) throw new ForbiddenException('Platform administrator role required');
+
     if (!idempotencyKey) throw new BadRequestException('Idempotency-Key header required');
     if (!actorId) throw new BadRequestException('X-Actor-Id header required');
 

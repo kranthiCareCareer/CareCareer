@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 
 import { InMemoryAuthorizationService } from '@carecareer/auth';
 import { AdministrativeDatabase, TenantAwareTransaction } from '@carecareer/database';
 import { OutboxWriter } from '@carecareer/events';
-import { HealthChecker } from '@carecareer/observability';
-import { ServiceCoreModule } from '@carecareer/service-core';
 
 import {
   ADMINISTRATIVE_DATABASE,
@@ -15,16 +14,13 @@ import {
   TOKEN_VALIDATOR,
 } from './application/ports/injection-tokens.js';
 import { DemoTokenValidator } from './infrastructure/demo-token-validator.js';
+import { PlatformAuthGuard } from './infrastructure/platform-auth.guard.js';
 import { PostgresPlatformRepository } from './infrastructure/postgres-platform-repository.js';
+import { PlatformHealthController } from './interface/http/health.controller.js';
 import { TenantController } from './interface/http/tenant.controller.js';
 
-/**
- * Platform service root module.
- * Auth guard applied at controller level (health remains public).
- */
 @Module({
-  imports: [ServiceCoreModule],
-  controllers: [TenantController],
+  controllers: [TenantController, PlatformHealthController],
   providers: [
     {
       provide: TOKEN_VALIDATOR,
@@ -34,6 +30,10 @@ import { TenantController } from './interface/http/tenant.controller.js';
           issuer: 'carecareer-demo',
           audience: 'carecareer-api',
         }),
+    },
+    {
+      provide: APP_GUARD,
+      useClass: PlatformAuthGuard,
     },
     {
       provide: AUTHORIZATION_SERVICE,
@@ -66,7 +66,6 @@ import { TenantController } from './interface/http/tenant.controller.js';
         new TenantAwareTransaction({ $transaction: async () => { throw new Error('No database configured'); } } as never),
     },
     { provide: OUTBOX_WRITER, useFactory: (): OutboxWriter => new OutboxWriter('platform-service') },
-    { provide: HealthChecker, useFactory: (): HealthChecker => new HealthChecker() },
   ],
 })
 export class PlatformModule {}
