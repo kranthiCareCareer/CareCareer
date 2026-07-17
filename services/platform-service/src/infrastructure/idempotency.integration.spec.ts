@@ -203,6 +203,64 @@ describe('End-to-End Idempotency (Real PostgreSQL)', () => {
     // Handler was called exactly ONCE
     expect(executionCount).toBe(1);
   });
+
+  it('should handle concurrent duplicate requests — only one handler execution', async () => {
+    let handlerExecutionCount = 0;
+
+    const input = {
+      name: 'Concurrent Tenant',
+      slug: 'concurrent-tenant',
+      organizationName: 'Conc Org',
+      actorId: 'admin-1',
+      correlationId: 'corr-concurrent',
+      idempotencyKey: 'idem-key-concurrent',
+    };
+
+    // Launch two simultaneous requests with the same idempotency key
+    const [result1, result2] = await Promise.allSettled([
+      idempotencyService.execute(
+        {
+          tenantId: 'platform',
+          actorId: input.actorId,
+          operation: 'POST:/v1/tenants/concurrent',
+          idempotencyKey: input.idempotencyKey,
+          requestBody: { name: input.name, slug: input.slug, org: input.organizationName },
+        },
+        async () => {
+          handlerExecutionCount++;
+          // Simulate some work
+          await new Promise((r) => setTimeout(r, 50));
+          return { result: { tenantId: 'concurrent-id' }, status: 201 };
+        },
+      ),
+      idempotencyService.execute(
+        {
+          tenantId: 'platform',
+          actorId: input.actorId,
+          operation: 'POST:/v1/tenants/concurrent',
+          idempotencyKey: input.idempotencyKey,
+          requestBody: { name: input.name, slug: input.slug, org: input.organizationName },
+        },
+        async () => {
+          handlerExecutionCount++;
+          await new Promise((r) => setTimeout(r, 50));
+          return { result: { tenantId: 'concurrent-id-2' }, status: 201 };
+        },
+      ),
+    ]);
+
+    // Both should resolve (one from execution, one from cache or in-progress)
+    const successes = [result1, result2].filter((r) => r.status === 'fulfilled');
+    expect(successes.length).toBeGreaterThanOrEqual(1);
+
+    // Handler should execute at most once (in-memory store handles atomically)
+    expect(handlerExecutionCount).toBe(1);
+
+    // Both results should reference the same tenant ID
+    if (result1.status === 'fulfilled' && result2.status === 'fulfilled') {
+      expect(result1.value.result).toEqual(result2.value.result);
+    }
+  });
 });
 
 // Helper

@@ -22,10 +22,10 @@ export class PostgresPlatformRepository implements PlatformRepository {
   }
 
   async findTenantById(tx: TransactionClient, tenantId: string): Promise<Tenant | undefined> {
-    // Note: In a real Prisma implementation, this would use prisma.tenant.findUnique
-    // Here we use $executeRaw which doesn't return rows — this is a limitation
-    // of the minimal TransactionClient interface. Integration tests use the full pg client.
-    // For now, this returns undefined and the integration test proves correctness.
+    // The minimal TransactionClient only exposes $executeRaw (returns rowCount).
+    // For reads, we need a query path. In production Prisma, this would be prisma.tenant.findUnique.
+    // For integration tests, the test infrastructure queries directly via superClient.
+    // This stub enables compilation; real reads are tested through the pg client in integration tests.
     void tx;
     void tenantId;
     return undefined;
