@@ -489,6 +489,102 @@ describe('Platform Service Integration Tests', () => {
       expect(parseInt(outboxAfter.rows[0].count, 10)).toBe(beforeCount);
     });
   });
+
+  describe('Cross-Tenant Mutation Denial', () => {
+    it('should prevent Tenant A from updating Tenant B organizations via RLS', async () => {
+      const tenantA = await provisionTenant(adminDb, repo, outboxWriter, {
+        name: 'Mut A',
+        slug: 'mut-a',
+        organizationName: 'Mut Org A',
+        actorId: 'admin',
+        correlationId: 'cm1',
+        idempotencyKey: 'im1',
+      });
+      const tenantB = await provisionTenant(adminDb, repo, outboxWriter, {
+        name: 'Mut B',
+        slug: 'mut-b',
+        organizationName: 'Mut Org B',
+        actorId: 'admin',
+        correlationId: 'cm2',
+        idempotencyKey: 'im2',
+      });
+
+      const appClient = new Client({
+        connectionString: container
+          .getConnectionUri()
+          .replace('platform_admin', 'app_service')
+          .replace('test_password', 'app_pw'),
+      });
+      await appClient.connect();
+
+      try {
+        await appClient.query('BEGIN');
+        await appClient.query(`SELECT set_config('app.tenant_id', '${tenantA.tenantId}', true)`);
+
+        const updateResult = await appClient.query(
+          "UPDATE organizations SET name = 'HACKED' WHERE tenant_id = $1",
+          [tenantB.tenantId],
+        );
+        expect(updateResult.rowCount).toBe(0);
+        await appClient.query('COMMIT');
+
+        const bOrg = await superClient.query(
+          'SELECT name FROM organizations WHERE tenant_id = $1',
+          [tenantB.tenantId],
+        );
+        expect(bOrg.rows[0].name).toBe('Mut Org B');
+      } finally {
+        await appClient.end();
+      }
+    });
+
+    it('should prevent Tenant A from deleting Tenant B records via RLS', async () => {
+      const tenantA = await provisionTenant(adminDb, repo, outboxWriter, {
+        name: 'Del A',
+        slug: 'del-a',
+        organizationName: 'Del Org A',
+        actorId: 'admin',
+        correlationId: 'cdel1',
+        idempotencyKey: 'idel1',
+      });
+      const tenantB = await provisionTenant(adminDb, repo, outboxWriter, {
+        name: 'Del B',
+        slug: 'del-b',
+        organizationName: 'Del Org B',
+        actorId: 'admin',
+        correlationId: 'cdel2',
+        idempotencyKey: 'idel2',
+      });
+
+      const appClient = new Client({
+        connectionString: container
+          .getConnectionUri()
+          .replace('platform_admin', 'app_service')
+          .replace('test_password', 'app_pw'),
+      });
+      await appClient.connect();
+
+      try {
+        await appClient.query('BEGIN');
+        await appClient.query(`SELECT set_config('app.tenant_id', '${tenantA.tenantId}', true)`);
+
+        const deleteResult = await appClient.query(
+          'DELETE FROM organizations WHERE tenant_id = $1',
+          [tenantB.tenantId],
+        );
+        expect(deleteResult.rowCount).toBe(0);
+        await appClient.query('COMMIT');
+
+        const bOrg = await superClient.query(
+          'SELECT count(*) FROM organizations WHERE tenant_id = $1',
+          [tenantB.tenantId],
+        );
+        expect(parseInt(bOrg.rows[0].count, 10)).toBe(1);
+      } finally {
+        await appClient.end();
+      }
+    });
+  });
 });
 
 // Helper: minimal PrismaLikeClient backed by pg.Client
