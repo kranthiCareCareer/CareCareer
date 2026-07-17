@@ -37,7 +37,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       if (typeof exceptionResponse === 'string') {
         message = exceptionResponse;
         code = this.httpStatusToCode(status);
-      } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
+      } else {
         const resp = exceptionResponse as Record<string, unknown>;
         message = typeof resp['message'] === 'string' ? resp['message'] : message;
         code = typeof resp['error'] === 'string' ? resp['error'] : this.httpStatusToCode(status);

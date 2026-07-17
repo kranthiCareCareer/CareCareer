@@ -1,0 +1,18 @@
+{
+  "name": "@carecareer/generator-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "tsx generate.ts",
+    "build": "echo 'Generator has no build step'",
+    "lint": "eslint *.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'Generator validated by integration use'"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.21",
+    "tsx": "4.19.4",
+    "typescript": "5.8.3"
+  }
+}

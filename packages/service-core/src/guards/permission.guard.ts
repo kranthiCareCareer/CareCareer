@@ -34,10 +34,11 @@ export class PermissionGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    const requireTenant = this.reflector.getAllAndOverride<boolean | undefined>(TENANT_KEY, [
+    const requireTenantRaw: unknown = this.reflector.getAllAndOverride(TENANT_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
+    const requireTenant = requireTenantRaw === true;
 
     // If no permission required and no tenant required, allow
     if (!requiredPermission && !requireTenant) {
