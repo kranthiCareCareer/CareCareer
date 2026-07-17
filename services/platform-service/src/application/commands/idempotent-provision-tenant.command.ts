@@ -3,6 +3,7 @@ import { OutboxWriter } from '@carecareer/events';
 import { IdempotencyService } from '@carecareer/idempotency';
 
 import type { PlatformRepository } from '../ports/platform-repository.js';
+
 import { provisionTenant, type ProvisionTenantInput, type ProvisionTenantResult } from './provision-tenant.command.js';
 
 /**
