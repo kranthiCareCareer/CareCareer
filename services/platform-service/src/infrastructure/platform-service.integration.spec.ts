@@ -59,6 +59,7 @@ describe('Platform Service Integration Tests', () => {
   });
 
   beforeEach(async () => {
+    await superClient.query('DELETE FROM audit_records');
     await superClient.query('DELETE FROM event_outbox');
     await superClient.query('DELETE FROM tenant_feature_configurations');
     await superClient.query('DELETE FROM tenant_entitlements');
@@ -113,6 +114,17 @@ describe('Platform Service Integration Tests', () => {
       expect(outboxRow.rows).toHaveLength(1);
       expect(outboxRow.rows[0].tenant_id).toBe(result.tenantId);
       expect(outboxRow.rows[0].correlation_id).toBe('corr-prov-001');
+
+      // Verify audit record created in same transaction
+      const auditRow = await superClient.query(
+        "SELECT * FROM audit_records WHERE resource_id = $1 AND action = 'platform.tenant.provision'",
+        [result.tenantId],
+      );
+      expect(auditRow.rows).toHaveLength(1);
+      expect(auditRow.rows[0].actor_id).toBe('platform-admin-001');
+      expect(auditRow.rows[0].correlation_id).toBe('corr-prov-001');
+      expect(auditRow.rows[0].outcome).toBe('SUCCESS');
+      expect(auditRow.rows[0].resource_type).toBe('tenant');
     });
 
     it('should emit outbox event in the same transaction as domain write', async () => {

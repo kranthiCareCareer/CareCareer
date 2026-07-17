@@ -5,6 +5,7 @@ import { runWithContext } from '@carecareer/request-context';
 import { createDefaultEntitlements } from '../../domain/entitlement.js';
 import { createOrganization } from '../../domain/organization.js';
 import { createTenant } from '../../domain/tenant.js';
+import { writeAuditRecord } from '../../infrastructure/audit-writer.js';
 import type { PlatformRepository } from '../ports/platform-repository.js';
 
 export interface ProvisionTenantInput {
@@ -86,6 +87,19 @@ export async function provisionTenant(
           });
         },
       );
+
+      // Audit record in same transaction (immutable, append-only)
+      await writeAuditRecord(tx, {
+        tenantId: tenant.id,
+        actorId: input.actorId,
+        actorType: 'user',
+        action: 'platform.tenant.provision',
+        resourceType: 'tenant',
+        resourceId: tenant.id,
+        afterState: { name: tenant.name, slug: tenant.slug, status: tenant.status },
+        correlationId: input.correlationId,
+        outcome: 'SUCCESS',
+      });
 
       return { tenantId: tenant.id, organizationId: organization.id };
     },

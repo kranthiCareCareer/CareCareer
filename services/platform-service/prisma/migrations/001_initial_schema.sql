@@ -123,3 +123,31 @@ CREATE POLICY tenant_isolation ON event_outbox
 
 CREATE INDEX idx_outbox_pending ON event_outbox (status, created_at) WHERE status = 'PENDING';
 CREATE INDEX idx_outbox_tenant ON event_outbox (tenant_id);
+
+-- Audit records (immutable, append-only)
+CREATE TABLE audit_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL,
+    actor_id VARCHAR(200) NOT NULL,
+    actor_type VARCHAR(30) NOT NULL DEFAULT 'user',
+    action VARCHAR(200) NOT NULL,
+    resource_type VARCHAR(100) NOT NULL,
+    resource_id VARCHAR(200) NOT NULL,
+    before_state JSONB,
+    after_state JSONB,
+    reason VARCHAR(500),
+    correlation_id VARCHAR(200) NOT NULL,
+    request_id VARCHAR(200),
+    outcome VARCHAR(30) NOT NULL DEFAULT 'SUCCESS',
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Audit records are NOT tenant-RLS-filtered (platform admins need cross-tenant audit access)
+-- Instead, application queries always include tenant_id in WHERE clause
+CREATE INDEX idx_audit_tenant ON audit_records (tenant_id, timestamp);
+CREATE INDEX idx_audit_resource ON audit_records (resource_type, resource_id);
+CREATE INDEX idx_audit_actor ON audit_records (actor_id, timestamp);
+CREATE INDEX idx_audit_correlation ON audit_records (correlation_id);
+
+-- Note: GRANT for app_service applied separately after role creation
+-- App role gets SELECT + INSERT only (no UPDATE or DELETE on audit_records)
