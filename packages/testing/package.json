@@ -1,0 +1,32 @@
+{
+  "name": "@carecareer/testing",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'Testing package has no self-tests'",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@carecareer/config": "workspace:*",
+    "@carecareer/database": "workspace:*",
+    "@carecareer/request-context": "workspace:*",
+    "@carecareer/events": "workspace:*",
+    "@carecareer/idempotency": "workspace:*",
+    "@carecareer/auth": "workspace:*",
+    "@testcontainers/postgresql": "10.18.0",
+    "pg": "8.13.3",
+    "testcontainers": "10.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.21",
+    "@types/pg": "8.11.11",
+    "typescript": "5.8.3",
+    "vitest": "3.2.3"
+  }
+}
