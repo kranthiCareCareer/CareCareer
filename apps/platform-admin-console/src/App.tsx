@@ -7,6 +7,8 @@ import { CreateTenant } from './pages/CreateTenant';
 import { TenantDetail } from './pages/TenantDetail';
 import { Entitlements } from './pages/Entitlements';
 import { Organizations } from './pages/Organizations';
+import { Features } from './pages/Features';
+import { AuditTimeline } from './pages/AuditTimeline';
 
 function AppRoutes() {
   const { isAuthenticated } = useAuth();
@@ -23,6 +25,8 @@ function AppRoutes() {
       <Route path="/tenants/:tenantId" element={<TenantDetail />} />
       <Route path="/tenants/:tenantId/entitlements" element={<Entitlements />} />
       <Route path="/tenants/:tenantId/organizations" element={<Organizations />} />
+      <Route path="/tenants/:tenantId/features" element={<Features />} />
+      <Route path="/tenants/:tenantId/audit" element={<AuditTimeline />} />
     </Routes>
   );
 }
