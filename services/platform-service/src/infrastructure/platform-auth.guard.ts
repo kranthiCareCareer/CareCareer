@@ -25,8 +25,8 @@ export class PlatformAuthGuard implements CanActivate {
       principal?: unknown;
     }>();
 
-    // Health endpoints are public
-    if (request.url?.startsWith('/health')) {
+    // Health and demo endpoints are public
+    if (request.url?.startsWith('/health') || request.url?.startsWith('/demo')) {
       return true;
     }
 

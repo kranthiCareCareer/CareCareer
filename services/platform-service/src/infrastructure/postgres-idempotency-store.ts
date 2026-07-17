@@ -99,13 +99,7 @@ export class PostgresIdempotencyStore implements IdempotencyStore {
       await client.query(
         `UPDATE idempotency_keys SET status = 'COMPLETED', response_status = $1, response_body = $2::jsonb, updated_at = NOW(), locked_until = NULL
          WHERE tenant_id = $3 AND operation = $4 AND idempotency_key = $5`,
-        [
-          params.responseStatus,
-          bodyJson,
-          params.tenantId,
-          params.operation,
-          params.idempotencyKey,
-        ],
+        [params.responseStatus, bodyJson, params.tenantId, params.operation, params.idempotencyKey],
       );
     } finally {
       await client.end();
