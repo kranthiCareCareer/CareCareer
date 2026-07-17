@@ -16,11 +16,12 @@ import {
 import { DemoTokenValidator } from './infrastructure/demo-token-validator.js';
 import { PlatformAuthGuard } from './infrastructure/platform-auth.guard.js';
 import { PostgresPlatformRepository } from './infrastructure/postgres-platform-repository.js';
+import { DemoAuthController } from './interface/http/demo-auth.controller.js';
 import { PlatformHealthController } from './interface/http/health.controller.js';
 import { TenantController } from './interface/http/tenant.controller.js';
 
 @Module({
-  controllers: [TenantController, PlatformHealthController],
+  controllers: [TenantController, PlatformHealthController, DemoAuthController],
   providers: [
     {
       provide: TOKEN_VALIDATOR,

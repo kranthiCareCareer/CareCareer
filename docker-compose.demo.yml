@@ -1,0 +1,38 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: carecareer_admin
+      POSTGRES_PASSWORD: demo_password_not_for_production
+      POSTGRES_DB: carecareer_demo
+    ports:
+      - '5432:5432'
+    volumes:
+      - demo_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U carecareer_admin']
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  platform-service:
+    build:
+      context: .
+      dockerfile: services/platform-service/Dockerfile
+    ports:
+      - '3001:3000'
+    environment:
+      PORT: '3000'
+      HOST: '0.0.0.0'
+      DATABASE_URL: postgresql://carecareer_admin:demo_password_not_for_production@postgres:5432/carecareer_demo
+      DEMO_AUTH_SECRET: carecareer-demo-secret-for-testing-only-do-not-use-in-production
+      DEMO_AUTH_ENABLED: 'true'
+      NODE_ENV: development
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  demo_pgdata:

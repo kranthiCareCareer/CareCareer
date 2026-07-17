@@ -23,6 +23,9 @@
     "security:secrets": "gitleaks detect --source .",
     "security:dependencies": "pnpm audit --audit-level high",
     "generate:service": "tsx tooling/generators/service/generate.ts",
+    "demo:up": "node scripts/demo-up.mjs",
+    "demo:down": "node scripts/demo-down.mjs",
+    "demo:reset": "node scripts/demo-reset.mjs",
     "prepare": "husky"
   },
   "devDependencies": {
