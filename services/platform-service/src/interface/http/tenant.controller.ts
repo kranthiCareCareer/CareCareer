@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   ForbiddenException,
   Get,
@@ -22,6 +23,7 @@ import type { OutboxWriter } from '@carecareer/events';
 
 import { createOrganizationCommand } from '../../application/commands/create-organization.command.js';
 import { provisionTenant } from '../../application/commands/provision-tenant.command.js';
+import { requireActiveTenant } from '../../application/commands/tenant-status-guard.js';
 import { transitionTenant } from '../../application/commands/transition-tenant.command.js';
 import { updateEntitlementsCommand } from '../../application/commands/update-entitlements.command.js';
 import { updateFeatureCommand } from '../../application/commands/update-feature.command.js';
@@ -41,6 +43,7 @@ import {
 import type { ModuleKey } from '../../domain/entitlement.js';
 import {
   InvalidStateTransitionError,
+  TenantInactiveError,
   TenantNotFoundError,
   VersionConflictError,
   EntitlementRequiredError,
@@ -160,6 +163,15 @@ export class TenantController {
     const parsed = CreateOrganizationSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.issues);
 
+    // Enforce tenant status before mutation
+    try {
+      await this.tenantDb.execute(tenantId, async (tx) => {
+        await requireActiveTenant(this.repo, tx, tenantId);
+      });
+    } catch (error: unknown) {
+      this.handleTenantStatusError(error);
+    }
+
     const orgId = await createOrganizationCommand(this.tenantDb, this.repo, this.outboxWriter, {
       tenantId,
       name: parsed.data.name,
@@ -186,6 +198,15 @@ export class TenantController {
 
     const parsed = UpdateEntitlementsSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.issues);
+
+    // Enforce tenant status before mutation
+    try {
+      await this.tenantDb.execute(tenantId, async (tx) => {
+        await requireActiveTenant(this.repo, tx, tenantId);
+      });
+    } catch (error: unknown) {
+      this.handleTenantStatusError(error);
+    }
 
     await updateEntitlementsCommand(this.tenantDb, this.repo, this.outboxWriter, {
       tenantId,
@@ -215,6 +236,15 @@ export class TenantController {
 
     const parsed = UpdateFeatureSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.issues);
+
+    // Enforce tenant status before mutation
+    try {
+      await this.tenantDb.execute(tenantId, async (tx) => {
+        await requireActiveTenant(this.repo, tx, tenantId);
+      });
+    } catch (error: unknown) {
+      this.handleTenantStatusError(error);
+    }
 
     try {
       await updateFeatureCommand(this.tenantDb, this.repo, this.outboxWriter, {
@@ -266,14 +296,39 @@ export class TenantController {
     } catch (error: unknown) {
       if (error instanceof TenantNotFoundError) throw new NotFoundException(error.message);
       if (error instanceof InvalidStateTransitionError) {
-        throw new UnprocessableEntityException(`Invalid transition: ${error.from} → ${error.to}`);
+        throw new ConflictException({
+          code: 'INVALID_STATE_TRANSITION',
+          message: `Invalid transition: ${error.from} → ${error.to}`,
+          from: error.from,
+          to: error.to,
+        });
       }
       if (error instanceof VersionConflictError) {
-        throw new BadRequestException(error.message);
+        throw new ConflictException({
+          code: 'VERSION_CONFLICT',
+          message: error.message,
+        });
       }
       throw error;
     }
 
     return { status: targetStatus };
+  }
+
+  /**
+   * Map tenant-status errors to appropriate HTTP responses.
+   * SUSPENDED/DEACTIVATED/PROVISIONING → 409 with code TENANT_SUSPENDED or TENANT_DEACTIVATED.
+   */
+  private handleTenantStatusError(error: unknown): never {
+    if (error instanceof TenantNotFoundError) {
+      throw new NotFoundException(error.message);
+    }
+    if (error instanceof TenantInactiveError) {
+      throw new ConflictException({
+        code: error.code,
+        message: error.message,
+      });
+    }
+    throw error as Error;
   }
 }
