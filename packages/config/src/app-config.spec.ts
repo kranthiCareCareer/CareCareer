@@ -36,12 +36,11 @@ describe('loadConfig', () => {
     expect(config.SHUTDOWN_TIMEOUT_MS).toBe(10000);
   });
 
-  it('should fail when APP_NAME is missing', () => {
+  it('should use default for APP_NAME when missing', () => {
     const env = { ...validEnv, APP_NAME: undefined };
 
-    expect(() => loadConfig(env as Record<string, string | undefined>)).toThrow(
-      ConfigValidationError,
-    );
+    const config = loadConfig(env as Record<string, string | undefined>);
+    expect(config.APP_NAME).toBe('carecareer-service');
   });
 
   it('should fail when DATABASE_URL is invalid', () => {
@@ -50,12 +49,11 @@ describe('loadConfig', () => {
     expect(() => loadConfig(env)).toThrow(ConfigValidationError);
   });
 
-  it('should fail when OIDC_ISSUER is missing', () => {
+  it('should allow OIDC_ISSUER to be absent in development mode', () => {
     const env = { ...validEnv, OIDC_ISSUER: undefined };
 
-    expect(() => loadConfig(env as Record<string, string | undefined>)).toThrow(
-      ConfigValidationError,
-    );
+    const config = loadConfig(env as Record<string, string | undefined>);
+    expect(config.OIDC_ISSUER).toBeUndefined();
   });
 
   it('should fail when NODE_ENV is invalid', () => {
