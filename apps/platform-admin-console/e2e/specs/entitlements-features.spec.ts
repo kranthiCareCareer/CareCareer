@@ -12,9 +12,7 @@ test.describe('Entitlements and features', () => {
   test('should display entitlements page', async ({ page }) => {
     await page.goto('/tenants/test-id/entitlements');
     await expect(page.getByRole('heading', { name: 'Entitlements' })).toBeVisible();
-    await expect(
-      page.getByText(/Entitlements represent purchased or authorized/),
-    ).toBeVisible();
+    await expect(page.getByText(/Entitlements represent purchased or authorized/)).toBeVisible();
   });
 
   test('should show Core Platform as always enabled', async ({ page }) => {

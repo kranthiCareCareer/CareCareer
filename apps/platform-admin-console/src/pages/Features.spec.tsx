@@ -16,9 +16,30 @@ vi.mock('../api/client', () => ({
 }));
 
 const sampleFeatures = [
-  { tenantId: 'tid', featureKey: 'scheduling.auto_confirm_enabled', value: true, version: 1, updatedAt: '2025-01-01T00:00:00Z', updatedBy: 'admin' },
-  { tenantId: 'tid', featureKey: 'timekeeping.geofence_required', value: false, version: 1, updatedAt: '2025-01-01T00:00:00Z', updatedBy: 'admin' },
-  { tenantId: 'tid', featureKey: 'timekeeping.allowed_clock_in_minutes_before', value: 15, version: 1, updatedAt: '2025-01-01T00:00:00Z', updatedBy: 'admin' },
+  {
+    tenantId: 'tid',
+    featureKey: 'scheduling.auto_confirm_enabled',
+    value: true,
+    version: 1,
+    updatedAt: '2025-01-01T00:00:00Z',
+    updatedBy: 'admin',
+  },
+  {
+    tenantId: 'tid',
+    featureKey: 'timekeeping.geofence_required',
+    value: false,
+    version: 1,
+    updatedAt: '2025-01-01T00:00:00Z',
+    updatedBy: 'admin',
+  },
+  {
+    tenantId: 'tid',
+    featureKey: 'timekeeping.allowed_clock_in_minutes_before',
+    value: 15,
+    version: 1,
+    updatedAt: '2025-01-01T00:00:00Z',
+    updatedBy: 'admin',
+  },
 ];
 
 describe('Features', () => {
@@ -108,11 +129,7 @@ describe('Features', () => {
     await userEvent.click(checkboxes[1]!);
 
     await waitFor(() => {
-      expect(mockUpdateFeature).toHaveBeenCalledWith(
-        'tid',
-        'timekeeping.geofence_required',
-        true,
-      );
+      expect(mockUpdateFeature).toHaveBeenCalledWith('tid', 'timekeeping.geofence_required', true);
     });
   });
 

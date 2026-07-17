@@ -75,16 +75,16 @@
 
 ## Security Layers
 
-| Layer | Mechanism | What It Prevents |
-|-------|-----------|-----------------|
-| Authentication | JWT verification | Unauthenticated access |
-| Authorization | Permission guard | Unauthorized operations |
-| Tenant isolation | RLS + app context | Cross-tenant data leaks |
-| Input validation | Zod schemas | Injection, malformed data |
-| Idempotency | DB constraint + hash | Duplicate mutations |
-| Concurrency | Optimistic locking | Lost updates |
-| Lifecycle | Status guard | Operations on frozen tenants |
-| Audit | Append-only + restricted grants | Tampering with history |
+| Layer            | Mechanism                       | What It Prevents             |
+| ---------------- | ------------------------------- | ---------------------------- |
+| Authentication   | JWT verification                | Unauthenticated access       |
+| Authorization    | Permission guard                | Unauthorized operations      |
+| Tenant isolation | RLS + app context               | Cross-tenant data leaks      |
+| Input validation | Zod schemas                     | Injection, malformed data    |
+| Idempotency      | DB constraint + hash            | Duplicate mutations          |
+| Concurrency      | Optimistic locking              | Lost updates                 |
+| Lifecycle        | Status guard                    | Operations on frozen tenants |
+| Audit            | Append-only + restricted grants | Tampering with history       |
 
 ## Package Architecture
 

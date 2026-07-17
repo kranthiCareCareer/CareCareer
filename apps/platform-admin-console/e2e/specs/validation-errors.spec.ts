@@ -17,9 +17,7 @@ test.describe('Validation errors', () => {
 
     // HTML5 validation should prevent submission
     const nameInput = page.getByLabel('Tenant Name');
-    const validity = await nameInput.evaluate(
-      (el: HTMLInputElement) => el.validity.valueMissing,
-    );
+    const validity = await nameInput.evaluate((el: HTMLInputElement) => el.validity.valueMissing);
     expect(validity).toBe(true);
   });
 
@@ -52,9 +50,7 @@ test.describe('Validation errors', () => {
 
     // minLength=2
     const slugInput = page.getByLabel('Tenant Slug');
-    const validity = await slugInput.evaluate(
-      (el: HTMLInputElement) => el.validity.tooShort,
-    );
+    const validity = await slugInput.evaluate((el: HTMLInputElement) => el.validity.tooShort);
     expect(validity).toBe(true);
   });
 
@@ -74,7 +70,12 @@ test.describe('Validation errors', () => {
     });
 
     // If error-banner appeared, verify it's an alert
-    if (await page.locator('.error-banner').isVisible({ timeout: 1000 }).catch(() => false)) {
+    if (
+      await page
+        .locator('.error-banner')
+        .isVisible({ timeout: 1000 })
+        .catch(() => false)
+    ) {
       await expect(page.locator('.error-banner')).toHaveAttribute('role', 'alert');
     }
   });
@@ -88,7 +89,9 @@ test.describe('Validation errors', () => {
     await page.getByRole('button', { name: 'Provision Tenant' }).click();
 
     // Wait for response
-    await page.waitForSelector('.success-banner, .error-banner', { timeout: 10000 }).catch(() => {});
+    await page
+      .waitForSelector('.success-banner, .error-banner', { timeout: 10000 })
+      .catch(() => {});
 
     // Verify no raw database/SQL errors are shown
     const pageContent = await page.textContent('body');

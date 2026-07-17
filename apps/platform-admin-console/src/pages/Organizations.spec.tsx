@@ -91,9 +91,17 @@ describe('Organizations', () => {
 
   it('should create organization on form submit', async () => {
     mockCreateOrganization.mockResolvedValue({ organizationId: 'new-org' });
-    mockListOrganizations
-      .mockResolvedValueOnce(sampleOrgs)
-      .mockResolvedValueOnce([...sampleOrgs, { id: 'new-org', tenantId: 'tenant-1', name: 'New Branch Office', version: 1, createdAt: '2025-01-03', createdBy: 'admin' }]);
+    mockListOrganizations.mockResolvedValueOnce(sampleOrgs).mockResolvedValueOnce([
+      ...sampleOrgs,
+      {
+        id: 'new-org',
+        tenantId: 'tenant-1',
+        name: 'New Branch Office',
+        version: 1,
+        createdAt: '2025-01-03',
+        createdBy: 'admin',
+      },
+    ]);
 
     renderOrgs();
     await waitFor(() => {

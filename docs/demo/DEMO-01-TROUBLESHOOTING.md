@@ -40,11 +40,11 @@ pnpm demo:up
 
 ## Port Conflicts
 
-| Service | Port | Solution if occupied |
-|---------|------|---------------------|
+| Service    | Port | Solution if occupied                        |
+| ---------- | ---- | ------------------------------------------- |
 | PostgreSQL | 5432 | Stop local pg or change docker-compose port |
-| Backend | 3001 | Kill process on port: `npx kill-port 3001` |
-| Frontend | 4000 | Kill process on port: `npx kill-port 4000` |
+| Backend    | 3001 | Kill process on port: `npx kill-port 3001`  |
+| Frontend   | 4000 | Kill process on port: `npx kill-port 4000`  |
 
 ## Migration Issues
 
@@ -59,6 +59,7 @@ Roles persist across restarts (unless volumes are removed). Safe to ignore.
 ### Migration fails with syntax error
 
 Check that the SQL file exists and is valid:
+
 ```bash
 cat services/platform-service/prisma/migrations/001_initial_schema.sql
 ```
@@ -68,6 +69,7 @@ cat services/platform-service/prisma/migrations/001_initial_schema.sql
 ### "Executable doesn't exist"
 
 Playwright browsers not installed:
+
 ```bash
 npx playwright install chromium
 ```
@@ -75,6 +77,7 @@ npx playwright install chromium
 ### "Browser closed unexpectedly"
 
 Usually a resource issue. Try:
+
 ```bash
 # Increase timeout
 npx playwright test --timeout 60000
@@ -86,6 +89,7 @@ DEBUG=pw:browser npx playwright test
 ### Tests fail with "page.goto: net::ERR_CONNECTION_REFUSED"
 
 Frontend or backend is not running:
+
 ```bash
 # Check services
 curl http://localhost:3001/health
@@ -99,6 +103,7 @@ pnpm --filter @carecareer/platform-admin-console dev &
 ### Headed mode won't open on WSL/remote
 
 Playwright needs a display server. On WSL:
+
 ```bash
 export DISPLAY=:0
 # Or use WSLg (Windows 11)
@@ -111,6 +116,7 @@ On headless Linux CI, use the default headless mode.
 ### Backend won't start
 
 Check `.env` in `services/platform-service/`:
+
 ```
 DATABASE_URL=postgresql://carecareer_admin:demo_password_not_for_production@localhost:5432/carecareer_demo
 PORT=3001
@@ -127,6 +133,7 @@ Missing required environment variables. Run `pnpm demo:up` which auto-generates 
 ### Demo token endpoint returns 404
 
 DEMO_MODE is not enabled. Verify:
+
 - `.env` has `DEMO_MODE=true`
 - `NODE_ENV` is not `production`
 - `DEMO_AUTH_SECRET` is at least 32 characters
@@ -154,6 +161,7 @@ This is a React 19 warning in vitest with jsdom. It doesn't affect test results.
 ### Integration tests need Docker
 
 Integration tests use Testcontainers which requires Docker:
+
 ```bash
 docker info  # Verify Docker is running
 pnpm --filter @carecareer/platform-service test:integration

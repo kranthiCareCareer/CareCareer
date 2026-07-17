@@ -55,9 +55,7 @@ results.push(run('pnpm --filter @carecareer/platform-service test', 'Platform se
 results.push(run('pnpm --filter @carecareer/platform-admin-console test', 'Frontend unit tests'));
 
 // Step 5: Run Chromium E2E tests
-results.push(
-  run('pnpm --filter @carecareer/platform-admin-console e2e', 'Chromium E2E tests'),
-);
+results.push(run('pnpm --filter @carecareer/platform-admin-console e2e', 'Chromium E2E tests'));
 
 // Step 6: Shut down
 run('node scripts/demo-down.mjs', 'Shut down demo resources');

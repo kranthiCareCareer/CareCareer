@@ -136,10 +136,14 @@ describe('PlatformApiClient', () => {
       await apiClient.provisionTenant({ name: 'T1', slug: 't1', organizationName: 'O1' });
       await apiClient.provisionTenant({ name: 'T2', slug: 't2', organizationName: 'O2' });
 
-      const headers1 = (mockFetch.mock.calls[0] as [string, RequestInit])[1]
-        .headers as Record<string, string>;
-      const headers2 = (mockFetch.mock.calls[1] as [string, RequestInit])[1]
-        .headers as Record<string, string>;
+      const headers1 = (mockFetch.mock.calls[0] as [string, RequestInit])[1].headers as Record<
+        string,
+        string
+      >;
+      const headers2 = (mockFetch.mock.calls[1] as [string, RequestInit])[1].headers as Record<
+        string,
+        string
+      >;
       expect(headers1['Idempotency-Key']).not.toBe(headers2['Idempotency-Key']);
     });
   });
@@ -156,9 +160,7 @@ describe('PlatformApiClient', () => {
         headers: new Headers({ 'x-correlation-id': 'err-corr' }),
       });
 
-      await expect(
-        apiClient.activateTenant('tid', 'test', 1),
-      ).rejects.toMatchObject({
+      await expect(apiClient.activateTenant('tid', 'test', 1)).rejects.toMatchObject({
         message: 'Version conflict',
         status: 409,
         code: 'VERSION_CONFLICT',
@@ -211,7 +213,9 @@ describe('PlatformApiClient', () => {
       mockFetch.mockResolvedValue({
         ok: false,
         status: 500,
-        json: async () => { throw new Error('not json'); },
+        json: async () => {
+          throw new Error('not json');
+        },
         headers: new Headers({}),
       });
 

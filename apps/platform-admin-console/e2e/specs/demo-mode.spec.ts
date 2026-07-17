@@ -36,9 +36,7 @@ test.describe('Demo mode availability', () => {
     await page.waitForLoadState('networkidle');
 
     // Filter out known non-critical errors (like favicon 404)
-    const critical = errors.filter(
-      (e) => !e.includes('favicon') && !e.includes('404'),
-    );
+    const critical = errors.filter((e) => !e.includes('favicon') && !e.includes('404'));
     expect(critical).toHaveLength(0);
   });
 });

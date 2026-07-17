@@ -70,7 +70,10 @@ test.describe('Tenant isolation', () => {
     await personaSelector.waitForDashboard();
 
     // Switch persona
-    await page.getByRole('button', { name: /Switch/ }).first().click();
+    await page
+      .getByRole('button', { name: /Switch/ })
+      .first()
+      .click();
 
     // Should see persona selector again
     await expect(

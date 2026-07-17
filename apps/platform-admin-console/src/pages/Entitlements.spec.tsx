@@ -99,9 +99,11 @@ describe('Entitlements', () => {
 
   it('should call updateEntitlements on toggle', async () => {
     mockUpdateEntitlements.mockResolvedValue(undefined);
-    mockGetEntitlements
-      .mockResolvedValueOnce(defaultEntitlements)
-      .mockResolvedValueOnce({ ...defaultEntitlements, modules: { ...defaultEntitlements.modules, workforce: true }, version: 2 });
+    mockGetEntitlements.mockResolvedValueOnce(defaultEntitlements).mockResolvedValueOnce({
+      ...defaultEntitlements,
+      modules: { ...defaultEntitlements.modules, workforce: true },
+      version: 2,
+    });
 
     renderEntitlements();
     await waitFor(() => {

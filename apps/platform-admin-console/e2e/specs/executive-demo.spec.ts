@@ -93,7 +93,10 @@ test.describe('Executive demo', () => {
 
     // === Step 7: Demonstrate tenant isolation ===
     // Switch to MAS Tenant Admin
-    await page.getByRole('button', { name: /Switch/ }).first().click();
+    await page
+      .getByRole('button', { name: /Switch/ })
+      .first()
+      .click();
     await expect(
       page.getByRole('heading', { name: 'CareCareer Platform Admin Console' }),
     ).toBeVisible();
@@ -112,7 +115,10 @@ test.describe('Executive demo', () => {
 
     // === Step 8: Switch back and show suspended state ===
     await page.goto('/');
-    await page.getByRole('button', { name: /Switch/ }).first().click();
+    await page
+      .getByRole('button', { name: /Switch/ })
+      .first()
+      .click();
     await personaSelector.selectPersona('Platform Administrator');
     await personaSelector.waitForDashboard();
     await page.screenshot({

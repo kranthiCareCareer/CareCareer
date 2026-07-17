@@ -43,10 +43,7 @@ describe('CreateTenant', () => {
 
   it('should have breadcrumb to tenants list', () => {
     renderCreate();
-    expect(screen.getByRole('link', { name: '← Tenants' })).toHaveAttribute(
-      'href',
-      '/tenants',
-    );
+    expect(screen.getByRole('link', { name: '← Tenants' })).toHaveAttribute('href', '/tenants');
   });
 
   it('should render all form fields', () => {
