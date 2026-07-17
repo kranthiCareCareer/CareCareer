@@ -2,25 +2,27 @@
 
 ## Current state
 - Branch: master
-- Commit: 55c2c42
+- Commit: cdf48c5
 - Working tree: clean
 
 ## Completed checkpoints
-- None fully completed in the autonomous execution yet
+- **Checkpoint 1: HTTP Authentication and Authorization** — COMPLETE
 
-## Current checkpoint
-- Checkpoint 1: GP-02 HTTP Authentication and Authorization
-- Status: IN PROGRESS — DI tokens created, Supertest scaffolded, auth guard NOT wired into request pipeline
-
-## Identified gaps at 55c2c42
-1. TenantController has no auth guard applied — requests reach controller without token validation
-2. HealthController throws 500 — HealthChecker not properly injected in test module
-3. No permission check in provisioning endpoint — tenant admin gets 201
-4. 6 Supertest tests failing because of above
+## Checkpoint 1 completion report
+- Commit: cdf48c5
+- Files changed: 6 (platform-auth.guard.ts, public.decorator.ts, health.controller.ts, platform.module.ts, tenant.controller.ts, execution-status.md)
+- DI changes: Injection tokens for ADMINISTRATIVE_DATABASE, TENANT_DATABASE, PLATFORM_REPOSITORY, OUTBOX_WRITER, TOKEN_VALIDATOR, AUTHORIZATION_SERVICE
+- Authentication behavior: Global PlatformAuthGuard validates JWT on all routes except /health/*
+- Authorization behavior: Controller-level permission check (PLATFORM_ADMIN required for provisioning)
+- Supertest cases: 8 (4 × 401, 1 × 403, 1 × 201, 1 × health 200, 1 × no side effects)
+- Commands executed: pnpm lint (22/22), pnpm typecheck (pass), pnpm test (71 pass)
+- Unit results: 71 passing (platform-service)
+- Integration results: 33 passing (separate run, unchanged)
+- Known gaps: Cross-tenant 404 test not yet in Supertest suite; full Testcontainers HTTP smoke not yet added
+- Next checkpoint: Checkpoint 2 — Tenant-state enforcement and controller contracts
 
 ## Next automatic action
-- Wire PlatformAuthGuard into the NestJS pipeline
-- Fix HealthChecker injection
-- Add permission check to provisioning
-- Make all Supertest tests pass
-- Commit checkpoint 1
+- Implement suspended/deactivated enforcement in command path
+- Add controller validation tests (unknown fields, malformed UUIDs, headers)
+- Add lifecycle HTTP tests (all transitions)
+- Prove denied transitions create no records
