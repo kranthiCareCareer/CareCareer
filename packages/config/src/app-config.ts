@@ -22,11 +22,18 @@ export const appConfigSchema = z.object({
   DATABASE_POOL_MIN: z.coerce.number().int().nonnegative().default(2),
   DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
 
-  // OIDC / JWT (optional in development mode with demo auth)
+  // OIDC / JWT — required in production, optional in dev/test with demo auth
   OIDC_ISSUER: z.string().url().optional(),
   OIDC_AUDIENCE: z.string().min(1).optional(),
   OIDC_JWKS_URI: z.string().url().optional(),
   OIDC_ALGORITHMS: z.string().default('RS256'),
+
+  // Demo authentication (development/test only)
+  DEMO_MODE: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === 'true'),
+  DEMO_AUTH_SECRET: z.string().min(32).optional(),
 
   // Logging
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
@@ -45,6 +52,41 @@ export const appConfigSchema = z.object({
 
   // Graceful shutdown
   SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+}).superRefine((data, ctx) => {
+  // Configuration matrix enforcement
+  if (data.NODE_ENV === 'production') {
+    // Production: OIDC required, demo prohibited
+    if (!data.OIDC_ISSUER) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['OIDC_ISSUER'],
+        message: 'OIDC_ISSUER is required in production',
+      });
+    }
+    if (!data.OIDC_AUDIENCE) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['OIDC_AUDIENCE'],
+        message: 'OIDC_AUDIENCE is required in production',
+      });
+    }
+    if (data.DEMO_MODE) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['DEMO_MODE'],
+        message: 'Demo authentication is prohibited in production',
+      });
+    }
+  }
+
+  // Development/test with DEMO_MODE: demo secret required
+  if (data.DEMO_MODE && !data.DEMO_AUTH_SECRET) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['DEMO_AUTH_SECRET'],
+      message: 'DEMO_AUTH_SECRET is required when DEMO_MODE is enabled',
+    });
+  }
 });
 
 export type AppConfig = z.infer<typeof appConfigSchema>;

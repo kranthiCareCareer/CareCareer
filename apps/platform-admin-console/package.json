@@ -9,11 +9,14 @@
     "preview": "vite preview --port 4000",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed --workers=1",
     "e2e:ui": "playwright test --ui",
     "e2e:debug": "playwright test --debug",
-    "e2e:report": "playwright show-report"
+    "e2e:report": "playwright show-report",
+    "e2e:record": "playwright codegen http://localhost:4000"
   },
   "dependencies": {
     "react": "19.1.0",
@@ -22,10 +25,16 @@
   },
   "devDependencies": {
     "@playwright/test": "1.52.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "22.15.21",
     "@types/react": "19.1.6",
     "@types/react-dom": "19.1.6",
     "@vitejs/plugin-react": "4.5.2",
+    "jsdom": "^29.1.1",
     "typescript": "5.8.3",
-    "vite": "6.3.5"
+    "vite": "6.3.5",
+    "vitest": "3.2.3"
   }
 }
