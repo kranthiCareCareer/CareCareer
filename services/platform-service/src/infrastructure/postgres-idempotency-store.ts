@@ -1,10 +1,6 @@
 import { Client } from 'pg';
 
-import type { IdempotencyRecord } from '@carecareer/idempotency';
-import type {
-  ClaimResult,
-  IdempotencyStore,
-} from '@carecareer/idempotency/src/idempotency-store.js';
+import type { IdempotencyRecord, IdempotencyStore, ClaimResult } from '@carecareer/idempotency';
 
 /**
  * PostgreSQL-backed idempotency store for integration testing.

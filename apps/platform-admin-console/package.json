@@ -8,7 +8,12 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --port 4000",
     "lint": "eslint src/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "e2e": "playwright test",
+    "e2e:headed": "playwright test --headed --workers=1",
+    "e2e:ui": "playwright test --ui",
+    "e2e:debug": "playwright test --debug",
+    "e2e:report": "playwright show-report"
   },
   "dependencies": {
     "react": "19.1.0",
@@ -16,6 +21,7 @@
     "react-router-dom": "7.6.2"
   },
   "devDependencies": {
+    "@playwright/test": "1.52.0",
     "@types/react": "19.1.6",
     "@types/react-dom": "19.1.6",
     "@vitejs/plugin-react": "4.5.2",

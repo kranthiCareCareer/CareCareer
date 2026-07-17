@@ -151,3 +151,26 @@ CREATE INDEX idx_audit_correlation ON audit_records (correlation_id);
 
 -- Note: GRANT for app_service applied separately after role creation
 -- App role gets SELECT + INSERT only (no UPDATE or DELETE on audit_records)
+
+-- Idempotency keys (atomic deduplication for mutations)
+CREATE TABLE idempotency_keys (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id VARCHAR(200) NOT NULL,
+    actor_id VARCHAR(200),
+    operation VARCHAR(200) NOT NULL,
+    idempotency_key VARCHAR(255) NOT NULL,
+    request_hash VARCHAR(64) NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'PROCESSING',
+    response_status INTEGER,
+    response_body JSONB,
+    resource_type VARCHAR(100),
+    resource_id VARCHAR(200),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    locked_until TIMESTAMPTZ,
+    CONSTRAINT uq_idempotency_key UNIQUE (tenant_id, operation, idempotency_key)
+);
+
+CREATE INDEX idx_idempotency_expires ON idempotency_keys (expires_at);
+CREATE INDEX idx_idempotency_status ON idempotency_keys (status, locked_until);

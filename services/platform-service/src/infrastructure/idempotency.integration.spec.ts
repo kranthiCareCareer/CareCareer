@@ -19,6 +19,7 @@ import {
 
 import { idempotentProvisionTenant } from '../application/commands/idempotent-provision-tenant.command.js';
 
+import { PostgresIdempotencyStore } from './postgres-idempotency-store.js';
 import { PostgresPlatformRepository } from './postgres-platform-repository.js';
 
 const MIGRATION_PATH = resolve('prisma', 'migrations', '001_initial_schema.sql');
@@ -31,6 +32,8 @@ describe('End-to-End Idempotency (Real PostgreSQL)', () => {
   let outboxWriter: OutboxWriter;
   let idempotencyService: IdempotencyService;
   let idempotencyStore: InMemoryIdempotencyStore;
+  let pgIdempotencyStore: PostgresIdempotencyStore;
+  let pgIdempotencyService: IdempotencyService;
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16-alpine')
@@ -61,6 +64,8 @@ describe('End-to-End Idempotency (Real PostgreSQL)', () => {
     outboxWriter = new OutboxWriter('platform-service');
     idempotencyStore = new InMemoryIdempotencyStore();
     idempotencyService = new IdempotencyService(idempotencyStore);
+    pgIdempotencyStore = new PostgresIdempotencyStore(container.getConnectionUri());
+    pgIdempotencyService = new IdempotencyService(pgIdempotencyStore, { lockDurationMs: 5000 });
   });
 
   afterAll(async () => {
@@ -76,6 +81,7 @@ describe('End-to-End Idempotency (Real PostgreSQL)', () => {
     await superClient.query('DELETE FROM branches');
     await superClient.query('DELETE FROM organizations');
     await superClient.query('DELETE FROM tenants');
+    await superClient.query('DELETE FROM idempotency_keys');
     idempotencyStore.clear();
   });
 
@@ -234,62 +240,60 @@ describe('End-to-End Idempotency (Real PostgreSQL)', () => {
       idempotencyKey: 'idem-key-concurrent',
     };
 
-    // Launch two simultaneous requests with the same idempotency key
+    const requestBody = { name: input.name, slug: input.slug, org: input.organizationName };
+
+    // Use PostgreSQL-backed idempotency store for real atomic claim behavior.
+    // Launch two simultaneous requests with the same idempotency key.
     const [result1, result2] = await Promise.allSettled([
-      idempotencyService.execute(
+      pgIdempotencyService.execute(
         {
           tenantId: 'platform',
           actorId: input.actorId,
           operation: 'POST:/v1/tenants/concurrent',
           idempotencyKey: input.idempotencyKey,
-          requestBody: { name: input.name, slug: input.slug, org: input.organizationName },
+          requestBody,
         },
         async () => {
           handlerExecutionCount++;
-          // Simulate some work
-          await new Promise((r) => setTimeout(r, 50));
+          // Simulate real work (provisioning takes time)
+          await new Promise((r) => setTimeout(r, 100));
           return { result: { tenantId: 'concurrent-id' }, status: 201 };
         },
       ),
-      idempotencyService.execute(
+      pgIdempotencyService.execute(
         {
           tenantId: 'platform',
           actorId: input.actorId,
           operation: 'POST:/v1/tenants/concurrent',
           idempotencyKey: input.idempotencyKey,
-          requestBody: { name: input.name, slug: input.slug, org: input.organizationName },
+          requestBody,
         },
         async () => {
           handlerExecutionCount++;
-          await new Promise((r) => setTimeout(r, 50));
-          return { result: { tenantId: 'concurrent-id-2' }, status: 201 };
+          await new Promise((r) => setTimeout(r, 100));
+          return { result: { tenantId: 'concurrent-id-SHOULD-NOT-APPEAR' }, status: 201 };
         },
       ),
     ]);
 
-    // Both should resolve (one from execution, one from cache or in-progress)
-    const successes = [result1, result2].filter((r) => r.status === 'fulfilled');
-    expect(successes.length).toBeGreaterThanOrEqual(1);
+    // Both must resolve successfully (not reject)
+    expect(result1.status).toBe('fulfilled');
+    expect(result2.status).toBe('fulfilled');
 
-    // Handler should execute at most once (in-memory store handles atomically)
+    // Handler executed exactly once
     expect(handlerExecutionCount).toBe(1);
 
-    // The first caller executes and gets the real result.
-    // The second caller detects PROCESSING state and returns fromCache: true.
-    // Since the handler hasn't completed yet when the second call arrives,
-    // the cached responseBody is null (PROCESSING state).
-    // This proves only one handler ran. In production (PostgreSQL), the second
-    // caller would wait/retry. For in-memory, we verify only one execution.
+    // Both callers receive the SAME tenant ID
     if (result1.status === 'fulfilled' && result2.status === 'fulfilled') {
-      // One result is the real handler result, the other is the PROCESSING placeholder
-      const real = result1.value.fromCache === false ? result1.value : result2.value;
-      const cached = result1.value.fromCache === true ? result1.value : result2.value;
+      expect(result1.value.result).toEqual({ tenantId: 'concurrent-id' });
+      expect(result2.value.result).toEqual({ tenantId: 'concurrent-id' });
+      expect(result1.value.result).toEqual(result2.value.result);
 
-      expect(real.result).toEqual({ tenantId: 'concurrent-id' });
-      expect(real.fromCache).toBe(false);
-      expect(cached.fromCache).toBe(true);
-      // The cached result has null body because the handler was still PROCESSING
-      expect(cached.result).toBeNull();
+      // One is from handler, one is from cache
+      const fromCacheResults = [result1.value, result2.value].filter((r) => r.fromCache);
+      const fromHandlerResults = [result1.value, result2.value].filter((r) => !r.fromCache);
+      expect(fromCacheResults).toHaveLength(1);
+      expect(fromHandlerResults).toHaveLength(1);
     }
   });
 });

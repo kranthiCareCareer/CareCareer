@@ -1,5 +1,5 @@
 export type { IdempotencyRecord, IdempotencyStatus } from './idempotency-record.js';
-export type { IdempotencyStore } from './idempotency-store.js';
+export type { IdempotencyStore, ClaimResult } from './idempotency-store.js';
 export { IdempotencyService } from './idempotency-service.js';
 export { InMemoryIdempotencyStore } from './in-memory-store.js';
 export { RequestHasher } from './request-hasher.js';

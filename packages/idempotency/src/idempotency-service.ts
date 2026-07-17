@@ -96,13 +96,9 @@ export class IdempotencyService {
       }
 
       // Same payload, still processing → another instance is handling it
-      // In production, wait briefly then check again; for now return processing indicator
+      // Wait for the first request to complete, then return its result.
       if (existing.status === 'PROCESSING') {
-        return {
-          result: existing.responseBody as T,
-          status: existing.responseStatus ?? 202,
-          fromCache: true,
-        };
+        return this.waitForCompletion<T>(params, requestHash);
       }
 
       // Terminal failure → return consistently
@@ -153,5 +149,71 @@ export class IdempotencyService {
 
       throw error;
     }
+  }
+
+  /**
+   * Wait for an in-progress idempotency record to reach COMPLETED status.
+   * Polls with exponential backoff up to a bounded timeout.
+   *
+   * If the record completes → returns the cached result.
+   * If the record is removed (FAILED_RETRYABLE) → throws so caller can retry.
+   * If timeout expires while still PROCESSING → throws stale-record error.
+   */
+  private async waitForCompletion<T>(
+    params: IdempotencyExecuteParams,
+    requestHash: string,
+  ): Promise<IdempotencyResult<T>> {
+    const maxWaitMs = Math.min(this.lockDurationMs, 10_000); // Cap at 10s
+    const startTime = Date.now();
+    let delayMs = 50; // Start with 50ms, exponential backoff
+
+    while (Date.now() - startTime < maxWaitMs) {
+      await this.sleep(delayMs);
+      delayMs = Math.min(delayMs * 2, 1000); // Cap individual delay at 1s
+
+      const record = await this.store.find({
+        tenantId: params.tenantId,
+        operation: params.operation,
+        idempotencyKey: params.idempotencyKey,
+      });
+
+      if (!record) {
+        // Record was deleted (FAILED_RETRYABLE cleanup) — caller should retry
+        throw new IdempotencyStorageError(
+          'Idempotency record was removed during processing — retry the request',
+        );
+      }
+
+      if (record.requestHash !== requestHash) {
+        throw new IdempotencyConflictError(params.idempotencyKey);
+      }
+
+      if (record.status === 'COMPLETED') {
+        return {
+          result: record.responseBody as T,
+          status: record.responseStatus ?? 200,
+          fromCache: true,
+        };
+      }
+
+      if (record.status === 'FAILED_TERMINAL') {
+        return {
+          result: record.responseBody as T,
+          status: record.responseStatus ?? 500,
+          fromCache: true,
+        };
+      }
+
+      // Still PROCESSING — continue polling
+    }
+
+    // Timeout — record is stale IN_PROGRESS
+    throw new IdempotencyStorageError(
+      `Idempotency key still PROCESSING after ${maxWaitMs}ms — possible stale record`,
+    );
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

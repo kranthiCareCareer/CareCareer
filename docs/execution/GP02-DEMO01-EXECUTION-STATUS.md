@@ -3,57 +3,59 @@
 ## Current state
 
 - Branch: master
-- Commit: 31e8ecf
+- Commit: 7c6905c
 - Working tree: clean
+- Tag: gp-02-platform-service-final (at 92845e9)
 
 ## Completed checkpoints
 
 - **Checkpoint 1: HTTP Authentication and Authorization** — COMPLETE
 - **Checkpoint 2: Tenant-State Enforcement and Controller Contracts** — COMPLETE
+- **Checkpoint 3: OpenAPI, Docker Validation, Final GP-02 Gate** — COMPLETE
+- **Checkpoint 4: DEMO-01 Frontend Shell and Core Screens** — COMPLETE
+- **Checkpoint 5: Demo Orchestration, Personas, and Seed Data** — COMPLETE
 
-## Checkpoint 2 completion report
+## Checkpoint 3 evidence (GP-02 final gate)
 
-- Commit: 31e8ecf
-- Files changed: 2 (tenant.controller.ts, checkpoint2-contracts.spec.ts)
-- Controller changes:
-  - Added `requireActiveTenant` call before createOrganization, updateEntitlements, updateFeature
-  - Added `ConflictException` import and structured 409 error responses
-  - Added `handleTenantStatusError` helper for mapping domain errors to HTTP
-  - Changed InvalidStateTransitionError from 422 to 409 with code `INVALID_STATE_TRANSITION`
-  - Changed VersionConflictError from 400 to 409 with code `VERSION_CONFLICT`
-- Test results: 46 new tests (117 total passing platform-service unit)
-- Test coverage:
-  - Tenant-state enforcement: 5 tests per status (SUSPENDED, DEACTIVATED, PROVISIONING)
-  - ACTIVE tenant success paths: 2 tests
-  - Tenant not found: 1 test
-  - Request validation: 10 tests (unknown fields, missing fields, blanks, slugs, oversized)
-  - Header validation: 4 tests (missing idempotency-key, missing actor-id)
-  - Lifecycle valid transitions: 5 tests (all allowed state paths)
-  - Invalid transitions: 3 tests (PROVISIONING→SUSPENDED, DEACTIVATED→ACTIVE, DEACTIVATED→SUSPENDED)
-  - Version conflict: 1 test
-  - No side effects on failure: 3 tests
-  - Authorization enforcement: 2 tests
-- Quality gates: pnpm lint (22/22), pnpm typecheck (pass), pnpm test (117 pass)
-- Known gaps: Full idempotency-conflict HTTP test not yet in Supertest suite (covered in integration)
-- Error response codes (spec-aligned):
-  - 400 Bad Request: validation failures, missing headers
-  - 401 Unauthorized: auth failures (from checkpoint 1)
-  - 403 Forbidden: permission denied (from checkpoint 1)
-  - 404 Not Found: tenant not found
-  - 409 Conflict: VERSION_CONFLICT, INVALID_STATE_TRANSITION, TENANT_INACTIVE
+- pnpm lint: 22/22 tasks
+- pnpm format:check: pass
+- pnpm typecheck: 22/22 tasks
+- pnpm test: 117 unit tests passing
+- pnpm build: 13/13 tasks
+- Integration tests: 34 passing (platform-service) + 8 (shared testing)
+- Docker verification: 15/15 checks passing
+- OpenAPI contract committed: services/platform-service/openapi.yaml
+- Tag applied: gp-02-platform-service-final
 
-## Next checkpoint: Checkpoint 3
+## Checkpoint 4 evidence
 
-- OpenAPI contract generation and validation
-- Docker build verification (non-root, production-only deps)
-- `docker:verify` script
-- GP-02 final exit gate (all suites pass)
-- Tag: gp-02-platform-service-final
+- apps/platform-admin-console created with Vite + React + TypeScript strict
+- Typed API client covering all platform-service endpoints
+- Demo persona selector (4 personas)
+- Dashboard, Tenant List, Create Tenant pages
+- Light theme, responsive CSS
+- Vite build: 230KB production bundle
+- 23/23 lint tasks, 23/23 typecheck tasks
 
-## Next automatic action
+## Checkpoint 5 evidence
 
-- Generate OpenAPI spec from controllers
-- Add docker:verify script
-- Build Docker image and validate constraints
-- Run full exit gate
-- Apply tag
+- DemoAuthController: POST /demo/token issues signed JWTs
+- docker-compose.demo.yml: PostgreSQL + platform-service
+- Root scripts: demo:up, demo:down, demo:reset
+- 117 platform-service tests still passing
+
+## Next checkpoint: Checkpoint 6
+
+- Install Playwright with Chromium
+- Create page objects and fixtures
+- Implement E2E specs for authentication, provisioning, isolation
+- Configure headless/headed modes
+- Add demo:e2e commands
+
+## Next checkpoint: Checkpoint 7
+
+- Executive demo flow spec (executive-demo.spec.ts)
+- Screenshot capture during demo
+- CI configuration
+- Full demo:verify pipeline
+- Documentation
