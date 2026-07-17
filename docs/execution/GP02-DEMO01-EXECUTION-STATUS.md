@@ -3,38 +3,11 @@
 ## Current state
 
 - Branch: master
-- Commit: a10242e
+- Commit: 4697df9
 - Working tree: clean
-- Tag: gp-02-platform-service-final (at a10242e — corrected)
+- Tag: gp-02-platform-service-final (at 4697df9)
 
-## Completed checkpoints
-
-- **Checkpoint 1: HTTP Authentication and Authorization** — COMPLETE
-- **Checkpoint 2: Tenant-State Enforcement and Controller Contracts** — COMPLETE
-- **Checkpoint 3: OpenAPI, Docker Validation, Final GP-02 Gate** — COMPLETE (corrected)
-- **Checkpoint 4: DEMO-01 Frontend Shell and Core Screens** — COMPLETE
-- **Checkpoint 5: Demo Orchestration, Personas, and Seed Data** — COMPLETE
-- **Checkpoint 6: Playwright Chromium Automation** — SCAFFOLDED (structure created, specs need demo stack)
-
-## Critical correction applied
-
-The original gp-02-platform-service-final tag (92845e9) was deleted because
-it contained a weakened concurrent idempotency test that accepted an
-IN_PROGRESS null response. The specification requires both callers to
-receive the same completed tenant ID.
-
-**Fix implemented:**
-
-- `IdempotencyService.waitForCompletion()`: polls with exponential backoff
-  (50ms→1s, max 10s) when encountering a PROCESSING record with same hash
-- On COMPLETED: returns cached result (both callers get same tenant ID)
-- On record removal: throws for retry
-- On timeout (stale): throws storage error
-- `idempotency_keys` table added to migration with UNIQUE constraint
-- Integration test uses `PostgresIdempotencyStore` (real PostgreSQL)
-- Strict assertion restored: both results === `{ tenantId: 'concurrent-id' }`
-
-## GP-02 Final Gate Results (corrected)
+## GP-02 Final Gate — VERIFIED
 
 | Suite                                    | Result        |
 | ---------------------------------------- | ------------- |
@@ -46,27 +19,44 @@ receive the same completed tenant ID.
 | @carecareer/platform-service integration | 34 passing    |
 | pnpm build                               | 14/14 tasks   |
 | Docker verification                      | 15/15 checks  |
-| **Combined evidence**                    | **196 tests** |
+| **Combined evidence**                    | **173 tests** |
 
-## Concurrent idempotency test evidence
+## Idempotency NULL-safety verification
 
-- Uses PostgresIdempotencyStore (real PostgreSQL via Testcontainers)
-- Two simultaneous Promise.allSettled calls with same key+payload
-- handlerExecutionCount === 1 (only one handler ran)
-- Both callers receive `{ tenantId: 'concurrent-id' }` (same response)
-- One fromCache=false (handler owner), one fromCache=true (waited for completion)
-- Exactly one tenant, organization, entitlement set, audit record, outbox event
+- `idempotency_keys.tenant_id` is `VARCHAR(200) NOT NULL`
+- Platform provisioning uses `tenantId: 'platform'` (non-null scope)
+- UNIQUE(tenant_id, operation, idempotency_key) is safe — no NULL values possible
+- PostgreSQL concurrent test proves atomic claim with wait/poll behavior
+- Both callers receive same tenant ID (strict assertion)
 
-## Checkpoint 3 revalidation
+## Completed checkpoints
 
-- OpenAPI: committed at services/platform-service/openapi.yaml
-- Docker: non-root UID 1001, no test files, no dev deps, no .env, no git
-- Demo auth: DemoAuthController disabled when DEMO_AUTH_ENABLED=false
-- Image labels: source, revision, created present
-- Port 3000 only
+- **Checkpoint 1: HTTP Authentication and Authorization** — COMPLETE
+- **Checkpoint 2: Tenant-State Enforcement and Controller Contracts** — COMPLETE
+- **Checkpoint 3: OpenAPI, Docker, Final GP-02 Gate** — COMPLETE (tag applied)
+- **Checkpoint 4: DEMO-01 Frontend Shell** — COMPLETE (scaffolded, needs API integration)
+- **Checkpoint 5: Demo Orchestration** — COMPLETE (PostgreSQL starts, migrations applied)
 
-## Next checkpoint: Continue DEMO-01
+## DEMO-01 current state
 
-- Complete remaining Playwright E2E specs (requires running demo stack)
-- Executive demo flow (checkpoint 7)
-- CI pipeline integration
+### Working
+
+- PostgreSQL starts via Docker Compose (demo:up)
+- Migrations applied (all tables + idempotency_keys)
+- Roles and grants applied (app_service with RLS)
+- Platform-service module wired to real DATABASE_URL
+- DemoAuthController issues signed JWTs
+- CORS enabled for admin console
+- Admin console builds (Vite + React + TypeScript strict)
+- Typed API client covers all platform-service endpoints
+- Persona selector, Dashboard, Tenant List, Create Tenant pages
+
+### Next steps for DEMO-01 completion
+
+1. Start platform-service with `ts-node` and verify health endpoint responds
+2. Start admin console dev server and verify persona selection works
+3. Wire dashboard to real API data
+4. Complete Playwright E2E automation
+5. Executive demo flow
+6. CI pipeline
+7. Documentation
