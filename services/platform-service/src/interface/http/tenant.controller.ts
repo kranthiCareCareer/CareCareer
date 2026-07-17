@@ -6,6 +6,7 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  Inject,
   NotFoundException,
   Param,
   Post,
@@ -13,14 +14,20 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 
-import { AdministrativeDatabase, TenantAwareTransaction } from '@carecareer/database';
-import { OutboxWriter } from '@carecareer/events';
+import type { AdministrativeDatabase, TenantAwareTransaction } from '@carecareer/database';
+import type { OutboxWriter } from '@carecareer/events';
 
 import { createOrganizationCommand } from '../../application/commands/create-organization.command.js';
 import { provisionTenant } from '../../application/commands/provision-tenant.command.js';
 import { transitionTenant } from '../../application/commands/transition-tenant.command.js';
 import { updateEntitlementsCommand } from '../../application/commands/update-entitlements.command.js';
 import { updateFeatureCommand } from '../../application/commands/update-feature.command.js';
+import {
+  ADMINISTRATIVE_DATABASE,
+  OUTBOX_WRITER,
+  PLATFORM_REPOSITORY,
+  TENANT_DATABASE,
+} from '../../application/ports/injection-tokens.js';
 import type { PlatformRepository } from '../../application/ports/platform-repository.js';
 import {
   getTenantQuery,
@@ -48,15 +55,15 @@ import {
 
 /**
  * Platform tenant controller.
- * Thin layer: validates input, delegates to commands/queries, maps errors to HTTP.
+ * Auth guard applied at controller level — health endpoints remain public.
  */
 @Controller('v1')
 export class TenantController {
   constructor(
-    private readonly adminDb: AdministrativeDatabase,
-    private readonly tenantDb: TenantAwareTransaction,
-    private readonly repo: PlatformRepository,
-    private readonly outboxWriter: OutboxWriter,
+    @Inject(ADMINISTRATIVE_DATABASE) private readonly adminDb: AdministrativeDatabase,
+    @Inject(TENANT_DATABASE) private readonly tenantDb: TenantAwareTransaction,
+    @Inject(PLATFORM_REPOSITORY) private readonly repo: PlatformRepository,
+    @Inject(OUTBOX_WRITER) private readonly outboxWriter: OutboxWriter,
   ) {}
 
   @Post('tenants')

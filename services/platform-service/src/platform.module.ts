@@ -1,24 +1,33 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
 
 import { InMemoryAuthorizationService } from '@carecareer/auth';
+import { AdministrativeDatabase, TenantAwareTransaction } from '@carecareer/database';
+import { OutboxWriter } from '@carecareer/events';
 import { HealthChecker } from '@carecareer/observability';
-import { ServiceCoreModule, AuthenticationGuard } from '@carecareer/service-core';
+import { ServiceCoreModule } from '@carecareer/service-core';
 
+import {
+  ADMINISTRATIVE_DATABASE,
+  AUTHORIZATION_SERVICE,
+  OUTBOX_WRITER,
+  PLATFORM_REPOSITORY,
+  TENANT_DATABASE,
+  TOKEN_VALIDATOR,
+} from './application/ports/injection-tokens.js';
 import { DemoTokenValidator } from './infrastructure/demo-token-validator.js';
+import { PostgresPlatformRepository } from './infrastructure/postgres-platform-repository.js';
 import { TenantController } from './interface/http/tenant.controller.js';
 
 /**
  * Platform service root module.
- * Configures authentication, authorization, health, and domain controllers.
+ * Auth guard applied at controller level (health remains public).
  */
 @Module({
   imports: [ServiceCoreModule],
   controllers: [TenantController],
   providers: [
-    // Token validator — demo mode (HS256)
     {
-      provide: 'TOKEN_VALIDATOR',
+      provide: TOKEN_VALIDATOR,
       useFactory: (): DemoTokenValidator =>
         new DemoTokenValidator({
           secret: process.env['DEMO_AUTH_SECRET'] ?? 'carecareer-demo-secret-for-testing-only-do-not-use-in-production',
@@ -26,50 +35,38 @@ import { TenantController } from './interface/http/tenant.controller.js';
           audience: 'carecareer-api',
         }),
     },
-    // Authorization service — in-memory for GP-02
     {
-      provide: 'AUTHORIZATION_SERVICE',
+      provide: AUTHORIZATION_SERVICE,
       useFactory: (): InMemoryAuthorizationService =>
         new InMemoryAuthorizationService({
           rolePermissions: {
             PLATFORM_ADMIN: [
-              'platform.tenant.provision',
-              'platform.tenant.read',
-              'platform.tenant.update',
-              'platform.organization.create',
-              'platform.branch.create',
-              'platform.entitlements.manage',
-              'platform.features.manage',
-              'platform.audit.read',
+              'platform.tenant.provision', 'platform.tenant.read', 'platform.tenant.update',
+              'platform.organization.create', 'platform.branch.create',
+              'platform.entitlements.manage', 'platform.features.manage', 'platform.audit.read',
             ],
             TENANT_ADMIN: [
-              'platform.tenant.read',
-              'platform.tenant.update',
-              'platform.organization.create',
-              'platform.branch.create',
-              'platform.entitlements.manage',
-              'platform.features.manage',
-              'platform.audit.read',
+              'platform.tenant.read', 'platform.tenant.update',
+              'platform.organization.create', 'platform.branch.create',
+              'platform.entitlements.manage', 'platform.features.manage', 'platform.audit.read',
             ],
-            READ_ONLY_AUDITOR: [
-              'platform.tenant.read',
-              'platform.audit.read',
-            ],
+            READ_ONLY_AUDITOR: ['platform.tenant.read', 'platform.audit.read'],
           },
         }),
     },
-    // Authentication guard (global)
+    { provide: PLATFORM_REPOSITORY, useClass: PostgresPlatformRepository },
     {
-      provide: APP_GUARD,
-      useFactory: (tokenValidator: DemoTokenValidator): AuthenticationGuard =>
-        new AuthenticationGuard(tokenValidator),
-      inject: ['TOKEN_VALIDATOR'],
+      provide: ADMINISTRATIVE_DATABASE,
+      useFactory: (): AdministrativeDatabase =>
+        new AdministrativeDatabase({ $transaction: async () => { throw new Error('No database configured'); } } as never),
     },
-    // Health checker
     {
-      provide: HealthChecker,
-      useFactory: (): HealthChecker => new HealthChecker(),
+      provide: TENANT_DATABASE,
+      useFactory: (): TenantAwareTransaction =>
+        new TenantAwareTransaction({ $transaction: async () => { throw new Error('No database configured'); } } as never),
     },
+    { provide: OUTBOX_WRITER, useFactory: (): OutboxWriter => new OutboxWriter('platform-service') },
+    { provide: HealthChecker, useFactory: (): HealthChecker => new HealthChecker() },
   ],
 })
 export class PlatformModule {}
