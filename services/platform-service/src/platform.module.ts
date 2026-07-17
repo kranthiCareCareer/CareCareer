@@ -13,6 +13,7 @@ import {
   TENANT_DATABASE,
   TOKEN_VALIDATOR,
 } from './application/ports/injection-tokens.js';
+import { createPgPrismaClient } from './infrastructure/database-factory.js';
 import { DemoTokenValidator } from './infrastructure/demo-token-validator.js';
 import { PlatformAuthGuard } from './infrastructure/platform-auth.guard.js';
 import { PostgresPlatformRepository } from './infrastructure/postgres-platform-repository.js';
@@ -69,21 +70,32 @@ import { TenantController } from './interface/http/tenant.controller.js';
     { provide: PLATFORM_REPOSITORY, useClass: PostgresPlatformRepository },
     {
       provide: ADMINISTRATIVE_DATABASE,
-      useFactory: (): AdministrativeDatabase =>
-        new AdministrativeDatabase({
-          $transaction: async () => {
-            throw new Error('No database configured');
-          },
-        } as never),
+      useFactory: (): AdministrativeDatabase => {
+        const dbUrl = process.env['DATABASE_URL'];
+        if (!dbUrl) {
+          // Fallback stub for unit tests (overridden in test modules)
+          return new AdministrativeDatabase({
+            $transaction: async () => {
+              throw new Error('No database configured');
+            },
+          } as never);
+        }
+        return new AdministrativeDatabase(createPgPrismaClient(dbUrl));
+      },
     },
     {
       provide: TENANT_DATABASE,
-      useFactory: (): TenantAwareTransaction =>
-        new TenantAwareTransaction({
-          $transaction: async () => {
-            throw new Error('No database configured');
-          },
-        } as never),
+      useFactory: (): TenantAwareTransaction => {
+        const dbUrl = process.env['DATABASE_URL'];
+        if (!dbUrl) {
+          return new TenantAwareTransaction({
+            $transaction: async () => {
+              throw new Error('No database configured');
+            },
+          } as never);
+        }
+        return new TenantAwareTransaction(createPgPrismaClient(dbUrl));
+      },
     },
     {
       provide: OUTBOX_WRITER,

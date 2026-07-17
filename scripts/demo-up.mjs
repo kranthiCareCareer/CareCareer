@@ -3,18 +3,33 @@
  * demo:up — Starts the CareCareer demo stack.
  *
  * 1. Start PostgreSQL via Docker Compose
- * 2. Wait for readiness
+ * 2. Wait for readiness (retry loop)
  * 3. Apply migrations + roles + RLS
- * 4. Seed deterministic demo data
- * 5. Start platform-service on port 3001
- * 6. Start admin console on port 4000
- * 7. Print URLs and persona instructions
+ * 4. Print URLs and instructions
  */
 import { execSync } from 'node:child_process';
 
 function run(cmd, opts = {}) {
   console.log(`  → ${cmd}`);
-  execSync(cmd, { stdio: 'inherit', encoding: 'utf-8', ...opts });
+  return execSync(cmd, { stdio: 'inherit', encoding: 'utf-8', ...opts });
+}
+
+function runSilent(cmd) {
+  try {
+    execSync(cmd, { stdio: 'pipe', encoding: 'utf-8' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function sleep(ms) {
+  execSync(
+    process.platform === 'win32'
+      ? `ping -n ${Math.ceil(ms / 1000)} 127.0.0.1 > nul`
+      : `sleep ${ms / 1000}`,
+    { stdio: 'pipe' },
+  );
 }
 
 console.log('\n═══════════════════════════════════════════');
@@ -26,20 +41,56 @@ try {
   console.log('▶ Starting PostgreSQL...');
   run('docker compose -f docker-compose.demo.yml up -d postgres');
 
-  // Step 2: Wait for readiness
+  // Step 2: Wait for readiness with retry
   console.log('\n▶ Waiting for PostgreSQL readiness...');
+  let ready = false;
+  for (let i = 0; i < 30; i++) {
+    if (
+      runSilent(
+        'docker compose -f docker-compose.demo.yml exec -T postgres pg_isready -U carecareer_admin',
+      )
+    ) {
+      ready = true;
+      break;
+    }
+    sleep(1000);
+  }
+  if (!ready) {
+    throw new Error('PostgreSQL did not become ready within 30 seconds');
+  }
+  console.log('  ✓ PostgreSQL is ready.');
+
+  // Step 3: Apply migrations
+  console.log('\n▶ Applying migrations...');
   run(
-    'docker compose -f docker-compose.demo.yml exec postgres pg_isready -U carecareer_admin --timeout=30',
+    'docker compose -f docker-compose.demo.yml exec -T postgres psql -U carecareer_admin -d carecareer_demo -f /dev/stdin < services/platform-service/prisma/migrations/001_initial_schema.sql',
+    { shell: true },
   );
+  console.log('  ✓ Migrations applied.');
 
-  console.log('\n▶ Demo stack PostgreSQL is ready.');
-  console.log('  Database: postgresql://localhost:5432/carecareer_demo');
+  // Step 4: Create roles and grants
+  console.log('\n▶ Creating roles and grants...');
+  const rolesSql = `
+    DO $$ BEGIN
+      IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'app_service') THEN
+        CREATE ROLE app_service NOINHERIT LOGIN PASSWORD 'app_pw';
+      END IF;
+    END $$;
+    GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_service;
+    REVOKE UPDATE, DELETE, TRUNCATE ON audit_records FROM app_service;
+  `;
+  execSync(
+    `docker compose -f docker-compose.demo.yml exec -T postgres psql -U carecareer_admin -d carecareer_demo -c "${rolesSql.replace(/\n/g, ' ')}"`,
+    { stdio: 'inherit', encoding: 'utf-8', shell: true },
+  );
+  console.log('  ✓ Roles and grants applied.');
 
+  // Done
   console.log('\n═══════════════════════════════════════════');
   console.log('  Demo Stack Ready!');
   console.log('═══════════════════════════════════════════');
   console.log('');
-  console.log('  To start services manually:');
+  console.log('  Start services:');
   console.log('    Platform Service:  pnpm --filter @carecareer/platform-service dev');
   console.log('    Admin Console:     pnpm --filter @carecareer/platform-admin-console dev');
   console.log('');

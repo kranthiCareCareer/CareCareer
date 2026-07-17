@@ -2,12 +2,14 @@ import { Module } from '@nestjs/common';
 
 import { ServiceCoreModule } from '@carecareer/service-core';
 
+import { PlatformModule } from './platform.module.js';
+
 /**
  * Root application module.
  * Imports ServiceCoreModule for all platform infrastructure.
- * Domain modules added below.
+ * Imports PlatformModule for domain controllers and services.
  */
 @Module({
-  imports: [ServiceCoreModule],
+  imports: [ServiceCoreModule, PlatformModule],
 })
 export class AppModule {}
