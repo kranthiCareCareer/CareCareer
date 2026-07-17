@@ -1,34 +1,46 @@
 import {
   type CanActivate,
   type ExecutionContext,
-  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 
 import { AuthenticationError, type TokenValidator } from '@carecareer/auth';
 
-import { TOKEN_VALIDATOR } from '../application/ports/injection-tokens.js';
+import { IS_PUBLIC_KEY } from './public.decorator.js';
 
 /**
  * Global authentication guard for platform-service.
- * Validates JWT tokens. Health endpoints are excluded by path.
+ * Validates JWT tokens on all routes unless marked with @Public().
+ *
+ * Uses NestJS Reflector to check metadata — no URL path exceptions.
  */
 @Injectable()
 export class PlatformAuthGuard implements CanActivate {
-  constructor(@Inject(TOKEN_VALIDATOR) private readonly tokenValidator: TokenValidator) {}
+  private readonly tokenValidator: TokenValidator;
+  private readonly reflector: Reflector;
+
+  constructor(tokenValidator: TokenValidator, reflector: Reflector) {
+    this.tokenValidator = tokenValidator;
+    this.reflector = reflector;
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    // Check @Public() decorator on handler or class
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) {
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest<{
-      url?: string;
       headers: Record<string, string | undefined>;
       principal?: unknown;
     }>();
-
-    // Health and demo endpoints are public
-    if (request.url?.startsWith('/health') || request.url?.startsWith('/demo')) {
-      return true;
-    }
 
     const authHeader = request.headers['authorization'];
     if (!authHeader) {

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, Reflector } from '@nestjs/core';
 
 import { InMemoryAuthorizationService } from '@carecareer/auth';
 import { AdministrativeDatabase, TenantAwareTransaction } from '@carecareer/database';
@@ -37,7 +37,9 @@ import { TenantController } from './interface/http/tenant.controller.js';
     },
     {
       provide: APP_GUARD,
-      useClass: PlatformAuthGuard,
+      useFactory: (tokenValidator: DemoTokenValidator, reflector: Reflector) =>
+        new PlatformAuthGuard(tokenValidator, reflector),
+      inject: [TOKEN_VALIDATOR, Reflector],
     },
     {
       provide: AUTHORIZATION_SERVICE,

@@ -8,6 +8,8 @@
  * 4. Print URLs and instructions
  */
 import { execSync } from 'node:child_process';
+import { writeFileSync, existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 function run(cmd, opts = {}) {
   console.log(`  → ${cmd}`);
@@ -37,6 +39,22 @@ console.log('  CareCareer Demo Stack — Starting');
 console.log('═══════════════════════════════════════════\n');
 
 try {
+  // Step 0: Generate .env for local platform-service
+  const envPath = resolve('services', 'platform-service', '.env');
+  if (!existsSync(envPath)) {
+    const envContent = [
+      'DATABASE_URL=postgresql://carecareer_admin:demo_password_not_for_production@localhost:5432/carecareer_demo',
+      'PORT=3001',
+      'HOST=0.0.0.0',
+      'NODE_ENV=development',
+      'DEMO_MODE=true',
+      'DEMO_AUTH_SECRET=carecareer-demo-secret-for-testing-only-do-not-use-in-production',
+      '',
+    ].join('\n');
+    writeFileSync(envPath, envContent);
+    console.log('▶ Generated platform-service .env for demo mode.');
+  }
+
   // Step 1: Start PostgreSQL
   console.log('▶ Starting PostgreSQL...');
   run('docker compose -f docker-compose.demo.yml up -d postgres');

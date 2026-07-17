@@ -17,7 +17,7 @@ console.log('══════════════════════�
 try {
   console.log('▶ Clearing existing data...');
   run(
-    'docker compose -f docker-compose.demo.yml exec -T postgres psql -U carecareer_admin -d carecareer_demo -c "TRUNCATE tenants, organizations, branches, tenant_entitlements, tenant_feature_configurations, event_outbox, audit_records CASCADE;"',
+    'docker compose -f docker-compose.demo.yml exec -T postgres psql -U carecareer_admin -d carecareer_demo -c "TRUNCATE tenants, organizations, branches, tenant_entitlements, tenant_feature_configurations, event_outbox, audit_records, idempotency_keys CASCADE;"',
   );
 
   console.log('\n✓ Demo data cleared. Re-seed with migrations + seed script.\n');
