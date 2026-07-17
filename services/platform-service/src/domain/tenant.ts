@@ -42,11 +42,7 @@ export function isValidTransition(from: TenantStatus, to: TenantStatus): boolean
 /**
  * Create a new tenant in PROVISIONING state.
  */
-export function createTenant(params: {
-  name: string;
-  slug: string;
-  createdBy: string;
-}): Tenant {
+export function createTenant(params: { name: string; slug: string; createdBy: string }): Tenant {
   const now = new Date();
   return {
     id: uuidv7(),
