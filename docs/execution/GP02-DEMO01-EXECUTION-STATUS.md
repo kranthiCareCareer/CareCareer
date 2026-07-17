@@ -39,24 +39,30 @@
 
 ## DEMO-01 current state
 
-### Working
+### Working (verified end-to-end against real PostgreSQL)
 
 - PostgreSQL starts via Docker Compose (demo:up)
-- Migrations applied (all tables + idempotency_keys)
-- Roles and grants applied (app_service with RLS)
-- Platform-service module wired to real DATABASE_URL
-- DemoAuthController issues signed JWTs
-- CORS enabled for admin console
+- Migrations applied (all tables including idempotency_keys)
+- Roles and grants applied (app_service with RLS, audit immutability)
+- Platform-service starts on port 3001 (tsx --env-file=.env)
+- GET /health/live → 200 ✓
+- POST /demo/token → 200 (signed JWT) ✓
+- POST /v1/tenants → 201 (real tenant in PostgreSQL) ✓
+- CORS enabled for admin console on port 4000
 - Admin console builds (Vite + React + TypeScript strict)
 - Typed API client covers all platform-service endpoints
 - Persona selector, Dashboard, Tenant List, Create Tenant pages
+- Playwright config and page objects scaffolded
 
 ### Next steps for DEMO-01 completion
 
-1. Start platform-service with `ts-node` and verify health endpoint responds
-2. Start admin console dev server and verify persona selection works
-3. Wire dashboard to real API data
-4. Complete Playwright E2E automation
-5. Executive demo flow
-6. CI pipeline
-7. Documentation
+1. Wire admin console Vite proxy to port 3001
+2. Verify persona selection end-to-end via browser
+3. Complete remaining pages (tenant detail, entitlements, features, lifecycle, audit)
+4. Install Playwright Chromium browsers
+5. Implement full E2E spec suite
+6. Executive demo spec with screenshots
+7. CI workflow (demo-e2e.yml)
+8. Documentation (README, walkthrough, architecture, test matrix, troubleshooting)
+9. CI pipeline
+10. Documentation
