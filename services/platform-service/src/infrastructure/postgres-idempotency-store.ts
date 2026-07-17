@@ -91,12 +91,17 @@ export class PostgresIdempotencyStore implements IdempotencyStore {
     const client = new Client({ connectionString: this.connectionUri });
     await client.connect();
     try {
+      // Store responseBody as proper JSONB (parameterized, not double-stringified)
+      const bodyJson =
+        typeof params.responseBody === 'string'
+          ? params.responseBody
+          : JSON.stringify(params.responseBody);
       await client.query(
-        `UPDATE idempotency_keys SET status = 'COMPLETED', response_status = $1, response_body = $2, updated_at = NOW(), locked_until = NULL
+        `UPDATE idempotency_keys SET status = 'COMPLETED', response_status = $1, response_body = $2::jsonb, updated_at = NOW(), locked_until = NULL
          WHERE tenant_id = $3 AND operation = $4 AND idempotency_key = $5`,
         [
           params.responseStatus,
-          JSON.stringify(params.responseBody),
+          bodyJson,
           params.tenantId,
           params.operation,
           params.idempotencyKey,
@@ -153,6 +158,16 @@ export class PostgresIdempotencyStore implements IdempotencyStore {
   }
 
   private mapRow(row: Record<string, unknown>): IdempotencyRecord {
+    // pg returns JSONB as parsed objects, but handle string case defensively
+    let responseBody = row['response_body'] ?? null;
+    if (typeof responseBody === 'string') {
+      try {
+        responseBody = JSON.parse(responseBody);
+      } catch {
+        // Leave as string if not valid JSON
+      }
+    }
+
     return {
       id: String(row['id'] ?? ''),
       tenantId: String(row['tenant_id'] ?? ''),
@@ -166,7 +181,7 @@ export class PostgresIdempotencyStore implements IdempotencyStore {
         | 'FAILED_RETRYABLE'
         | 'FAILED_TERMINAL',
       responseStatus: row['response_status'] ? Number(row['response_status']) : null,
-      responseBody: row['response_body'] ?? null,
+      responseBody,
       resourceType: row['resource_type'] ? String(row['resource_type']) : null,
       resourceId: row['resource_id'] ? String(row['resource_id']) : null,
       createdAt: new Date(String(row['created_at'])),
