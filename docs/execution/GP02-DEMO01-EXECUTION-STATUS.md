@@ -3,59 +3,70 @@
 ## Current state
 
 - Branch: master
-- Commit: 7c6905c
+- Commit: a10242e
 - Working tree: clean
-- Tag: gp-02-platform-service-final (at 92845e9)
+- Tag: gp-02-platform-service-final (at a10242e — corrected)
 
 ## Completed checkpoints
 
 - **Checkpoint 1: HTTP Authentication and Authorization** — COMPLETE
 - **Checkpoint 2: Tenant-State Enforcement and Controller Contracts** — COMPLETE
-- **Checkpoint 3: OpenAPI, Docker Validation, Final GP-02 Gate** — COMPLETE
+- **Checkpoint 3: OpenAPI, Docker Validation, Final GP-02 Gate** — COMPLETE (corrected)
 - **Checkpoint 4: DEMO-01 Frontend Shell and Core Screens** — COMPLETE
 - **Checkpoint 5: Demo Orchestration, Personas, and Seed Data** — COMPLETE
+- **Checkpoint 6: Playwright Chromium Automation** — SCAFFOLDED (structure created, specs need demo stack)
 
-## Checkpoint 3 evidence (GP-02 final gate)
+## Critical correction applied
 
-- pnpm lint: 22/22 tasks
-- pnpm format:check: pass
-- pnpm typecheck: 22/22 tasks
-- pnpm test: 117 unit tests passing
-- pnpm build: 13/13 tasks
-- Integration tests: 34 passing (platform-service) + 8 (shared testing)
-- Docker verification: 15/15 checks passing
-- OpenAPI contract committed: services/platform-service/openapi.yaml
-- Tag applied: gp-02-platform-service-final
+The original gp-02-platform-service-final tag (92845e9) was deleted because
+it contained a weakened concurrent idempotency test that accepted an
+IN_PROGRESS null response. The specification requires both callers to
+receive the same completed tenant ID.
 
-## Checkpoint 4 evidence
+**Fix implemented:**
 
-- apps/platform-admin-console created with Vite + React + TypeScript strict
-- Typed API client covering all platform-service endpoints
-- Demo persona selector (4 personas)
-- Dashboard, Tenant List, Create Tenant pages
-- Light theme, responsive CSS
-- Vite build: 230KB production bundle
-- 23/23 lint tasks, 23/23 typecheck tasks
+- `IdempotencyService.waitForCompletion()`: polls with exponential backoff
+  (50ms→1s, max 10s) when encountering a PROCESSING record with same hash
+- On COMPLETED: returns cached result (both callers get same tenant ID)
+- On record removal: throws for retry
+- On timeout (stale): throws storage error
+- `idempotency_keys` table added to migration with UNIQUE constraint
+- Integration test uses `PostgresIdempotencyStore` (real PostgreSQL)
+- Strict assertion restored: both results === `{ tenantId: 'concurrent-id' }`
 
-## Checkpoint 5 evidence
+## GP-02 Final Gate Results (corrected)
 
-- DemoAuthController: POST /demo/token issues signed JWTs
-- docker-compose.demo.yml: PostgreSQL + platform-service
-- Root scripts: demo:up, demo:down, demo:reset
-- 117 platform-service tests still passing
+| Suite                                    | Result        |
+| ---------------------------------------- | ------------- |
+| pnpm lint                                | 23/23 tasks   |
+| pnpm format:check                        | pass          |
+| pnpm typecheck                           | 23/23 tasks   |
+| pnpm test (unit)                         | 117 passing   |
+| @carecareer/testing integration          | 8 passing     |
+| @carecareer/platform-service integration | 34 passing    |
+| pnpm build                               | 14/14 tasks   |
+| Docker verification                      | 15/15 checks  |
+| **Combined evidence**                    | **196 tests** |
 
-## Next checkpoint: Checkpoint 6
+## Concurrent idempotency test evidence
 
-- Install Playwright with Chromium
-- Create page objects and fixtures
-- Implement E2E specs for authentication, provisioning, isolation
-- Configure headless/headed modes
-- Add demo:e2e commands
+- Uses PostgresIdempotencyStore (real PostgreSQL via Testcontainers)
+- Two simultaneous Promise.allSettled calls with same key+payload
+- handlerExecutionCount === 1 (only one handler ran)
+- Both callers receive `{ tenantId: 'concurrent-id' }` (same response)
+- One fromCache=false (handler owner), one fromCache=true (waited for completion)
+- Exactly one tenant, organization, entitlement set, audit record, outbox event
 
-## Next checkpoint: Checkpoint 7
+## Checkpoint 3 revalidation
 
-- Executive demo flow spec (executive-demo.spec.ts)
-- Screenshot capture during demo
-- CI configuration
-- Full demo:verify pipeline
-- Documentation
+- OpenAPI: committed at services/platform-service/openapi.yaml
+- Docker: non-root UID 1001, no test files, no dev deps, no .env, no git
+- Demo auth: DemoAuthController disabled when DEMO_AUTH_ENABLED=false
+- Image labels: source, revision, created present
+- Port 3000 only
+
+## Next checkpoint: Continue DEMO-01
+
+- Complete remaining Playwright E2E specs (requires running demo stack)
+- Executive demo flow (checkpoint 7)
+- CI pipeline integration
