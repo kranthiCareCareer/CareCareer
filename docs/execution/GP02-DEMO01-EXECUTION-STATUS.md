@@ -18,6 +18,7 @@ Run 2: 23 passed, 0 failed (repeatability proven)
 ```
 
 Real stack used:
+
 - React frontend (Vite dev server, port 4000)
 - NestJS backend (tsx, port 3001)
 - PostgreSQL 16 (Docker, port 5432)
@@ -46,32 +47,32 @@ apps/platform-admin-console/playwright-report/index.html (2847 bytes)
 
 ### Quality Gates (latest run)
 
-| Gate | Result |
-|------|--------|
-| pnpm format:check | pass |
-| pnpm typecheck | 23/23 pass |
-| pnpm test | 23/23 tasks pass |
-| pnpm build | 14/14 pass |
-| Chromium E2E | 23/23 pass |
-| Executive demo | pass (8 screenshots) |
+| Gate              | Result               |
+| ----------------- | -------------------- |
+| pnpm format:check | pass                 |
+| pnpm typecheck    | 23/23 pass           |
+| pnpm test         | 23/23 tasks pass     |
+| pnpm build        | 14/14 pass           |
+| Chromium E2E      | 23/23 pass           |
+| Executive demo    | pass (8 screenshots) |
 
 ### Test Evidence
 
-| Suite | Count |
-|-------|-------|
-| Platform-service unit | 117 |
-| Config package | 23 |
-| Auth package | 17 |
-| Observability | 28 |
-| Idempotency | 19 |
-| Request-context | 14 |
-| Database | 11 |
-| Events | 10 |
-| Engineering smoke | 10 |
-| Frontend (admin console) | 103 |
+| Suite                      | Count   |
+| -------------------------- | ------- |
+| Platform-service unit      | 117     |
+| Config package             | 23      |
+| Auth package               | 17      |
+| Observability              | 28      |
+| Idempotency                | 19      |
+| Request-context            | 14      |
+| Database                   | 11      |
+| Events                     | 10      |
+| Engineering smoke          | 10      |
+| Frontend (admin console)   | 103     |
 | **Combined unit evidence** | **352** |
-| **Chromium E2E** | **23** |
-| **Total proven tests** | **375** |
+| **Chromium E2E**           | **23**  |
+| **Total proven tests**     | **375** |
 
 ### Key Fixes Applied
 
@@ -82,14 +83,14 @@ apps/platform-admin-console/playwright-report/index.html (2847 bytes)
 
 ### Commands
 
-| Command | Status |
-|---------|--------|
-| pnpm demo:up | Working |
-| pnpm demo:down | Working |
-| pnpm demo:reset | Working |
-| pnpm demo:e2e | Working (via e2e-run.mjs) |
-| pnpm demo:e2e:headed | Working |
-| pnpm demo:verify | Working |
+| Command              | Status                    |
+| -------------------- | ------------------------- |
+| pnpm demo:up         | Working                   |
+| pnpm demo:down       | Working                   |
+| pnpm demo:reset      | Working                   |
+| pnpm demo:e2e        | Working (via e2e-run.mjs) |
+| pnpm demo:e2e:headed | Working                   |
+| pnpm demo:verify     | Working                   |
 
 ### Known Limitations
 
