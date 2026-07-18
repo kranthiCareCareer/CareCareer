@@ -1,3 +1,4 @@
+// @ts-check
 import { defineConfig, devices } from '@playwright/test';
 
 /**
@@ -9,10 +10,10 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e/specs',
-  fullyParallel: false, // Stateful demo flows require serial execution
+  fullyParallel: false,
   forbidOnly: !!process.env['CI'],
   retries: process.env['CI'] ? 1 : 0,
-  workers: 1, // Single worker for stateful demo flows
+  workers: 1,
   reporter: [['html', { open: 'never', outputFolder: 'playwright-report' }], ['list']],
   use: {
     baseURL: 'http://localhost:4000',

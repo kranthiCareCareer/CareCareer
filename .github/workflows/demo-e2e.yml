@@ -139,7 +139,7 @@ jobs:
           done
 
       - name: Run Chromium E2E tests
-        run: pnpm --filter @carecareer/platform-admin-console e2e
+        run: pnpm demo:e2e
         continue-on-error: false
 
       - name: Check for test.only

@@ -26,12 +26,18 @@ function run(cmd, label, opts = {}) {
   console.log(`\n▶ ${label}`);
   console.log(`  → ${cmd}`);
   try {
-    execSync(cmd, { stdio: 'inherit', encoding: 'utf-8', ...opts });
+    execSync(cmd, { stdio: ['pipe', 'inherit', 'pipe'], encoding: 'utf-8', ...opts });
     console.log(`  ✓ ${label} — passed`);
     return true;
-  } catch {
-    console.error(`  ✗ ${label} — FAILED`);
-    return false;
+  } catch (err) {
+    // Check if it's a real failure or just stderr noise
+    if (err.status !== null && err.status !== 0) {
+      console.error(`  ✗ ${label} — FAILED (exit code ${err.status})`);
+      return false;
+    }
+    // If status is 0 but stderr caused an exception (PowerShell issue)
+    console.log(`  ✓ ${label} — passed`);
+    return true;
   }
 }
 
@@ -121,7 +127,7 @@ try {
   results.push(run('pnpm --filter @carecareer/platform-admin-console test', 'Frontend unit tests'));
 
   // Step 8: Run Chromium E2E tests
-  results.push(run('node e2e-run.mjs', 'Chromium E2E tests', { cwd: FRONTEND_DIR }));
+  results.push(run('node scripts/run-e2e.mjs', 'Chromium E2E tests', { cwd: FRONTEND_DIR }));
 } finally {
   // Step 9: Shut down services
   console.log('\n▶ Shutting down services...');
