@@ -92,7 +92,7 @@ describe('OutboxWriter', () => {
   const writer = new OutboxWriter('test-service');
 
   it('should fail without tenant context', async () => {
-    const mockTx = { $executeRaw: vi.fn() };
+    const mockTx = { $executeRaw: vi.fn(), $queryRaw: vi.fn().mockResolvedValue([]) };
 
     await expect(
       writer.write(mockTx, {
@@ -106,7 +106,10 @@ describe('OutboxWriter', () => {
   });
 
   it('should write outbox record within tenant context', async () => {
-    const mockTx = { $executeRaw: vi.fn().mockResolvedValue(1) };
+    const mockTx = {
+      $executeRaw: vi.fn().mockResolvedValue(1),
+      $queryRaw: vi.fn().mockResolvedValue([]),
+    };
 
     await runWithContext(
       {
@@ -135,7 +138,10 @@ describe('OutboxWriter', () => {
   });
 
   it('should throw OutboxWriteError when database insert fails', async () => {
-    const mockTx = { $executeRaw: vi.fn().mockRejectedValue(new Error('DB error')) };
+    const mockTx = {
+      $executeRaw: vi.fn().mockRejectedValue(new Error('DB error')),
+      $queryRaw: vi.fn().mockResolvedValue([]),
+    };
 
     await runWithContext(
       {

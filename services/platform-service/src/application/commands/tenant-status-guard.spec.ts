@@ -39,7 +39,10 @@ function createTenantFixture(status: Tenant['status']): Tenant {
   };
 }
 
-const mockTx = { $executeRaw: vi.fn() } as unknown as TransactionClient;
+const mockTx = {
+  $executeRaw: vi.fn(),
+  $queryRaw: vi.fn().mockResolvedValue([]),
+} as unknown as TransactionClient;
 
 describe('requireActiveTenant', () => {
   it('should succeed for ACTIVE tenant', async () => {

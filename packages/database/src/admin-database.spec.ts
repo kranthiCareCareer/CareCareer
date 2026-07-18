@@ -7,6 +7,7 @@ import type { PrismaLikeClient } from './tenant-transaction.js';
 function createMockPrisma(): PrismaLikeClient {
   const mockTx = {
     $executeRaw: vi.fn().mockResolvedValue(1),
+    $queryRaw: vi.fn().mockResolvedValue([]),
   };
 
   return {
