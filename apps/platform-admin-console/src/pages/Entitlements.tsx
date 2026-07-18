@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import type { EntitlementSet, ModuleKey } from '../api/types';
 
@@ -61,9 +61,9 @@ export function Entitlements() {
     <div className="entitlements-page">
       <header className="page-header">
         <div className="page-header__left">
-          <a href={`/tenants/${tenantId}`} className="breadcrumb">
+          <Link to={`/tenants/${tenantId}`} className="breadcrumb">
             ← Tenant
-          </a>
+          </Link>
           <h1>Entitlements</h1>
         </div>
       </header>

@@ -7,6 +7,10 @@ import { DatabaseContextError } from './errors.js';
  */
 export interface TransactionClient {
   $executeRaw(query: TemplateStringsArray, ...values: unknown[]): Promise<number>;
+  $queryRaw<T = Record<string, unknown>>(
+    query: TemplateStringsArray,
+    ...values: unknown[]
+  ): Promise<T[]>;
 }
 
 /**

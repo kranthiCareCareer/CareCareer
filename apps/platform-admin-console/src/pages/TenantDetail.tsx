@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import type { Tenant, Organization, EntitlementSet } from '../api/types';
 import { useAuth } from '../lib/auth-context';
@@ -81,9 +81,9 @@ export function TenantDetail() {
     <div className="tenant-detail">
       <header className="page-header">
         <div className="page-header__left">
-          <a href="/tenants" className="breadcrumb">
+          <Link to="/tenants" className="breadcrumb">
             ← Tenants
-          </a>
+          </Link>
           <h1>{tenant.name}</h1>
         </div>
         <div className="page-header__right">
@@ -126,9 +126,9 @@ export function TenantDetail() {
               ))}
             </ul>
           )}
-          <a href={`/tenants/${tenantId}/organizations`} className="btn btn--secondary">
+          <Link to={`/tenants/${tenantId}/organizations`} className="btn btn--secondary">
             Manage
-          </a>
+          </Link>
         </section>
 
         <section className="card">
@@ -142,9 +142,9 @@ export function TenantDetail() {
               ))}
             </ul>
           )}
-          <a href={`/tenants/${tenantId}/entitlements`} className="btn btn--secondary">
+          <Link to={`/tenants/${tenantId}/entitlements`} className="btn btn--secondary">
             Manage
-          </a>
+          </Link>
         </section>
 
         <section className="card">

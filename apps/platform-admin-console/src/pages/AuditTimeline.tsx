@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 
 /**
  * Audit timeline page — read-only display of tenant activity.
@@ -12,9 +12,9 @@ export function AuditTimeline() {
     <div className="audit-page">
       <header className="page-header">
         <div className="page-header__left">
-          <a href={`/tenants/${tenantId}`} className="breadcrumb">
+          <Link to={`/tenants/${tenantId}`} className="breadcrumb">
             ← Tenant
-          </a>
+          </Link>
           <h1>Audit Timeline</h1>
         </div>
       </header>

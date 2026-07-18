@@ -318,6 +318,20 @@ function createPrismaLike(connectionUri: string): PrismaLikeClient {
             const result = await client.query(query, values);
             return result.rowCount ?? 0;
           },
+          async $queryRaw<T = Record<string, unknown>>(
+            strings: TemplateStringsArray,
+            ...values: unknown[]
+          ): Promise<T[]> {
+            let query = '';
+            for (let i = 0; i < strings.length; i++) {
+              query += strings[i];
+              if (i < values.length) {
+                query += `$${String(i + 1)}`;
+              }
+            }
+            const result = await client.query(query, values);
+            return result.rows as T[];
+          },
         };
         const result = await fn(txClient);
         await client.query('COMMIT');

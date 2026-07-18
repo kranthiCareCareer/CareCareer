@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth-context';
 import { apiClient } from '../api/client';
 
@@ -41,9 +42,9 @@ export function CreateTenant() {
   return (
     <div className="create-tenant">
       <header className="page-header">
-        <a href="/tenants" className="breadcrumb">
+        <Link to="/tenants" className="breadcrumb">
           ← Tenants
-        </a>
+        </Link>
         <h1>Create Tenant</h1>
       </header>
 
@@ -59,9 +60,9 @@ export function CreateTenant() {
           <p>
             Correlation ID: <code>{result.correlationId}</code>
           </p>
-          <a href={`/tenants/${result.tenantId}`} className="btn btn--primary">
+          <Link to={`/tenants/${result.tenantId}`} className="btn btn--primary">
             View Tenant
-          </a>
+          </Link>
         </div>
       )}
 

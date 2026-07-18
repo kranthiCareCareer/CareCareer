@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth-context';
 
 /**
@@ -10,9 +11,9 @@ export function TenantList() {
     <div className="tenant-list">
       <header className="page-header">
         <div className="page-header__left">
-          <a href="/" className="breadcrumb">
+          <Link to="/" className="breadcrumb">
             ← Dashboard
-          </a>
+          </Link>
           <h1>Tenants</h1>
         </div>
         <div className="page-header__right">
@@ -37,9 +38,9 @@ export function TenantList() {
           <option value="SUSPENDED">Suspended</option>
           <option value="DEACTIVATED">Deactivated</option>
         </select>
-        <a href="/tenants/create" className="btn btn--primary">
+        <Link to="/tenants/create" className="btn btn--primary">
           Create Tenant
-        </a>
+        </Link>
       </div>
 
       <div className="tenant-list__empty">

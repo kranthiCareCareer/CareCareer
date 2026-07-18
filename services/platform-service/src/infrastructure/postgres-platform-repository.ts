@@ -7,9 +7,49 @@ import type { FeatureConfiguration, FeatureKey } from '../domain/feature-configu
 import type { Branch, Organization } from '../domain/organization.js';
 import type { Tenant, TenantStatus } from '../domain/tenant.js';
 
+interface TenantRow {
+  id: string;
+  name: string;
+  slug: string;
+  status: string;
+  version: number;
+  created_at: string;
+  created_by: string;
+  updated_at: string;
+  updated_by: string;
+}
+
+interface OrganizationRow {
+  id: string;
+  tenant_id: string;
+  name: string;
+  version: number;
+  created_at: string;
+  created_by: string;
+  updated_at: string;
+  updated_by: string;
+}
+
+interface EntitlementRow {
+  tenant_id: string;
+  modules: Record<string, boolean>;
+  version: number;
+  updated_at: string;
+  updated_by: string;
+}
+
+interface FeatureRow {
+  tenant_id: string;
+  feature_key: string;
+  value: unknown;
+  version: number;
+  updated_at: string;
+  updated_by: string;
+}
+
 /**
  * PostgreSQL implementation of PlatformRepository.
- * Uses raw SQL via TransactionClient.$executeRaw for RLS-compatible operations.
+ * Uses $executeRaw for writes and $queryRaw for reads — both RLS-compatible.
  */
 export class PostgresPlatformRepository implements PlatformRepository {
   async createTenant(tx: TransactionClient, tenant: Tenant): Promise<void> {
@@ -22,13 +62,23 @@ export class PostgresPlatformRepository implements PlatformRepository {
   }
 
   async findTenantById(tx: TransactionClient, tenantId: string): Promise<Tenant | undefined> {
-    // The minimal TransactionClient only exposes $executeRaw (returns rowCount).
-    // For reads, we need a query path. In production Prisma, this would be prisma.tenant.findUnique.
-    // For integration tests, the test infrastructure queries directly via superClient.
-    // This stub enables compilation; real reads are tested through the pg client in integration tests.
-    void tx;
-    void tenantId;
-    return undefined;
+    const rows = await tx.$queryRaw<TenantRow>`
+      SELECT id, name, slug, status, version, created_at, created_by, updated_at, updated_by
+      FROM tenants WHERE id = ${tenantId}::uuid
+    `;
+    if (rows.length === 0) return undefined;
+    const row = rows[0]!;
+    return {
+      id: row.id,
+      name: row.name,
+      slug: row.slug,
+      status: row.status as TenantStatus,
+      version: row.version,
+      createdAt: new Date(row.created_at),
+      createdBy: row.created_by,
+      updatedAt: new Date(row.updated_at),
+      updatedBy: row.updated_by,
+    };
   }
 
   async updateTenantStatus(
@@ -65,10 +115,23 @@ export class PostgresPlatformRepository implements PlatformRepository {
 
   async findOrganizationsByTenant(
     tx: TransactionClient,
-    _tenantId: string,
+    tenantId: string,
   ): Promise<Organization[]> {
-    void tx;
-    return [];
+    const rows = await tx.$queryRaw<OrganizationRow>`
+      SELECT id, tenant_id, name, version, created_at, created_by, updated_at, updated_by
+      FROM organizations WHERE tenant_id = ${tenantId}::uuid
+      ORDER BY created_at ASC
+    `;
+    return rows.map((row) => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      name: row.name,
+      version: row.version,
+      createdAt: new Date(row.created_at),
+      createdBy: row.created_by,
+      updatedAt: new Date(row.updated_at),
+      updatedBy: row.updated_by,
+    }));
   }
 
   async createBranch(tx: TransactionClient, branch: Branch): Promise<void> {
@@ -83,10 +146,36 @@ export class PostgresPlatformRepository implements PlatformRepository {
 
   async findBranchesByOrganization(
     tx: TransactionClient,
-    _organizationId: string,
+    organizationId: string,
   ): Promise<Branch[]> {
-    void tx;
-    return [];
+    const rows = await tx.$queryRaw<{
+      id: string;
+      tenant_id: string;
+      organization_id: string;
+      name: string;
+      code: string;
+      version: number;
+      created_at: string;
+      created_by: string;
+      updated_at: string;
+      updated_by: string;
+    }>`
+      SELECT id, tenant_id, organization_id, name, code, version, created_at, created_by, updated_at, updated_by
+      FROM branches WHERE organization_id = ${organizationId}::uuid
+      ORDER BY created_at ASC
+    `;
+    return rows.map((row) => ({
+      id: row.id,
+      tenantId: row.tenant_id,
+      organizationId: row.organization_id,
+      name: row.name,
+      code: row.code,
+      version: row.version,
+      createdAt: new Date(row.created_at),
+      createdBy: row.created_by,
+      updatedAt: new Date(row.updated_at),
+      updatedBy: row.updated_by,
+    }));
   }
 
   async saveEntitlements(tx: TransactionClient, entitlements: EntitlementSet): Promise<void> {
@@ -104,9 +193,21 @@ export class PostgresPlatformRepository implements PlatformRepository {
   }
 
   async getEntitlements(tx: TransactionClient, tenantId: string): Promise<EntitlementSet> {
-    // Stub — integration tests prove this via real queries
-    void tx;
-    return createDefaultEntitlements(tenantId, 'system');
+    const rows = await tx.$queryRaw<EntitlementRow>`
+      SELECT tenant_id, modules, version, updated_at, updated_by
+      FROM tenant_entitlements WHERE tenant_id = ${tenantId}::uuid
+    `;
+    if (rows.length === 0) {
+      return createDefaultEntitlements(tenantId, 'system');
+    }
+    const row = rows[0]!;
+    return {
+      tenantId: row.tenant_id,
+      modules: row.modules as EntitlementSet['modules'],
+      version: row.version,
+      updatedAt: new Date(row.updated_at),
+      updatedBy: row.updated_by,
+    };
   }
 
   async saveFeature(tx: TransactionClient, config: FeatureConfiguration): Promise<void> {
@@ -125,15 +226,40 @@ export class PostgresPlatformRepository implements PlatformRepository {
 
   async getFeatureValue(
     tx: TransactionClient,
-    _tenantId: string,
-    _featureKey: FeatureKey,
+    tenantId: string,
+    featureKey: FeatureKey,
   ): Promise<FeatureConfiguration | undefined> {
-    void tx;
-    return undefined;
+    const rows = await tx.$queryRaw<FeatureRow>`
+      SELECT tenant_id, feature_key, value, version, updated_at, updated_by
+      FROM tenant_feature_configurations
+      WHERE tenant_id = ${tenantId}::uuid AND feature_key = ${featureKey}
+    `;
+    if (rows.length === 0) return undefined;
+    const row = rows[0]!;
+    return {
+      tenantId: row.tenant_id,
+      featureKey: row.feature_key as FeatureKey,
+      value: row.value,
+      version: row.version,
+      updatedAt: new Date(row.updated_at),
+      updatedBy: row.updated_by,
+    };
   }
 
-  async getAllFeatures(tx: TransactionClient, _tenantId: string): Promise<FeatureConfiguration[]> {
-    void tx;
-    return [];
+  async getAllFeatures(tx: TransactionClient, tenantId: string): Promise<FeatureConfiguration[]> {
+    const rows = await tx.$queryRaw<FeatureRow>`
+      SELECT tenant_id, feature_key, value, version, updated_at, updated_by
+      FROM tenant_feature_configurations
+      WHERE tenant_id = ${tenantId}::uuid
+      ORDER BY feature_key ASC
+    `;
+    return rows.map((row) => ({
+      tenantId: row.tenant_id,
+      featureKey: row.feature_key as FeatureKey,
+      value: row.value,
+      version: row.version,
+      updatedAt: new Date(row.updated_at),
+      updatedBy: row.updated_by,
+    }));
   }
 }

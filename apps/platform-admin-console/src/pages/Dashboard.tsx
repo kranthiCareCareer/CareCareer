@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth-context';
 
 /**
@@ -45,10 +46,10 @@ export function Dashboard() {
       </div>
 
       <nav className="dashboard__nav">
-        <a href="/tenants" className="nav-card">
+        <Link to="/tenants" className="nav-card">
           <h3>Tenants</h3>
           <p>Manage tenant provisioning and lifecycle</p>
-        </a>
+        </Link>
       </nav>
     </div>
   );
