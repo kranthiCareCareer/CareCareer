@@ -1,22 +1,26 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD, Reflector } from '@nestjs/core';
 
-import { AdministrativeDatabase } from '@carecareer/database';
+import { AdministrativeDatabase, TenantAwareTransaction } from '@carecareer/database';
 
 import {
   ADMINISTRATIVE_DATABASE,
   IDENTITY_REPOSITORY,
+  MEMBERSHIP_REPOSITORY,
+  TENANT_DATABASE,
   TOKEN_VALIDATOR,
 } from './application/ports/injection-tokens.js';
 import { createPgPrismaClient } from './infrastructure/database-factory.js';
 import { DemoTokenValidator } from './infrastructure/demo-token-validator.js';
 import { IdentityAuthGuard } from './infrastructure/identity-auth.guard.js';
 import { PostgresIdentityRepository } from './infrastructure/postgres-identity-repository.js';
+import { PostgresMembershipRepository } from './infrastructure/postgres-membership-repository.js';
 import { HealthController } from './interface/http/health.controller.js';
+import { MembershipController } from './interface/http/membership.controller.js';
 import { UserController } from './interface/http/user.controller.js';
 
 @Module({
-  controllers: [HealthController, UserController],
+  controllers: [HealthController, UserController, MembershipController],
   providers: [
     {
       provide: TOKEN_VALIDATOR,
@@ -40,6 +44,10 @@ import { UserController } from './interface/http/user.controller.js';
       useClass: PostgresIdentityRepository,
     },
     {
+      provide: MEMBERSHIP_REPOSITORY,
+      useClass: PostgresMembershipRepository,
+    },
+    {
       provide: ADMINISTRATIVE_DATABASE,
       useFactory: (): AdministrativeDatabase => {
         const dbUrl = process.env['DATABASE_URL'];
@@ -51,6 +59,20 @@ import { UserController } from './interface/http/user.controller.js';
           } as never);
         }
         return new AdministrativeDatabase(createPgPrismaClient(dbUrl));
+      },
+    },
+    {
+      provide: TENANT_DATABASE,
+      useFactory: (): TenantAwareTransaction => {
+        const dbUrl = process.env['DATABASE_URL'];
+        if (!dbUrl) {
+          return new TenantAwareTransaction({
+            $transaction: async () => {
+              throw new Error('No database configured');
+            },
+          } as never);
+        }
+        return new TenantAwareTransaction(createPgPrismaClient(dbUrl));
       },
     },
   ],

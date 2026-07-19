@@ -56,3 +56,35 @@ export class ExternalIdentityNotFoundError extends Error {
     this.name = 'ExternalIdentityNotFoundError';
   }
 }
+
+export class MembershipNotFoundError extends Error {
+  readonly code = 'MEMBERSHIP_NOT_FOUND';
+  constructor(membershipId: string) {
+    super(`Membership not found: ${membershipId}`);
+    this.name = 'MembershipNotFoundError';
+  }
+}
+
+export class DuplicateMembershipError extends Error {
+  readonly code = 'DUPLICATE_MEMBERSHIP';
+  constructor(userId: string, tenantId: string) {
+    super(`Membership already exists for user ${userId} in tenant ${tenantId}`);
+    this.name = 'DuplicateMembershipError';
+  }
+}
+
+export class InvalidRoleAssignmentError extends Error {
+  readonly code = 'INVALID_ROLE_ASSIGNMENT';
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidRoleAssignmentError';
+  }
+}
+
+export class CustomRoleDisabledError extends Error {
+  readonly code = 'CUSTOM_ROLE_DISABLED';
+  constructor() {
+    super('Custom role operations are disabled');
+    this.name = 'CustomRoleDisabledError';
+  }
+}

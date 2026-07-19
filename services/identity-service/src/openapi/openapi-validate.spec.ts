@@ -27,6 +27,18 @@ describe('OpenAPI Validation', () => {
     { method: 'patch', path: '/v1/platform/users/{userId}/status' },
     { method: 'post', path: '/v1/platform/users/{userId}/external-identities' },
     { method: 'get', path: '/v1/platform/users/{userId}/external-identities' },
+    { method: 'get', path: '/v1/platform/users/{userId}/memberships' },
+    { method: 'get', path: '/v1/platform/users/{userId}/platform-roles' },
+    { method: 'put', path: '/v1/platform/users/{userId}/platform-roles' },
+    { method: 'post', path: '/v1/tenants/{tenantId}/members' },
+    { method: 'get', path: '/v1/tenants/{tenantId}/members' },
+    { method: 'get', path: '/v1/tenants/{tenantId}/members/{membershipId}' },
+    { method: 'patch', path: '/v1/tenants/{tenantId}/members/{membershipId}/status' },
+    { method: 'get', path: '/v1/tenants/{tenantId}/members/{membershipId}/roles' },
+    { method: 'put', path: '/v1/tenants/{tenantId}/members/{membershipId}/roles' },
+    { method: 'get', path: '/v1/tenants/{tenantId}/members/{membershipId}/permissions' },
+    { method: 'get', path: '/v1/tenants/{tenantId}/roles' },
+    { method: 'get', path: '/v1/permissions' },
   ];
 
   it('should have valid OpenAPI document', () => {

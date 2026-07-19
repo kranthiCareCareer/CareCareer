@@ -1,120 +1,115 @@
 # GP-03 Identity Service — Execution Status
 
-## Current Phase: GP-03.1 — Identity Service Skeleton and Core Identity Schema
+## Current Phase: GP-03.2 — Memberships, Roles, and Permission Derivation (Complete)
 
 ## Current State
 
-| Field                | Value                                                       |
-| -------------------- | ----------------------------------------------------------- |
-| Current branch       | master                                                      |
-| GP-03.0 final commit | 6098d85                                                     |
-| Current slice        | GP-03.1                                                     |
-| Schema status        | Complete (10 tables in identity schema)                     |
-| Migration status     | 3 migration files applied (schema, RLS/grants, seed)        |
-| RLS status           | Enforced on tenant_memberships, membership_roles            |
-| API status           | 6 endpoints implemented + 2 health                          |
-| Unit results         | 37 passed                                                   |
-| HTTP results         | 15 passed (auth, permission, validation, success)           |
-| PostgreSQL results   | 17 passed (migrations, seeding, RLS, atomicity, uniqueness) |
-| Docker verification  | 14 checks passed                                            |
-| Platform regression  | 117 unit tests passed, Docker verified                      |
-| DEMO-01 regression   | 20 Chromium E2E + 103 frontend + 117 backend all green      |
+| Field                 | Value                                                        |
+| --------------------- | ------------------------------------------------------------ |
+| Current branch        | master                                                       |
+| GP-03.0 final commit  | 6098d85                                                      |
+| GP-03.1 original      | 010f0ef                                                      |
+| GP-03.1 closure       | 4157886                                                      |
+| Current slice         | GP-03.2                                                      |
+| Schema status         | Complete (10 tables, RLS enforced)                           |
+| Migration status      | 3 migration files (schema, RLS/grants, seed)                 |
+| API status            | 20 endpoints implemented (8 GP-03.1 + 12 GP-03.2)           |
+| Unit tests            | 85 passed (domain + HTTP contract + OpenAPI)                 |
+| Integration tests     | 31 passed (21 GP-03.1 + 10 GP-03.2)                         |
+| OpenAPI validation    | 13 automated checks                                         |
+| Docker verification   | 14/14 identity, 15/15 platform                               |
+| Platform regression   | 34 integration tests — 3/3 deterministic runs                |
+| DEMO-01 regression    | 20 Chromium E2E + 103 frontend + 117 backend all green       |
 
-## Specification Status
+## GP-03.2 Deliverables
 
-| Document                      | Status                               |
-| ----------------------------- | ------------------------------------ |
-| GP03-IDENTITY-SERVICE-SPEC.md | Rev 2.1 — Approved with corrections  |
-| GP03-THREAT-MODEL.md          | Complete (40 threats)                |
-| GP03-TRUST-BOUNDARIES.md      | Complete                             |
-| GP03-SECURITY-TEST-MATRIX.md  | Complete (62 security tests planned) |
+### Domain Model
 
-## GP-03.1 Deliverables
+- TenantMembership entity with full lifecycle (INVITED → ACTIVE → SUSPENDED → DEACTIVATED)
+- MembershipStatus state machine with all valid/invalid transitions tested
+- Permission derivation: deriveEffectivePermissions + derivePlatformPermissions
+- Role and Permission value objects
+- Platform role assignment model
+- All domain errors with stable codes
 
-### Service Skeleton
+### Application Layer
 
-- NestJS application with TypeScript strict mode
-- Zod-based configuration with fail-fast validation
-- Demo token validator (cannot start in production)
-- Global authentication guard with @Public() bypass
-- Permission decorator with PLATFORM_ADMIN enforcement
-- Structured error envelopes
-- Correlation-ID propagation via headers
-- PostgreSQL-aware readiness endpoint
-- Graceful shutdown hooks
-- Multi-stage non-root Dockerfile (port 3100)
-- Docker verification script (14 checks)
-- Unit and integration test configurations
+- createMembershipCommand (tenant path, duplicate rejection, atomic audit+outbox)
+- changeMembershipStatusCommand (optimistic concurrency, auth version increment)
+- assignMembershipRolesCommand (role validation, scope check, replacement semantics)
+- assignPlatformRoleCommand (admin path, user auth version increment)
+- removePlatformRoleCommand (admin path, audited)
 
-### Database Schema (identity schema)
+### HTTP Endpoints (GP-03.2)
 
-| Table                     | Created | RLS | Indexed |
-| ------------------------- | :-----: | :-: | :-----: |
-| users                     |    ✓    |  —  |    ✓    |
-| external_identities       |    ✓    |  —  |    ✓    |
-| tenant_memberships        |    ✓    |  ✓  |    ✓    |
-| roles                     |    ✓    |  —  |    —    |
-| permissions               |    ✓    |  —  |    —    |
-| role_permissions          |    ✓    |  —  |    —    |
-| membership_roles          |    ✓    |  ✓  |    —    |
-| platform_role_assignments |    ✓    |  —  |    —    |
-| event_outbox              |    ✓    |  —  |    ✓    |
-| audit_records             |    ✓    |  —  |    ✓    |
+| Method | Path                                                         | Permission              |
+| ------ | ------------------------------------------------------------ | ----------------------- |
+| POST   | /v1/tenants/{tenantId}/members                               | tenant.members.manage   |
+| GET    | /v1/tenants/{tenantId}/members                               | tenant.members.read     |
+| GET    | /v1/tenants/{tenantId}/members/{membershipId}                | tenant.members.read     |
+| PATCH  | /v1/tenants/{tenantId}/members/{membershipId}/status         | tenant.members.manage   |
+| GET    | /v1/tenants/{tenantId}/members/{membershipId}/roles          | tenant.members.read     |
+| PUT    | /v1/tenants/{tenantId}/members/{membershipId}/roles          | tenant.roles.assign     |
+| GET    | /v1/tenants/{tenantId}/members/{membershipId}/permissions    | tenant.members.read     |
+| GET    | /v1/tenants/{tenantId}/roles                                 | tenant.members.read     |
+| GET    | /v1/permissions                                              | tenant.members.read     |
+| GET    | /v1/platform/users/{userId}/memberships                      | platform.users.read     |
+| GET    | /v1/platform/users/{userId}/platform-roles                   | platform.users.read     |
+| PUT    | /v1/platform/users/{userId}/platform-roles                   | platform.users.manage   |
 
-### Seeded System Roles
+### Security Controls
 
-- PLATFORM_ADMIN (platform scope)
-- PLATFORM_AUDITOR (platform scope)
-- TENANT_ADMIN (tenant scope)
-- TENANT_OPERATOR (tenant scope)
-- TENANT_AUDITOR (tenant scope)
+- Membership RLS: cross-tenant SELECT, UPDATE, INSERT all proven blocked
+- Missing tenant context returns no rows
+- Pool reuse does not leak context
+- Platform-role changes only via administrative database path
+- Audit records append-only (UPDATE/DELETE/TRUNCATE denied for app role)
+- TenantAwareTransaction never activates admin context
+- Every mutation atomically creates domain + audit + outbox records
+- Transaction rollback removes all three
 
-### Seeded Permissions (17)
+### Permission Derivation
 
-Platform: platform.users.read, platform.users.manage, platform.tenants.read, platform.tenants.create, platform.tenants.lifecycle, platform.audit.read
+- ACTIVE membership → full derived permissions from assigned roles
+- SUSPENDED membership → no permissions
+- DEACTIVATED membership → no permissions
+- INVITED membership → no permissions
+- Tenant roles cannot grant platform permissions
+- Platform roles resolved separately via derivePlatformPermissions
+- Custom roles rejected (disabled)
 
-Tenant: tenant.members.read, tenant.members.invite, tenant.members.manage, tenant.roles.assign, tenant.organizations.read, tenant.organizations.manage, tenant.entitlements.read, tenant.entitlements.manage, tenant.features.read, tenant.features.manage, tenant.audit.read
+### Integration Test Stability
 
-### RLS and Security Controls
+- Platform-service idempotency concurrency test fixed with advisory locks
+- fileParallelism: false applied to all integration configs
+- Platform integration: 3 consecutive deterministic passes
+- Identity integration: 31 tests passing cleanly
 
-- `FORCE ROW LEVEL SECURITY` on tenant_memberships and membership_roles
-- carecareer_app role: SELECT, INSERT, UPDATE only (no DELETE on memberships)
-- carecareer_admin_service role: full access minus audit UPDATE/DELETE/TRUNCATE
-- Audit records: INSERT only for all application roles
-- Administrative context: only via AdministrativeDatabase with explicit server-side authorization
+## GP-03.2 Events
 
-### API Endpoints
-
-| Method | Path                                            | Status |
-| ------ | ----------------------------------------------- | :----: |
-| GET    | /health                                         |   ✓    |
-| GET    | /ready                                          |   ✓    |
-| POST   | /v1/platform/users                              |   ✓    |
-| GET    | /v1/platform/users                              |   ✓    |
-| GET    | /v1/platform/users/{userId}                     |   ✓    |
-| PATCH  | /v1/platform/users/{userId}/status              |   ✓    |
-| POST   | /v1/platform/users/{userId}/external-identities |   ✓    |
-| GET    | /v1/platform/users/{userId}/external-identities |   ✓    |
-
-### OpenAPI
-
-- openapi.yaml committed and validated against implemented routes
+- identity.membership.created
+- identity.membership.activated
+- identity.membership.suspended
+- identity.membership.deactivated
+- identity.role.assigned
+- identity.role.removed
+- identity.platform-role.assigned
+- identity.platform-role.removed
 
 ## Known Gaps
 
-1. Platform-service idempotency concurrency test is flaky (pre-existing, not caused by GP-03.1)
-2. OpenAPI automated validation tooling not integrated into CI yet (manual verification complete)
-3. Tenant-facing `TenantAwareTransaction` path not implemented for identity service (not needed until GP-03.2)
+1. Invitation workflow (INVITED → token-based acceptance) deferred to GP-03.5
+2. Custom role CRUD disabled — only system roles operational
+3. Tenant admin cannot-assign-what-they-don't-have validation deferred to authorization-service integration
+4. Hidden cross-tenant 404 partially implemented — full enforcement requires auth-middleware integration
 
-## GP-03.2 Readiness Recommendation
+## GP-03.3 Readiness Recommendation
 
-Ready to proceed. All GP-03.1 requirements satisfied:
-
-- Service skeleton operational
-- Schema proven with real PostgreSQL
-- RLS tenant isolation verified
-- Administrative path audit-controlled
-- Domain model tested (lifecycle, concurrency, external identities)
-- HTTP contracts tested (auth, permissions, validation, errors)
-- Docker image production-ready
-- Existing platform and DEMO-01 regression green
+Ready to proceed. All GP-03.2 requirements satisfied:
+- Full membership lifecycle with state machine tested
+- Role assignment and permission derivation operational
+- Platform-role controls audited through administrative path
+- RLS tenant isolation proven with non-privileged role
+- Atomic transaction behavior verified
+- OpenAPI extended and validated
+- All existing regressions green

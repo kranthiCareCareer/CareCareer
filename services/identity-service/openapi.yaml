@@ -448,3 +448,390 @@ paths:
           description: Authentication required
         '403':
           description: Insufficient permissions
+
+  /v1/tenants/{tenantId}/members:
+    post:
+      summary: Create a tenant membership
+      operationId: createMember
+      description: Requires permission tenant.members.manage
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              additionalProperties: false
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+                status:
+                  type: string
+                  enum: [INVITED, ACTIVE]
+      responses:
+        '201':
+          description: Membership created
+        '400':
+          description: Validation error
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: User not found (hidden cross-tenant 404)
+        '409':
+          description: Duplicate membership
+
+    get:
+      summary: List tenant members
+      operationId: listMembers
+      description: Requires permission tenant.members.read
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [INVITED, ACTIVE, SUSPENDED, DEACTIVATED]
+      responses:
+        '200':
+          description: Paginated member list
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
+
+  /v1/tenants/{tenantId}/members/{membershipId}:
+    get:
+      summary: Get membership by ID
+      operationId: getMember
+      description: Requires permission tenant.members.read
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: membershipId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Membership found
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: Membership not found
+
+  /v1/tenants/{tenantId}/members/{membershipId}/status:
+    patch:
+      summary: Change membership status
+      operationId: changeMemberStatus
+      description: |
+        Requires permission tenant.members.manage.
+        Valid transitions: INVITED→ACTIVE, ACTIVE→SUSPENDED,
+        SUSPENDED→ACTIVE, ACTIVE→DEACTIVATED, SUSPENDED→DEACTIVATED.
+        DEACTIVATED is terminal. Requires expected version for optimistic concurrency.
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: membershipId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, reason, version]
+              additionalProperties: false
+              properties:
+                status:
+                  type: string
+                  enum: [ACTIVE, SUSPENDED, DEACTIVATED]
+                reason:
+                  type: string
+                  minLength: 1
+                  maxLength: 500
+                version:
+                  type: integer
+                  minimum: 1
+                  description: Expected current version for optimistic concurrency
+      responses:
+        '200':
+          description: Status changed
+        '400':
+          description: Validation error
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: Membership not found
+        '409':
+          description: Version conflict or invalid transition
+
+  /v1/tenants/{tenantId}/members/{membershipId}/roles:
+    get:
+      summary: List membership roles
+      operationId: getMemberRoles
+      description: Requires permission tenant.members.read
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: membershipId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Assigned roles list
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
+
+    put:
+      summary: Replace membership role assignments
+      operationId: assignMemberRoles
+      description: |
+        Requires permission tenant.roles.assign.
+        Replaces current role set with provided roles.
+        Requires expected version for optimistic concurrency.
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: membershipId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [roleIds, version]
+              additionalProperties: false
+              properties:
+                roleIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  maxItems: 10
+                version:
+                  type: integer
+                  minimum: 1
+      responses:
+        '200':
+          description: Roles assigned
+        '400':
+          description: Validation error or invalid role
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: Membership not found
+        '409':
+          description: Version conflict
+
+  /v1/tenants/{tenantId}/members/{membershipId}/permissions:
+    get:
+      summary: Derive effective permissions for membership
+      operationId: getMemberPermissions
+      description: |
+        Requires permission tenant.members.read.
+        Returns empty for non-ACTIVE memberships.
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: membershipId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Effective permissions
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
+
+  /v1/tenants/{tenantId}/roles:
+    get:
+      summary: List available tenant roles
+      operationId: listTenantRoles
+      description: Requires permission tenant.members.read
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: System tenant roles
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
+
+  /v1/permissions:
+    get:
+      summary: List permission catalog
+      operationId: listAllPermissions
+      description: Requires any authenticated user with tenant.members.read
+      responses:
+        '200':
+          description: All defined permissions
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
+
+  /v1/platform/users/{userId}/memberships:
+    get:
+      summary: List all memberships for a user
+      operationId: listUserMemberships
+      description: Requires permission platform.users.read
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User memberships across tenants
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
+
+  /v1/platform/users/{userId}/platform-roles:
+    get:
+      summary: List platform role assignments for a user
+      operationId: listUserPlatformRoles
+      description: Requires permission platform.users.read
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Platform role assignments
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
+
+    put:
+      summary: Set platform roles for a user
+      operationId: setPlatformRoles
+      description: |
+        Requires permission platform.users.manage.
+        Administrative path only. Replaces current assignments.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [roleIds]
+              additionalProperties: false
+              properties:
+                roleIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                  maxItems: 5
+      responses:
+        '200':
+          description: Platform roles updated
+        '400':
+          description: Invalid role or validation error
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: User not found
