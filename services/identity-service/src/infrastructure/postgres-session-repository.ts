@@ -203,6 +203,10 @@ interface SessionRow {
   status: string;
   refresh_token_hash: string;
   token_family: string;
+  selected_tenant_id: string | null;
+  membership_id: string | null;
+  user_authorization_version: number;
+  membership_authorization_version: number | null;
   last_used_at: string | Date;
   expires_at: string | Date;
   client_info: SessionClientInfo | string | null;
@@ -237,6 +241,10 @@ function mapSessionRow(row: SessionRow): AuthSession {
     status: row.status as 'ACTIVE' | 'REVOKED',
     refreshTokenHash: row.refresh_token_hash,
     tokenFamily: row.token_family,
+    selectedTenantId: row.selected_tenant_id,
+    membershipId: row.membership_id,
+    userAuthorizationVersion: row.user_authorization_version,
+    membershipAuthorizationVersion: row.membership_authorization_version,
     lastUsedAt: new Date(row.last_used_at),
     expiresAt: new Date(row.expires_at),
     clientInfo,

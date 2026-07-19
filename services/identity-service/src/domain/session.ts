@@ -26,6 +26,10 @@ export interface AuthSession {
   readonly status: 'ACTIVE' | 'REVOKED';
   readonly refreshTokenHash: string;
   readonly tokenFamily: string;
+  readonly selectedTenantId: string | null;
+  readonly membershipId: string | null;
+  readonly userAuthorizationVersion: number;
+  readonly membershipAuthorizationVersion: number | null;
   readonly lastUsedAt: Date;
   readonly expiresAt: Date;
   readonly clientInfo: SessionClientInfo | null;
@@ -84,6 +88,10 @@ export function createSession(params: CreateSessionParams): {
     status: 'ACTIVE',
     refreshTokenHash: hash,
     tokenFamily: params.tokenFamily,
+    selectedTenantId: null,
+    membershipId: null,
+    userAuthorizationVersion: 1,
+    membershipAuthorizationVersion: null,
     lastUsedAt: now,
     expiresAt: new Date(now.getTime() + SESSION_LIFETIME_MS),
     clientInfo: params.clientInfo ?? null,

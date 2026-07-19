@@ -13,6 +13,7 @@ import {
 import type { RefreshTokenRepository } from '../../infrastructure/postgres-refresh-token-repository.js';
 import type { SessionRepository } from '../../infrastructure/postgres-session-repository.js';
 import type { IdentityRepository } from '../ports/identity-repository.js';
+import type { MembershipRepository } from '../ports/membership-repository.js';
 
 const MAX_ACTIVE_SESSIONS = 5;
 
@@ -131,6 +132,7 @@ export async function refreshSessionCommand(
   identityRepo: IdentityRepository,
   input: RefreshSessionInput,
   refreshTokenRepo?: RefreshTokenRepository,
+  membershipRepo?: MembershipRepository,
 ): Promise<RefreshSessionResult> {
   const tokenHash = hashToken(input.refreshToken);
 
@@ -143,6 +145,7 @@ export async function refreshSessionCommand(
       refreshTokenRepo,
       tokenHash,
       input.correlationId,
+      membershipRepo,
     );
   }
 
@@ -166,6 +169,7 @@ async function refreshWithDurableLineage(
   refreshTokenRepo: RefreshTokenRepository,
   tokenHash: string,
   correlationId: string,
+  membershipRepo?: MembershipRepository,
 ): Promise<RefreshSessionResult> {
   const result = await prisma.$transaction(async (tx: TransactionClient) => {
     return refreshWithLineage(
@@ -175,6 +179,7 @@ async function refreshWithDurableLineage(
       refreshTokenRepo,
       tokenHash,
       correlationId,
+      membershipRepo,
     );
   });
 
@@ -204,6 +209,7 @@ async function refreshWithLineage(
   refreshTokenRepo: RefreshTokenRepository,
   tokenHash: string,
   correlationId: string,
+  membershipRepo?: MembershipRepository,
 ): Promise<LineageRefreshOutcome> {
   // Step 1: Lock the refresh token record by hash
   const tokenRecord = await refreshTokenRepo.getRefreshTokenByHashForUpdate(tx, tokenHash);
@@ -256,6 +262,31 @@ async function refreshWithLineage(
   if (!user || user.status !== 'ACTIVE') {
     const code = user?.status === 'SUSPENDED' ? 'AUTH_USER_SUSPENDED' : 'AUTH_USER_DEACTIVATED';
     throw new RefreshError(code, `User is ${user?.status ?? 'unknown'}`);
+  }
+
+  // Step 6b: Validate membership (if session has a selected tenant)
+  if (session.membershipId && membershipRepo) {
+    const membership = await membershipRepo.findMembershipById(tx, session.membershipId);
+    if (!membership) {
+      throw new RefreshError('AUTH_MEMBERSHIP_INVALID', 'Membership not found');
+    }
+    if (membership.status !== 'ACTIVE') {
+      const code =
+        membership.status === 'SUSPENDED'
+          ? 'AUTH_MEMBERSHIP_SUSPENDED'
+          : 'AUTH_MEMBERSHIP_DEACTIVATED';
+      throw new RefreshError(code, `Membership is ${membership.status}`);
+    }
+    // Stale membership authorization version check
+    if (
+      session.membershipAuthorizationVersion !== null &&
+      membership.authorizationVersion !== session.membershipAuthorizationVersion
+    ) {
+      throw new RefreshError(
+        'AUTH_MEMBERSHIP_VERSION_STALE',
+        'Membership authorization has changed',
+      );
+    }
   }
 
   // Step 7: Rotate — mark current token as ROTATED, create successor
