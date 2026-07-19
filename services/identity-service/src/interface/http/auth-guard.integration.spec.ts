@@ -27,9 +27,9 @@ import {
   PostgresSigningKeyRepository,
 } from '../../infrastructure/postgres-session-repository.js';
 import { SessionStateValidator } from '../../infrastructure/session-state-validator.js';
-import { HealthController } from './health.controller.js';
 
 import { AuthController } from './auth.controller.js';
+import { HealthController } from './health.controller.js';
 
 /**
  * Full HTTP integration test proving membership authorization
