@@ -1,0 +1,450 @@
+openapi: 3.1.0
+info:
+  title: CareCareer Identity Service
+  version: 0.1.0
+  description: |
+    Identity service for user management, external identity linking,
+    and platform-level administration.
+
+servers:
+  - url: http://localhost:3100
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Platform JWT (demo HS256 in development, RS256 in production).
+        Required permissions: platform.users.read, platform.users.manage
+
+  schemas:
+    UserStatus:
+      type: string
+      enum: [ACTIVE, SUSPENDED, DEACTIVATED]
+
+    User:
+      type: object
+      required: [id, displayName, primaryEmail, status, authorizationVersion, createdAt, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+          maxLength: 200
+        primaryEmail:
+          type: string
+          format: email
+          maxLength: 320
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        authorizationVersion:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+
+    ExternalIdentity:
+      type: object
+      required: [id, userId, issuer, subject, providerType, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        issuer:
+          type: string
+          maxLength: 500
+        subject:
+          type: string
+          maxLength: 500
+        providerType:
+          type: string
+          enum: [entra, okta, auth0, mock]
+        emailClaim:
+          type: string
+          format: email
+          nullable: true
+        displayNameClaim:
+          type: string
+          nullable: true
+        lastAuthenticatedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Pagination:
+      type: object
+      required: [offset, limit, total]
+      properties:
+        offset:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+
+    ErrorEnvelope:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+
+    CreateUserRequest:
+      type: object
+      required: [displayName, primaryEmail]
+      additionalProperties: false
+      properties:
+        displayName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        primaryEmail:
+          type: string
+          format: email
+          maxLength: 320
+
+    ChangeUserStatusRequest:
+      type: object
+      required: [status, reason, version]
+      additionalProperties: false
+      properties:
+        status:
+          $ref: '#/components/schemas/UserStatus'
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+        version:
+          type: integer
+          minimum: 1
+          description: Expected current version for optimistic concurrency
+
+    LinkExternalIdentityRequest:
+      type: object
+      required: [issuer, subject, providerType]
+      additionalProperties: false
+      properties:
+        issuer:
+          type: string
+          minLength: 1
+          maxLength: 500
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 500
+        providerType:
+          type: string
+          enum: [entra, okta, auth0, mock]
+        emailClaim:
+          type: string
+          format: email
+          maxLength: 320
+        displayNameClaim:
+          type: string
+          maxLength: 200
+
+  parameters:
+    CorrelationId:
+      name: x-correlation-id
+      in: header
+      schema:
+        type: string
+        format: uuid
+      description: Distributed tracing correlation ID
+
+paths:
+  /health:
+    get:
+      summary: Liveness check
+      security: []
+      operationId: healthLiveness
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy]
+                  service:
+                    type: string
+
+  /ready:
+    get:
+      summary: Readiness check (includes PostgreSQL)
+      security: []
+      operationId: healthReadiness
+      responses:
+        '200':
+          description: Service is ready to handle traffic
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, unhealthy]
+                  checks:
+                    type: object
+                    properties:
+                      postgresql:
+                        type: string
+                        enum: [healthy, unhealthy]
+
+  /v1/platform/users:
+    post:
+      summary: Create a platform user
+      operationId: createUser
+      description: Requires permission platform.users.manage
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
+        '409':
+          description: Duplicate user
+
+    get:
+      summary: List platform users
+      operationId: listUsers
+      description: Requires permission platform.users.read
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/UserStatus'
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 200
+      responses:
+        '200':
+          description: Paginated user list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
+
+  /v1/platform/users/{userId}:
+    get:
+      summary: Get user by ID
+      operationId: getUser
+      description: Requires permission platform.users.read
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: User not found
+
+  /v1/platform/users/{userId}/status:
+    patch:
+      summary: Change user lifecycle status
+      operationId: changeUserStatus
+      description: |
+        Requires permission platform.users.manage.
+        Valid transitions: ACTIVE→SUSPENDED, SUSPENDED→ACTIVE,
+        ACTIVE→DEACTIVATED, SUSPENDED→DEACTIVATED.
+        DEACTIVATED is terminal.
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeUserStatusRequest'
+      responses:
+        '200':
+          description: Status changed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Validation error
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: User not found
+        '409':
+          description: Version conflict or invalid transition
+
+  /v1/platform/users/{userId}/external-identities:
+    post:
+      summary: Link an external identity to a user
+      operationId: linkExternalIdentity
+      description: |
+        Requires permission platform.users.manage.
+        Enforces UNIQUE(issuer, subject).
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkExternalIdentityRequest'
+      responses:
+        '201':
+          description: External identity linked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ExternalIdentity'
+        '400':
+          description: Validation error
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
+        '404':
+          description: User not found
+        '409':
+          description: Duplicate issuer+subject
+
+    get:
+      summary: List external identities for a user
+      operationId: listExternalIdentities
+      description: Requires permission platform.users.read
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: External identities list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ExternalIdentity'
+        '400':
+          description: Invalid UUID format
+        '401':
+          description: Authentication required
+        '403':
+          description: Insufficient permissions
