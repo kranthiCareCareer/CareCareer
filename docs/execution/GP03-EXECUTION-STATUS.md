@@ -1,156 +1,144 @@
 # GP-03 Identity Service — Execution Status
 
-## Current Phase: GP-03.3 — Tokens, Sessions, Signing Keys (Complete)
+## Current Phase: GP-03.3 — Tokens, Sessions, Signing Keys (IN PROGRESS)
 
 ## Current State
 
-| Field                   | Value                                            |
-| ----------------------- | ------------------------------------------------ |
-| Current branch          | master                                           |
-| GP-03.3 latest          | 58eca41                                          |
-| Working tree            | clean (git status --porcelain returns no output) |
-| Unit tests              | 141 passing (13 test files)                      |
-| Integration tests       | 56 passing (4 test files)                        |
-| OpenAPI validation      | 13 checks, 27 routes                             |
-| Docker                  | identity 14/14, platform 15/15                   |
-| Build                   | 15/15                                            |
-| Typecheck               | 24/24                                            |
-| Lint                    | 24/24 (0 errors, 4 pre-existing warnings)        |
-| DEMO-01                 | demo:verify passes                               |
-| Platform integration    | 34/34                                            |
-| Identity integration    | 56/56 (3/3 deterministic consecutive runs)       |
-| Testing pkg integration | 8/8                                              |
+| Field                   | Value                                      |
+| ----------------------- | ------------------------------------------ |
+| Current branch          | master                                     |
+| GP-03.3 latest          | 3c7c0b3                                    |
+| Working tree            | clean (git status --porcelain = no output) |
+| Unit tests              | 155 passing (14 test files)                |
+| Integration tests       | 67 passing (5 test files)                  |
+| OpenAPI validation      | 13 checks passing                          |
+| Docker                  | identity 14/14, platform 15/15             |
+| Build                   | 15/15                                      |
+| Typecheck               | 24/24                                      |
+| Lint                    | 24/24 (0 errors)                           |
+| Format check            | passing                                    |
+| DEMO-01                 | demo:verify passes                         |
+| Local verify            | local:verify passes (5 steps)              |
+| Platform integration    | 34/34                                      |
+| Identity integration    | 67/67 (3/3 deterministic runs)             |
+| Testing pkg integration | 8/8                                        |
 
-## GP-03.3 Commit History
+## Coverage Results (Combined Unit + Integration)
 
-| Commit  | Description                                                           |
-| ------- | --------------------------------------------------------------------- |
-| 15fc298 | User authorization-version enforcement during refresh                 |
-| 7eec78c | Session persistence, replay, and concurrent refresh safety            |
-| 1213d94 | Durable refresh-token lineage with historical replay detection        |
-| 591c5a8 | Production RS256 token guard and startup safety tests                 |
-| dd55abe | Membership authorization-version enforcement during refresh           |
-| c3ed77c | Execution status update                                               |
-| dd5572a | Resolve untracked file (gitignore)                                    |
-| 71f7da7 | Live session-state enforcement from PostgreSQL with integration tests |
-| 58eca41 | Prettier formatting applied                                           |
-| 9c37b48 | Local authentication verification script                              |
+```
+All files:   88.36% stmts | 80.15% branches | 90.27% functions | 88.36% lines
+```
 
-## Proven Security Controls
+### Per-file Security Coverage
 
-### Durable Refresh Token Lineage (commit 1213d94)
+| File                        | Lines | Branches | Functions |
+| --------------------------- | ----- | -------- | --------- |
+| domain/session.ts           | 100%  | 100%     | 100%      |
+| domain/refresh-token.ts     | 100%  | 100%     | 100%      |
+| domain/signing-key.ts       | 100%  | 100%     | 100%      |
+| config/identity-config.ts   | 100%  | 100%     | 100%      |
+| session-state-validator.ts  | 100%  | 100%     | 100%      |
+| jwt-service.ts              | 100%  | 50%      | 100%      |
+| health.controller.ts        | 90%   | 80%      | 100%      |
+| platform-token-validator.ts | 89%   | 81%      | 100%      |
+| identity-auth.guard.ts      | 89%   | 76%      | 100%      |
+| postgres-session-repository | 90%   | 86%      | 75%       |
+| postgres-refresh-token-repo | 84%   | 75%      | 76%       |
+| session-commands.ts         | 79%   | 81%      | 92%       |
+| demo-token-validator.ts     | 89%   | 64%      | 100%      |
 
-- Migration `005_refresh_token_lineage.sql` creates `identity.auth_refresh_tokens`
-- Token statuses: ACTIVE, ROTATED, REVOKED, EXPIRED, COMPROMISED
-- SHA-256 hash uniqueness enforced at database level
-- Parent-child lineage chain with `parent_token_id`
-- FOR UPDATE row locking on token lookup
-- Raw tokens never stored
+### Coverage Gap Justification
 
-### Historical Replay Detection (commit 1213d94)
+Files below 95%/90% security thresholds:
 
-- **Proven:** A→B then replay A = AUTH_REFRESH_REPLAY
-- **Proven:** A→B→C then replay B = AUTH_REFRESH_REPLAY
-- **Proven:** Family-wide compromise (all tokens → COMPROMISED)
-- **Proven:** Session marked COMPROMISED
-- **Proven:** Successor token C becomes unusable after compromise
-- **Proven:** No new token issued on replay
-- **Proven:** Audit record written (no token hashes in payload)
-- **Proven:** Outbox event emitted (no token hashes in payload)
-- **Proven:** Compromise state committed before error surfaced (durable)
-- **Proven:** Unknown random token returns AUTH_REFRESH_INVALID (not REPLAY)
+- **jwt-service.ts branches (50%)**: Uncovered branches are `??` nullish coalescing
+  operators for optional ES256 JWK fields (crv, x, y) that are unreachable with
+  RSA-only keys. All executable logic paths are covered at 100% lines.
 
-### Concurrent Refresh Safety (commit 1213d94)
+- **session-commands.ts (79% lines)**: The legacy refresh path (backward-compat
+  code for non-lineage mode) accounts for ~100 uncovered lines. The production
+  lineage path is fully exercised. Legacy path is retained only for migration.
 
-- **Proven:** FOR UPDATE lock prevents duplicate successors
-- **Proven:** At most one rotation succeeds for a single token
-- **Proven:** Competing request detects ROTATED → replay/compromise
-- **Proven:** Family ends compromised after concurrent replay
-- **Proven:** No two usable successor tokens remain
-- **Proven:** Deterministic outcome (3/3 consecutive runs)
+- **identity-auth.guard.ts (89% lines)**: Uncovered lines are defensive catch blocks
+  for `AuthenticationError` type checking and the `extractSessionId` parse-failure
+  fallback. These are error-resilience paths, not security decision paths.
 
-### Production RS256 Token Guard (commit 591c5a8)
+- **postgres-refresh-token-repository.ts (84% lines)**: The `expireRefreshTokens`
+  and `revokeTokenFamily` methods are integration-tested but some edge branches
+  (empty result sets) are not hit.
 
-- **Proven:** Valid RS256 token accepted
-- **Proven:** alg=none rejected (InvalidTokenError)
-- **Proven:** HS256 confusion attack rejected (InvalidTokenError)
-- **Proven:** Unknown kid rejected (InvalidTokenError)
-- **Proven:** Missing kid rejected (InvalidTokenError)
-- **Proven:** Wrong issuer rejected (InvalidTokenError)
-- **Proven:** Wrong audience rejected (InvalidTokenError)
-- **Proven:** Expired token rejected (TokenExpiredError)
-- **Proven:** Missing subject rejected (InvalidTokenError)
-- **Proven:** Missing session identifier rejected (InvalidTokenError)
-- **Proven:** Random string rejected (InvalidTokenError)
-- **Proven:** Modified signature rejected (InvalidTokenError)
-- **Proven:** Empty token rejected (InvalidTokenError)
+- **demo-token-validator.ts branches (64%)**: Optional claim branches in demo-mode
+  JWT parsing. Demo mode is prohibited in production and tested for rejection.
 
-### Demo Adapter Isolation (commit 591c5a8)
+## GP-03.3 Proven Security Controls
 
-- DemoTokenValidator used only when DEMO_MODE=true in non-production
-- Production module startup rejects DEMO_MODE=true
-- Production guard never delegates to demo adapter
-- Fallback to demo requires explicit development/test NODE_ENV
+All controls below have been proven with real PostgreSQL via Testcontainers.
 
-### Production Startup Safety (commit 591c5a8)
+### Historical Replay Detection
 
-- **Proven:** DEMO_MODE=true in production → startup failure
-- **Proven:** DEMO_MODE without DEMO_AUTH_SECRET → failure
-- **Proven:** DEMO_AUTH_SECRET < 32 chars → failure
-- **Proven:** Missing DATABASE_URL in production → failure
-- **Proven:** Missing TOKEN_ISSUER in production → failure
-- **Proven:** Missing TOKEN_AUDIENCE in production → failure
-- **Proven:** Valid development config accepted
-- **Proven:** Valid test config accepted
+- A→B then replay A = **AUTH_REFRESH_REPLAY** (proven)
+- A→B→C then replay B = **AUTH_REFRESH_REPLAY** (proven)
+- Family marked **COMPROMISED** (all tokens) (proven)
+- Successor C unusable after compromise (proven)
+- No new token issued (proven)
+- Audit record written, no token hashes (proven)
+- Outbox event emitted, no token hashes (proven)
+- Unknown token = AUTH_REFRESH_INVALID (proven)
 
-### Live Session-State Enforcement (commit 71f7da7)
+### Concurrent Refresh Safety
 
-- **Proven:** ACTIVE session → accepted
-- **Proven:** REVOKED session → AUTH_SESSION_REVOKED (immediate)
-- **Proven:** COMPROMISED session → AUTH_SESSION_COMPROMISED (immediate)
-- **Proven:** Expired session (beyond absolute lifetime) → AUTH_SESSION_EXPIRED
-- **Proven:** Nonexistent session ID → AUTH_TOKEN_INVALID
-- **Proven:** Wrong user for session → AUTH_TOKEN_INVALID
-- **Proven:** Immediate revocation reflected (database state, not cached)
-- **Proven:** Token claims cannot override session state
-- **Proven:** No JWT claim activates app.is_admin
+- FOR UPDATE row lock prevents duplicates (proven)
+- At most one rotation succeeds (proven)
+- Family ends compromised on concurrent replay (proven)
+- 3/3 deterministic consecutive runs (proven)
 
-**Revocation guarantee:** Identity-service endpoints using live session validation
-reject revoked sessions immediately. Services performing only offline JWT
-validation remain bounded by the 15-minute access-token lifetime until shared
-live validation or introspection is implemented.
+### Production RS256 Guard (HTTP Integration)
 
-### Authorization Version Enforcement (commits 15fc298, dd55abe)
+- Valid RS256 token + ACTIVE session → 200 OK (proven via Supertest)
+- REVOKED session → 401 AUTH_SESSION_REVOKED (proven via Supertest)
+- COMPROMISED session → 401 AUTH_SESSION_COMPROMISED (proven via Supertest)
+- Expired session → 401 AUTH_SESSION_EXPIRED (proven via Supertest)
+- Nonexistent session → 401 AUTH_TOKEN_INVALID (proven via Supertest)
+- HS256 demo token rejected by production guard (proven via Supertest)
+- alg=none token rejected by production guard (proven via Supertest)
 
-- **Proven:** Suspended user → AUTH_USER_SUSPENDED
-- **Proven:** Deactivated user → AUTH_USER_DEACTIVATED
-- **Proven:** Suspended membership → AUTH_MEMBERSHIP_SUSPENDED
-- **Proven:** Deactivated membership → AUTH_MEMBERSHIP_DEACTIVATED
-- **Proven:** Stale membership version → AUTH_MEMBERSHIP_VERSION_STALE
+### Session-State Enforcement
 
-## Known Gaps (GP-03.3 not yet closed)
+- ACTIVE → accepted (proven)
+- REVOKED → AUTH_SESSION_REVOKED immediate (proven)
+- COMPROMISED → AUTH_SESSION_COMPROMISED immediate (proven)
+- Expired → AUTH_SESSION_EXPIRED (proven)
+- User authorization version stale → rejected (proven)
+- Membership authorization version stale → rejected (proven)
+- Session resolved from PostgreSQL, not token claims (proven)
+- No JWT claim activates app.is_admin (proven)
 
-1. **Local full authentication verification script** — `local:verify` not yet implemented
-2. **Exact coverage report** — workspace-level `pnpm coverage` not yet run
-3. **format:check** — pre-existing `playwright-report/index.html` issue (not GP-03.3)
-4. **KMS signing provider** — deferred to GP-15 (infrastructure). Production throws on
-   unsupported reference; cannot silently use development key.
-5. **Membership enforcement through production guard integration test** — proven in
-   refresh command internals, guard wiring proven through session-state validator
+### Startup Safety
 
-## GP-03.3 Remaining Work
+- DEMO_MODE in production → startup failure (proven)
+- Missing TOKEN_ISSUER in production → failure (proven)
+- Missing TOKEN_AUDIENCE in production → failure (proven)
+- Missing DATABASE_URL in production → failure (proven)
+- DEMO_AUTH_SECRET < 32 chars → failure (proven)
 
-All core security controls are proven:
+## Known Gaps — GP-03.3 Not Yet Closed
 
-- [x] Local full auth flow verification script (`local:verify`) — commit 9c37b48
-- [x] Final documentation commit (this commit)
+1. **Per-file 95%/90% thresholds not universally met**: Some security files are
+   at 79-89% lines rather than 95%. Documented justifications above. Raising
+   these requires testing legacy/defensive paths and ES256 key types.
 
-## Deferred (Not GP-03.3 Scope)
+2. **local:verify is integration-suite based**: The script exercises all security
+   behaviors through Testcontainers integration tests but does not orchestrate
+   a multi-step HTTP-level script against running service containers.
 
-- **KMS signing provider** — deferred to GP-15 (AWS infrastructure). Production
-  throws on unsupported private_key_ref; cannot silently use development key.
-- **Workspace-level `pnpm coverage` command** — requires Vitest coverage plugin
-  setup across all packages (infrastructure/tooling work, not security-blocking).
+3. **KMS signing provider**: Deferred to GP-15. Production throws on unsupported
+   reference (fail-closed at request time, not startup). The identity service is
+   NOT production-deployable until a supported signing provider is configured.
+   This is a GP-15 deployment blocker, not a GP-03.3 security logic gap.
+
+4. **Startup signing-provider validation**: Production currently fails at request
+   time (when resolving private key), not at startup. Startup validation of the
+   signing provider should be added to reject deployment before traffic arrives.
 
 ## Previous Phases
 
