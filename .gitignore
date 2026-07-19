@@ -33,6 +33,3 @@ logs/
 
 # Database
 *.db
-
-# Agent working files (user-local, not committed)
-docs/execution/CareCareer_Master_Agent_Prompt.md
