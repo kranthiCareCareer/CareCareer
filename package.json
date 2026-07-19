@@ -33,6 +33,7 @@
     "demo:e2e:report": "node apps/platform-admin-console/scripts/run-e2e.mjs --report",
     "demo:e2e:record": "pnpm --filter @carecareer/platform-admin-console e2e:record",
     "demo:verify": "node scripts/demo-verify.mjs",
+    "local:verify": "node scripts/local-verify.mjs",
     "prepare": "husky"
   },
   "devDependencies": {
