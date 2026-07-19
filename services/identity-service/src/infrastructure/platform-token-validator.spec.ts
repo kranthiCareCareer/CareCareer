@@ -248,6 +248,44 @@ describe('PlatformTokenValidator', () => {
 
       await expect(validator.validate(token)).rejects.toThrow(InvalidTokenError);
     });
+
+    it('should reject token missing jti (token identifier)', async () => {
+      const { importPKCS8, SignJWT } = await import('jose');
+      const key = await importPKCS8(privateKeyPem, 'RS256');
+
+      const token = await new SignJWT({
+        sid: 'test',
+        user_authorization_version: 1,
+      })
+        .setProtectedHeader({ alg: 'RS256', kid: keyId })
+        .setSubject('user-001')
+        .setIssuer('carecareer-identity')
+        .setAudience('carecareer-api')
+        .setExpirationTime('15m')
+        // No setJti!
+        .sign(key);
+
+      await expect(validator.validate(token)).rejects.toThrow(InvalidTokenError);
+    });
+
+    it('should reject token missing user_authorization_version', async () => {
+      const { importPKCS8, SignJWT } = await import('jose');
+      const key = await importPKCS8(privateKeyPem, 'RS256');
+
+      const token = await new SignJWT({
+        sid: 'test',
+        // No user_authorization_version!
+      })
+        .setProtectedHeader({ alg: 'RS256', kid: keyId })
+        .setSubject('user-001')
+        .setIssuer('carecareer-identity')
+        .setAudience('carecareer-api')
+        .setExpirationTime('15m')
+        .setJti('test-jti')
+        .sign(key);
+
+      await expect(validator.validate(token)).rejects.toThrow(InvalidTokenError);
+    });
   });
 
   describe('Malformed input', () => {

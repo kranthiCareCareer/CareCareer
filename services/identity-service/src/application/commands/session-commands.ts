@@ -149,10 +149,8 @@ export async function refreshSessionCommand(
     );
   }
 
-  // Legacy path
-  return prisma.$transaction(async (tx: TransactionClient) => {
-    return refreshLegacy(tx, sessionRepo, identityRepo, tokenHash, input);
-  });
+  // Legacy path — no longer supported. All refresh operations require lineage.
+  throw new RefreshError('AUTH_REFRESH_INVALID', 'Refresh token lineage required');
 }
 
 /**
@@ -370,67 +368,6 @@ async function handleFamilyCompromise(
     },
     correlationId,
   });
-}
-
-/**
- * Legacy refresh path — uses only session-level hash comparison.
- * Retained for backward compatibility during migration.
- */
-async function refreshLegacy(
-  tx: TransactionClient,
-  sessionRepo: SessionRepository,
-  identityRepo: IdentityRepository,
-  tokenHash: string,
-  input: RefreshSessionInput,
-): Promise<RefreshSessionResult> {
-  // Find any active session with a matching token hash
-  const sessions = await tx.$queryRaw<{ id: string; token_family: string }>`
-    SELECT id, token_family FROM identity.auth_sessions
-    WHERE refresh_token_hash = ${tokenHash} AND status = 'ACTIVE'
-    FOR UPDATE
-  `;
-
-  if (sessions.length === 0) {
-    throw new RefreshError('AUTH_REFRESH_INVALID', 'Invalid refresh token');
-  }
-
-  const sessionRow = sessions[0]!;
-  const session = await sessionRepo.getSessionById(tx, sessionRow.id);
-  if (!session) {
-    throw new RefreshError('AUTH_REFRESH_INVALID', 'Session not found');
-  }
-
-  if (!isSessionRefreshable(session)) {
-    throw new RefreshError('AUTH_SESSION_EXPIRED', 'Session expired or revoked');
-  }
-
-  // Validate user is still active
-  const user = await identityRepo.findUserById(tx, session.userId);
-  if (!user || user.status !== 'ACTIVE') {
-    const code = user?.status === 'SUSPENDED' ? 'AUTH_USER_SUSPENDED' : 'AUTH_USER_DEACTIVATED';
-    throw new RefreshError(code, `User is ${user?.status ?? 'unknown'}`);
-  }
-
-  // Rotate the refresh token
-  const { rawToken: newRawToken, hash: newHash } = generateRefreshToken();
-  await sessionRepo.rotateRefreshToken(tx, session.id, newHash);
-
-  const updatedSession: AuthSession = {
-    ...session,
-    refreshTokenHash: newHash,
-    lastUsedAt: new Date(),
-  };
-
-  // Audit refresh
-  await writeSessionAudit(tx, {
-    actorId: session.userId,
-    targetUserId: session.userId,
-    action: 'identity.session.refreshed',
-    afterSummary: { sessionId: session.id },
-    correlationId: input.correlationId,
-  });
-
-  return { session: updatedSession, newRefreshToken: newRawToken };
 }
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
