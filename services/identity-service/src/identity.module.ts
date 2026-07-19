@@ -15,12 +15,13 @@ import { DemoTokenValidator } from './infrastructure/demo-token-validator.js';
 import { IdentityAuthGuard } from './infrastructure/identity-auth.guard.js';
 import { PostgresIdentityRepository } from './infrastructure/postgres-identity-repository.js';
 import { PostgresMembershipRepository } from './infrastructure/postgres-membership-repository.js';
+import { AuthController } from './interface/http/auth.controller.js';
 import { HealthController } from './interface/http/health.controller.js';
 import { MembershipController } from './interface/http/membership.controller.js';
 import { UserController } from './interface/http/user.controller.js';
 
 @Module({
-  controllers: [HealthController, UserController, MembershipController],
+  controllers: [HealthController, UserController, MembershipController, AuthController],
   providers: [
     {
       provide: TOKEN_VALIDATOR,

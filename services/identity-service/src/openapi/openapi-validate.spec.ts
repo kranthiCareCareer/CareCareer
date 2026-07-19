@@ -39,6 +39,13 @@ describe('OpenAPI Validation', () => {
     { method: 'get', path: '/v1/tenants/{tenantId}/members/{membershipId}/permissions' },
     { method: 'get', path: '/v1/tenants/{tenantId}/roles' },
     { method: 'get', path: '/v1/permissions' },
+    { method: 'post', path: '/v1/auth/refresh' },
+    { method: 'post', path: '/v1/auth/logout' },
+    { method: 'post', path: '/v1/auth/logout-all' },
+    { method: 'get', path: '/v1/auth/sessions' },
+    { method: 'delete', path: '/v1/auth/sessions/{sessionId}' },
+    { method: 'get', path: '/v1/auth/me' },
+    { method: 'get', path: '/.well-known/jwks.json' },
   ];
 
   it('should have valid OpenAPI document', () => {

@@ -835,3 +835,219 @@ paths:
           description: Insufficient permissions
         '404':
           description: User not found
+
+  /v1/auth/refresh:
+    post:
+      summary: Refresh access token
+      operationId: refreshSession
+      security: []
+      description: |
+        Exchange a valid refresh token for a new access token and rotated refresh token.
+        Previous refresh token becomes immediately unusable.
+        Replay of a rotated token revokes the entire token family.
+        Cache-Control: no-store.
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  refreshToken:
+                    type: string
+                  expiresIn:
+                    type: integer
+                    description: Access token lifetime in seconds (900 = 15 min)
+        '401':
+          description: Invalid, expired, revoked, or replayed refresh token
+
+  /v1/auth/logout:
+    post:
+      summary: Logout current session
+      operationId: logout
+      description: |
+        Revoke the current session. Idempotent — repeated calls succeed.
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Logged out
+        '401':
+          description: Authentication required
+
+  /v1/auth/logout-all:
+    post:
+      summary: Revoke all active sessions
+      operationId: logoutAll
+      description: Revokes every active session belonging to the authenticated user.
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: All sessions revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  revokedCount:
+                    type: integer
+        '401':
+          description: Authentication required
+
+  /v1/auth/sessions:
+    get:
+      summary: List active sessions
+      operationId: listSessions
+      description: Returns safe metadata for the current user's active sessions.
+      responses:
+        '200':
+          description: Session list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        createdAt:
+                          type: string
+                          format: date-time
+                        lastUsedAt:
+                          type: string
+                          format: date-time
+                        expiresAt:
+                          type: string
+                          format: date-time
+                        status:
+                          type: string
+        '401':
+          description: Authentication required
+
+  /v1/auth/sessions/{sessionId}:
+    delete:
+      summary: Revoke a specific session
+      operationId: revokeSession
+      description: |
+        Revoke one of the current user's sessions.
+        Returns hidden 404 if session belongs to another user.
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CorrelationId'
+      responses:
+        '200':
+          description: Session revoked
+        '401':
+          description: Authentication required
+        '404':
+          description: Session not found or belongs to another user
+
+  /v1/auth/me:
+    get:
+      summary: Get current authenticated identity
+      operationId: getCurrentIdentity
+      description: |
+        Returns the current CareCareer identity and active authorization context.
+        No unrelated tenant data is exposed.
+      responses:
+        '200':
+          description: Current identity
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      userId:
+                        type: string
+                        format: uuid
+                      displayName:
+                        type: string
+                      status:
+                        $ref: '#/components/schemas/UserStatus'
+                      authorizationVersion:
+                        type: integer
+                      platformRoles:
+                        type: array
+                        items:
+                          type: string
+                      tenantMemberships:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            tenantId:
+                              type: string
+                            roles:
+                              type: array
+                              items:
+                                type: string
+                            status:
+                              type: string
+        '401':
+          description: Authentication required
+
+  /.well-known/jwks.json:
+    get:
+      summary: JSON Web Key Set
+      operationId: getJwks
+      security: []
+      description: |
+        Returns public verification keys for platform JWT validation.
+        Includes active and approved overlap keys. Never exposes private fields.
+        Appropriate cache headers are set.
+      responses:
+        '200':
+          description: JWKS
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        kty:
+                          type: string
+                        kid:
+                          type: string
+                        use:
+                          type: string
+                        alg:
+                          type: string
+                        n:
+                          type: string
+                        e:
+                          type: string
