@@ -17,7 +17,8 @@ import { IdentityAuthGuard } from './infrastructure/identity-auth.guard.js';
 import { PlatformTokenValidator } from './infrastructure/platform-token-validator.js';
 import { PostgresIdentityRepository } from './infrastructure/postgres-identity-repository.js';
 import { PostgresMembershipRepository } from './infrastructure/postgres-membership-repository.js';
-import { PostgresSigningKeyRepository } from './infrastructure/postgres-session-repository.js';
+import { PostgresSessionRepository, PostgresSigningKeyRepository } from './infrastructure/postgres-session-repository.js';
+import { SessionStateValidator } from './infrastructure/session-state-validator.js';
 import { AuthController } from './interface/http/auth.controller.js';
 import { HealthController } from './interface/http/health.controller.js';
 import { MembershipController } from './interface/http/membership.controller.js';
@@ -105,8 +106,17 @@ function resolveTokenValidator(): TokenValidator {
     },
     {
       provide: APP_GUARD,
-      useFactory: (tokenValidator: TokenValidator, reflector: Reflector) =>
-        new IdentityAuthGuard(tokenValidator, reflector),
+      useFactory: (tokenValidator: TokenValidator, reflector: Reflector) => {
+        // Wire session-state validator for live enforcement when database is available
+        const dbUrl = process.env['DATABASE_URL'];
+        let sessionValidator: SessionStateValidator | null = null;
+        if (dbUrl) {
+          const prisma = createPgPrismaClient(dbUrl);
+          const sessionRepo = new PostgresSessionRepository();
+          sessionValidator = new SessionStateValidator(prisma, sessionRepo);
+        }
+        return new IdentityAuthGuard(tokenValidator, reflector, sessionValidator);
+      },
       inject: [TOKEN_VALIDATOR, Reflector],
     },
     {
