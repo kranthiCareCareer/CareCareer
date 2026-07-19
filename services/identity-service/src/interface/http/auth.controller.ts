@@ -32,6 +32,7 @@ import {
 import type { SigningKey } from '../../domain/signing-key.js';
 import { createPgPrismaClient } from '../../infrastructure/database-factory.js';
 import { buildJwks, signPlatformJwt } from '../../infrastructure/jwt-service.js';
+import { PostgresRefreshTokenRepository } from '../../infrastructure/postgres-refresh-token-repository.js';
 import {
   PostgresSessionRepository,
   PostgresSigningKeyRepository,
@@ -46,6 +47,7 @@ import { Public } from '../../infrastructure/public.decorator.js';
 export class AuthController {
   private readonly sessionRepo: PostgresSessionRepository;
   private readonly signingKeyRepo: PostgresSigningKeyRepository;
+  private readonly refreshTokenRepo: PostgresRefreshTokenRepository;
   private readonly prismaClient: ReturnType<typeof createPgPrismaClient> | null;
 
   constructor(
@@ -54,6 +56,7 @@ export class AuthController {
   ) {
     this.sessionRepo = new PostgresSessionRepository();
     this.signingKeyRepo = new PostgresSigningKeyRepository();
+    this.refreshTokenRepo = new PostgresRefreshTokenRepository();
     const dbUrl = process.env['DATABASE_URL'];
     this.prismaClient = dbUrl ? createPgPrismaClient(dbUrl) : null;
   }
@@ -89,6 +92,7 @@ export class AuthController {
         this.sessionRepo,
         this.identityRepo,
         { refreshToken, correlationId: corrId },
+        this.refreshTokenRepo,
       );
 
       // Issue new access token
@@ -129,7 +133,7 @@ export class AuthController {
       sessionId: corrId, // Placeholder — real impl uses sid from token
       userId,
       correlationId: corrId,
-    });
+    }, this.refreshTokenRepo);
 
     return { status: 'ok' };
   }
@@ -149,7 +153,7 @@ export class AuthController {
     const count = await logoutAllCommand(this.prismaClient, this.sessionRepo, {
       userId: principal.subject,
       correlationId: corrId,
-    });
+    }, this.refreshTokenRepo);
 
     return { status: 'ok', revokedCount: count };
   }
@@ -207,7 +211,7 @@ export class AuthController {
       sessionId,
       userId: principal.subject,
       correlationId: corrId,
-    });
+    }, this.refreshTokenRepo);
 
     return { status: 'revoked' };
   }
@@ -301,6 +305,7 @@ export class AuthController {
       this.prismaClient,
       this.sessionRepo,
       { userId, correlationId: corrId },
+      this.refreshTokenRepo,
     );
 
     const accessToken = await this.issueAccessToken(userId, session.id);

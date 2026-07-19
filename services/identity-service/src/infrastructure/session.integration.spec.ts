@@ -19,6 +19,7 @@ import { hashToken } from '../domain/session.js';
 import { createUser } from '../domain/user.js';
 
 import { PostgresIdentityRepository } from './postgres-identity-repository.js';
+import { PostgresRefreshTokenRepository } from './postgres-refresh-token-repository.js';
 import { PostgresSessionRepository } from './postgres-session-repository.js';
 
 function createPoolPrismaClient(connectionUri: string): { client: PrismaLikeClient; pool: Pool } {
@@ -68,13 +69,14 @@ function createPoolPrismaClient(connectionUri: string): { client: PrismaLikeClie
   return { client, pool };
 }
 
-describe('Session Integration Tests (GP-03.3)', () => {
+describe('Session Integration Tests (GP-03.3 — Durable Lineage)', () => {
   let container: StartedPostgreSqlContainer;
   let prismaClient: PrismaLikeClient;
   let rawClient: Client;
   let pool: Pool;
   let sessionRepo: PostgresSessionRepository;
   let identityRepo: PostgresIdentityRepository;
+  let refreshTokenRepo: PostgresRefreshTokenRepository;
 
   const userId = '00000000-0000-0000-0000-000000000100';
 
@@ -89,7 +91,7 @@ describe('Session Integration Tests (GP-03.3)', () => {
     rawClient = new Client({ connectionString: uri });
     await rawClient.connect();
 
-    // Apply all migrations
+    // Apply all migrations including the new lineage table
     const currentDir = dirname(fileURLToPath(import.meta.url));
     const migrationsDir = resolve(currentDir, '..', '..', 'prisma', 'migrations');
     const files = [
@@ -97,6 +99,7 @@ describe('Session Integration Tests (GP-03.3)', () => {
       '002_rls_and_grants.sql',
       '003_seed_roles_permissions.sql',
       '004_sessions_and_signing_keys.sql',
+      '005_refresh_token_lineage.sql',
     ];
     for (const f of files) {
       await rawClient.query(readFileSync(resolve(migrationsDir, f), 'utf-8'));
@@ -107,6 +110,7 @@ describe('Session Integration Tests (GP-03.3)', () => {
     pool = p;
     sessionRepo = new PostgresSessionRepository();
     identityRepo = new PostgresIdentityRepository();
+    refreshTokenRepo = new PostgresRefreshTokenRepository();
 
     // Seed a user for session tests
     await prismaClient.$transaction(async (tx) => {
@@ -123,16 +127,28 @@ describe('Session Integration Tests (GP-03.3)', () => {
     await container.stop();
   });
 
-  describe('Session creation', () => {
-    it('should create a session with audit and outbox atomically', async () => {
-      const { session, refreshToken } = await createSessionCommand(prismaClient, sessionRepo, {
-        userId,
-        correlationId: 'test-create-1',
-      });
+  describe('Session creation with lineage', () => {
+    it('should create a session with audit, outbox, and refresh token lineage atomically', async () => {
+      const { session, refreshToken } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'test-create-1' },
+        refreshTokenRepo,
+      );
 
       expect(session.status).toBe('ACTIVE');
       expect(session.userId).toBe(userId);
       expect(refreshToken.length).toBeGreaterThan(20);
+
+      // Verify refresh token lineage record exists
+      const lineage = await rawClient.query(
+        'SELECT * FROM identity.auth_refresh_tokens WHERE session_id = $1',
+        [session.id],
+      );
+      expect(lineage.rows).toHaveLength(1);
+      expect(lineage.rows[0].status).toBe('ACTIVE');
+      expect(lineage.rows[0].token_hash).toBe(hashToken(refreshToken));
+      expect(lineage.rows[0].parent_token_id).toBeNull();
 
       // Verify audit record exists
       const audit = await rawClient.query(
@@ -148,70 +164,68 @@ describe('Session Integration Tests (GP-03.3)', () => {
     });
 
     it('should not store raw refresh tokens in the database', async () => {
-      const { refreshToken } = await createSessionCommand(prismaClient, sessionRepo, {
-        userId,
-        correlationId: 'test-raw-check',
-      });
+      const { refreshToken } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'test-raw-check' },
+        refreshTokenRepo,
+      );
 
-      // Search for the raw token in the sessions table
+      // The raw token itself should NOT match any stored hash
       const result = await rawClient.query(
-        'SELECT * FROM identity.auth_sessions WHERE refresh_token_hash = $1',
-        [refreshToken], // The raw token itself should NOT match a hash
+        'SELECT * FROM identity.auth_refresh_tokens WHERE token_hash = $1',
+        [refreshToken],
       );
       expect(result.rows).toHaveLength(0);
 
-      // The hash should be stored instead
+      // The SHA-256 hash should be stored
       const hashResult = await rawClient.query(
-        'SELECT * FROM identity.auth_sessions WHERE refresh_token_hash = $1',
+        'SELECT * FROM identity.auth_refresh_tokens WHERE token_hash = $1',
         [hashToken(refreshToken)],
       );
       expect(hashResult.rows.length).toBeGreaterThanOrEqual(1);
     });
   });
 
-  describe('Refresh rotation', () => {
-    it('should rotate the refresh token atomically', async () => {
-      const { refreshToken } = await createSessionCommand(prismaClient, sessionRepo, {
-        userId,
-        correlationId: 'test-rotate-1',
-      });
+  describe('Refresh rotation with lineage', () => {
+    it('should rotate the refresh token and track lineage', async () => {
+      const { session, refreshToken } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'test-rotate-1' },
+        refreshTokenRepo,
+      );
 
       const { newRefreshToken } = await refreshSessionCommand(
         prismaClient,
         sessionRepo,
         identityRepo,
         { refreshToken, correlationId: 'test-rotate-2' },
+        refreshTokenRepo,
       );
 
       expect(newRefreshToken).not.toBe(refreshToken);
-    });
 
-    it('should reject the old refresh token after rotation', async () => {
-      const { refreshToken } = await createSessionCommand(prismaClient, sessionRepo, {
-        userId,
-        correlationId: 'test-old-token-1',
-      });
-
-      // Rotate once
-      await refreshSessionCommand(prismaClient, sessionRepo, identityRepo, {
-        refreshToken,
-        correlationId: 'test-old-token-2',
-      });
-
-      // Try to use the old token again (replay)
-      await expect(
-        refreshSessionCommand(prismaClient, sessionRepo, identityRepo, {
-          refreshToken,
-          correlationId: 'test-old-token-3',
-        }),
-      ).rejects.toThrow();
+      // Verify lineage: original token is now ROTATED, successor is ACTIVE
+      const tokens = await rawClient.query(
+        'SELECT * FROM identity.auth_refresh_tokens WHERE session_id = $1 ORDER BY issued_at ASC',
+        [session.id],
+      );
+      expect(tokens.rows).toHaveLength(2);
+      expect(tokens.rows[0].status).toBe('ROTATED');
+      expect(tokens.rows[0].token_hash).toBe(hashToken(refreshToken));
+      expect(tokens.rows[1].status).toBe('ACTIVE');
+      expect(tokens.rows[1].token_hash).toBe(hashToken(newRefreshToken));
+      expect(tokens.rows[1].parent_token_id).toBe(tokens.rows[0].id);
     });
 
     it('should not extend absolute session expiration on refresh', async () => {
-      const { session, refreshToken } = await createSessionCommand(prismaClient, sessionRepo, {
-        userId,
-        correlationId: 'test-no-extend-1',
-      });
+      const { session, refreshToken } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'test-no-extend-1' },
+        refreshTokenRepo,
+      );
 
       const originalExpiry = session.expiresAt.getTime();
 
@@ -220,6 +234,7 @@ describe('Session Integration Tests (GP-03.3)', () => {
         sessionRepo,
         identityRepo,
         { refreshToken, correlationId: 'test-no-extend-2' },
+        refreshTokenRepo,
       );
 
       // Expiry should remain the same (7 days from creation, not from refresh)
@@ -227,117 +242,402 @@ describe('Session Integration Tests (GP-03.3)', () => {
     });
   });
 
-  describe('Replay detection', () => {
-    it('should detect replay and compromise the token family', async () => {
-      const { refreshToken } = await createSessionCommand(prismaClient, sessionRepo, {
-        userId,
-        correlationId: 'test-replay-1',
-      });
+  describe('Historical replay detection', () => {
+    it('should detect replay of token A after A→B rotation and compromise family', async () => {
+      const { session, refreshToken: tokenA } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'replay-create' },
+        refreshTokenRepo,
+      );
 
-      // First refresh succeeds
-      await refreshSessionCommand(prismaClient, sessionRepo, identityRepo, {
-        refreshToken,
-        correlationId: 'test-replay-2',
-      });
+      // A rotates to B
+      const { newRefreshToken: tokenB } = await refreshSessionCommand(
+        prismaClient,
+        sessionRepo,
+        identityRepo,
+        { refreshToken: tokenA, correlationId: 'replay-rotate-ab' },
+        refreshTokenRepo,
+      );
 
-      // Replay the old token — should fail and compromise family
+      // Replay A → must return AUTH_REFRESH_REPLAY
       try {
-        await refreshSessionCommand(prismaClient, sessionRepo, identityRepo, {
-          refreshToken, // Old token!
-          correlationId: 'test-replay-3',
-        });
+        await refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken: tokenA, correlationId: 'replay-attack-a' },
+          refreshTokenRepo,
+        );
+        expect.fail('Should have thrown AUTH_REFRESH_REPLAY');
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(RefreshError);
+        expect((error as RefreshError).code).toBe('AUTH_REFRESH_REPLAY');
+      }
+
+      // Verify family is compromised
+      const tokens = await rawClient.query(
+        'SELECT * FROM identity.auth_refresh_tokens WHERE session_id = $1 ORDER BY issued_at ASC',
+        [session.id],
+      );
+      for (const t of tokens.rows) {
+        expect(t.status).toBe('COMPROMISED');
+      }
+
+      // Token B must also be unusable
+      try {
+        await refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken: tokenB, correlationId: 'replay-b-after' },
+          refreshTokenRepo,
+        );
+        expect.fail('Token B should be unusable after family compromise');
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(RefreshError);
+        // B is COMPROMISED, not ROTATED, so it returns INVALID not REPLAY
+        expect((error as RefreshError).code).toBe('AUTH_REFRESH_INVALID');
+      }
+
+      // Verify audit record for family compromise
+      const audit = await rawClient.query(
+        "SELECT * FROM identity.audit_records WHERE action = 'identity.session.family-compromised' AND correlation_id = 'replay-attack-a'",
+      );
+      expect(audit.rows.length).toBe(1);
+      // Audit must not contain any token hash
+      const auditSummary = audit.rows[0].after_summary;
+      expect(JSON.stringify(auditSummary)).not.toContain(hashToken(tokenA));
+      expect(JSON.stringify(auditSummary)).not.toContain(hashToken(tokenB));
+
+      // Verify outbox event for family compromise
+      const outbox = await rawClient.query(
+        "SELECT * FROM identity.event_outbox WHERE event_type = 'identity.session.family-compromised' AND correlation_id = 'replay-attack-a'",
+      );
+      expect(outbox.rows.length).toBe(1);
+      // Outbox must not contain any token hash
+      const outboxPayload = outbox.rows[0].payload;
+      expect(JSON.stringify(outboxPayload)).not.toContain(hashToken(tokenA));
+      expect(JSON.stringify(outboxPayload)).not.toContain(hashToken(tokenB));
+    });
+
+    it('should detect replay of token B after A→B→C rotation', async () => {
+      const { refreshToken: tokenA } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'replay-abc-create' },
+        refreshTokenRepo,
+      );
+
+      // A → B
+      const { newRefreshToken: tokenB } = await refreshSessionCommand(
+        prismaClient,
+        sessionRepo,
+        identityRepo,
+        { refreshToken: tokenA, correlationId: 'replay-abc-ab' },
+        refreshTokenRepo,
+      );
+
+      // B → C
+      const { newRefreshToken: tokenC } = await refreshSessionCommand(
+        prismaClient,
+        sessionRepo,
+        identityRepo,
+        { refreshToken: tokenB, correlationId: 'replay-abc-bc' },
+        refreshTokenRepo,
+      );
+
+      // Replay B → must detect as AUTH_REFRESH_REPLAY
+      try {
+        await refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken: tokenB, correlationId: 'replay-abc-b-attack' },
+          refreshTokenRepo,
+        );
+        expect.fail('Should have thrown AUTH_REFRESH_REPLAY');
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(RefreshError);
+        expect((error as RefreshError).code).toBe('AUTH_REFRESH_REPLAY');
+      }
+
+      // Token C must be unusable (family compromised)
+      try {
+        await refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken: tokenC, correlationId: 'replay-abc-c-after' },
+          refreshTokenRepo,
+        );
+        expect.fail('Token C should be unusable after family compromise');
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(RefreshError);
+        expect((error as RefreshError).code).toBe('AUTH_REFRESH_INVALID');
+      }
+
+      // No new tokens were issued
+      // Verify only the 3 original tokens exist for this family
+      const tokenAHash = hashToken(tokenA);
+      const familyResult = await rawClient.query(
+        'SELECT token_family_id FROM identity.auth_refresh_tokens WHERE token_hash = $1',
+        [tokenAHash],
+      );
+      const familyId = familyResult.rows[0].token_family_id;
+      const allTokens = await rawClient.query(
+        'SELECT * FROM identity.auth_refresh_tokens WHERE token_family_id = $1',
+        [familyId],
+      );
+      expect(allTokens.rows).toHaveLength(3); // A, B, C — no new token issued
+    });
+
+    it('should reject an unknown random token as AUTH_REFRESH_INVALID (not REPLAY)', async () => {
+      const unknownToken = 'completely-random-token-that-never-existed';
+
+      try {
+        await refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken: unknownToken, correlationId: 'unknown-token' },
+          refreshTokenRepo,
+        );
         expect.fail('Should have thrown');
       } catch (error: unknown) {
         expect(error).toBeInstanceOf(RefreshError);
-        // After rotation, the old token's hash no longer matches any active session.
-        // The system correctly rejects it. Whether reported as REPLAY or INVALID
-        // depends on whether we store previous hashes. Either outcome is secure.
-        const code = (error as RefreshError).code;
-        expect(code === 'AUTH_REFRESH_REPLAY' || code === 'AUTH_REFRESH_INVALID').toBe(true);
+        expect((error as RefreshError).code).toBe('AUTH_REFRESH_INVALID');
       }
-
-      // The new token should also be unusable if family was compromised,
-      // OR it may still work if the replay was detected as simply "invalid"
-      // (no stored hash history means we can't identify the family from the old token alone).
-      // The concurrent test proves family compromise under real locking.
-      // For sequential replay: the old token is simply rejected — the successor remains valid.
-      // This is the approved behavior when previous hashes are not retained.
     });
   });
 
-  describe('Logout', () => {
-    it('should revoke a session on logout', async () => {
-      const { session, refreshToken } = await createSessionCommand(prismaClient, sessionRepo, {
-        userId,
-        correlationId: 'test-logout-1',
-      });
+  describe('Concurrent refresh safety', () => {
+    it('should prevent two valid successors from one refresh token', async () => {
+      // Clean start
+      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'conc-clean' }, refreshTokenRepo);
 
-      await logoutCommand(prismaClient, sessionRepo, {
-        sessionId: session.id,
-        userId,
-        correlationId: 'test-logout-2',
-      });
+      const { refreshToken } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'conc-create' },
+        refreshTokenRepo,
+      );
+
+      // Launch two concurrent refreshes with the same token
+      const [result1, result2] = await Promise.allSettled([
+        refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken, correlationId: 'conc-1' },
+          refreshTokenRepo,
+        ),
+        refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken, correlationId: 'conc-2' },
+          refreshTokenRepo,
+        ),
+      ]);
+
+      // At most one should succeed
+      const successes = [result1, result2].filter((r) => r.status === 'fulfilled');
+      const failures = [result1, result2].filter((r) => r.status === 'rejected');
+
+      // Under FOR UPDATE locking: one wins, the other either:
+      // - waits and finds the token ROTATED (replay), or
+      // - serialization failure
+      expect(successes.length).toBeLessThanOrEqual(1);
+      expect(failures.length).toBeGreaterThanOrEqual(1);
+
+      // If one succeeded, the failure should be a replay or serialization error
+      if (successes.length === 1 && failures.length === 1) {
+        const failedResult = failures[0] as PromiseRejectedResult;
+        const failError = failedResult.reason as RefreshError;
+        // After FOR UPDATE lock release, the second caller sees ROTATED status → REPLAY
+        expect(failError.code === 'AUTH_REFRESH_REPLAY' || failError.code === 'AUTH_REFRESH_INVALID').toBe(true);
+      }
+
+      // Verify no duplicate active refresh hashes in the lineage table
+      const activeTokens = await rawClient.query(
+        "SELECT token_hash FROM identity.auth_refresh_tokens WHERE status = 'ACTIVE'",
+      );
+      const hashes = activeTokens.rows.map((r: Record<string, unknown>) => r['token_hash']);
+      const uniqueHashes = new Set(hashes);
+      expect(uniqueHashes.size).toBe(hashes.length);
+    });
+
+    it('should ensure deterministic outcome: family compromised after concurrent replay', async () => {
+      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'conc2-clean' }, refreshTokenRepo);
+
+      const { refreshToken: tokenA } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'conc2-create' },
+        refreshTokenRepo,
+      );
+
+      // Rotate A → B
+      const { newRefreshToken: tokenB } = await refreshSessionCommand(
+        prismaClient,
+        sessionRepo,
+        identityRepo,
+        { refreshToken: tokenA, correlationId: 'conc2-rotate' },
+        refreshTokenRepo,
+      );
+
+      // Now replay A concurrently (both are replay attempts)
+      const [r1, r2] = await Promise.allSettled([
+        refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken: tokenA, correlationId: 'conc2-replay-1' },
+          refreshTokenRepo,
+        ),
+        refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken: tokenA, correlationId: 'conc2-replay-2' },
+          refreshTokenRepo,
+        ),
+      ]);
+
+      // Both must fail — one as REPLAY, the other as REPLAY or INVALID
+      expect(r1.status).toBe('rejected');
+      expect(r2.status).toBe('rejected');
+
+      // At least one should be AUTH_REFRESH_REPLAY
+      const errors = [r1, r2]
+        .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+        .map((r) => (r.reason as RefreshError).code);
+      expect(errors.some((code) => code === 'AUTH_REFRESH_REPLAY')).toBe(true);
+
+      // Token B must be unusable after compromise
+      try {
+        await refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken: tokenB, correlationId: 'conc2-b-after' },
+          refreshTokenRepo,
+        );
+        expect.fail('Token B should be unusable');
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(RefreshError);
+        // B could be COMPROMISED or the session itself is COMPROMISED
+        const code = (error as RefreshError).code;
+        expect(code === 'AUTH_REFRESH_INVALID' || code === 'AUTH_SESSION_EXPIRED').toBe(true);
+      }
+    });
+  });
+
+  describe('Logout with lineage', () => {
+    it('should revoke a session and its token lineage on logout', async () => {
+      const { session, refreshToken } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'test-logout-1' },
+        refreshTokenRepo,
+      );
+
+      await logoutCommand(
+        prismaClient,
+        sessionRepo,
+        { sessionId: session.id, userId, correlationId: 'test-logout-2' },
+        refreshTokenRepo,
+      );
 
       // Refresh should fail
       await expect(
-        refreshSessionCommand(prismaClient, sessionRepo, identityRepo, {
-          refreshToken,
-          correlationId: 'test-logout-3',
-        }),
+        refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken, correlationId: 'test-logout-3' },
+          refreshTokenRepo,
+        ),
       ).rejects.toThrow();
+
+      // Verify lineage tokens are revoked
+      const tokens = await rawClient.query(
+        'SELECT status FROM identity.auth_refresh_tokens WHERE session_id = $1',
+        [session.id],
+      );
+      for (const t of tokens.rows) {
+        expect(t.status).toBe('REVOKED');
+      }
     });
 
     it('should be idempotent (repeated logout succeeds)', async () => {
-      const { session } = await createSessionCommand(prismaClient, sessionRepo, {
-        userId,
-        correlationId: 'test-idem-logout-1',
-      });
+      const { session } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'test-idem-logout-1' },
+        refreshTokenRepo,
+      );
 
-      await logoutCommand(prismaClient, sessionRepo, {
-        sessionId: session.id,
-        userId,
-        correlationId: 'test-idem-logout-2',
-      });
+      await logoutCommand(
+        prismaClient,
+        sessionRepo,
+        { sessionId: session.id, userId, correlationId: 'test-idem-logout-2' },
+        refreshTokenRepo,
+      );
 
       // Second logout should not throw
-      await logoutCommand(prismaClient, sessionRepo, {
-        sessionId: session.id,
-        userId,
-        correlationId: 'test-idem-logout-3',
-      });
+      await logoutCommand(
+        prismaClient,
+        sessionRepo,
+        { sessionId: session.id, userId, correlationId: 'test-idem-logout-3' },
+        refreshTokenRepo,
+      );
     });
 
-    it('should revoke all sessions on logout-all', async () => {
+    it('should revoke all sessions and lineage on logout-all', async () => {
       // Create multiple sessions
-      const s1 = await createSessionCommand(prismaClient, sessionRepo, {
-        userId,
-        correlationId: 'la-1',
-      });
-      const s2 = await createSessionCommand(prismaClient, sessionRepo, {
-        userId,
-        correlationId: 'la-2',
-      });
+      const s1 = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'la-1' },
+        refreshTokenRepo,
+      );
+      const s2 = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'la-2' },
+        refreshTokenRepo,
+      );
 
-      const count = await logoutAllCommand(prismaClient, sessionRepo, {
-        userId,
-        correlationId: 'test-logout-all',
-      });
+      const count = await logoutAllCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'test-logout-all' },
+        refreshTokenRepo,
+      );
 
       expect(count).toBeGreaterThanOrEqual(2);
 
       // Both refresh tokens should fail
       await expect(
-        refreshSessionCommand(prismaClient, sessionRepo, identityRepo, {
-          refreshToken: s1.refreshToken,
-          correlationId: 'la-fail-1',
-        }),
+        refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken: s1.refreshToken, correlationId: 'la-fail-1' },
+          refreshTokenRepo,
+        ),
       ).rejects.toThrow();
 
       await expect(
-        refreshSessionCommand(prismaClient, sessionRepo, identityRepo, {
-          refreshToken: s2.refreshToken,
-          correlationId: 'la-fail-2',
-        }),
+        refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken: s2.refreshToken, correlationId: 'la-fail-2' },
+          refreshTokenRepo,
+        ),
       ).rejects.toThrow();
     });
   });
@@ -345,23 +645,27 @@ describe('Session Integration Tests (GP-03.3)', () => {
   describe('Five-session limit', () => {
     it('should enforce maximum 5 active sessions (oldest revoked at limit)', async () => {
       // Clean slate: revoke all
-      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'limit-clean' });
+      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'limit-clean' }, refreshTokenRepo);
 
       // Create 5 sessions
       const sessions = [];
       for (let i = 0; i < 5; i++) {
-        const s = await createSessionCommand(prismaClient, sessionRepo, {
-          userId,
-          correlationId: `limit-${i}`,
-        });
+        const s = await createSessionCommand(
+          prismaClient,
+          sessionRepo,
+          { userId, correlationId: `limit-${i}` },
+          refreshTokenRepo,
+        );
         sessions.push(s);
       }
 
       // Create 6th — should succeed but oldest is revoked
-      const sixth = await createSessionCommand(prismaClient, sessionRepo, {
-        userId,
-        correlationId: 'limit-6th',
-      });
+      const sixth = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'limit-6th' },
+        refreshTokenRepo,
+      );
       expect(sixth.session.status).toBe('ACTIVE');
 
       // Count active sessions
@@ -373,15 +677,17 @@ describe('Session Integration Tests (GP-03.3)', () => {
   });
 
   describe('Transaction atomicity', () => {
-    it('should rollback session + audit + outbox on failure', async () => {
+    it('should rollback session + lineage + audit + outbox on failure', async () => {
       const badUserId = '00000000-0000-0000-0000-ffffffffffff';
 
       // Creating a session for non-existent user should fail on FK constraint
       await expect(
-        createSessionCommand(prismaClient, sessionRepo, {
-          userId: badUserId,
-          correlationId: 'test-atomicity-fail',
-        }),
+        createSessionCommand(
+          prismaClient,
+          sessionRepo,
+          { userId: badUserId, correlationId: 'test-atomicity-fail' },
+          refreshTokenRepo,
+        ),
       ).rejects.toThrow();
 
       // Verify no partial records exist
@@ -390,61 +696,26 @@ describe('Session Integration Tests (GP-03.3)', () => {
         [badUserId],
       );
       expect(sessions.rows).toHaveLength(0);
-    });
-  });
 
-  describe('Concurrent refresh safety', () => {
-    it('should prevent two valid successors from one refresh token', async () => {
-      // Clean start
-      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'conc-clean' });
-
-      const { refreshToken } = await createSessionCommand(prismaClient, sessionRepo, {
-        userId,
-        correlationId: 'conc-create',
-      });
-
-      // Launch two concurrent refreshes with the same token
-      const [result1, result2] = await Promise.allSettled([
-        refreshSessionCommand(prismaClient, sessionRepo, identityRepo, {
-          refreshToken,
-          correlationId: 'conc-1',
-        }),
-        refreshSessionCommand(prismaClient, sessionRepo, identityRepo, {
-          refreshToken,
-          correlationId: 'conc-2',
-        }),
-      ]);
-
-      // At most one should succeed
-      const successes = [result1, result2].filter((r) => r.status === 'fulfilled');
-      const failures = [result1, result2].filter((r) => r.status === 'rejected');
-
-      // Under FOR UPDATE locking: one wins, the other either waits and finds
-      // the token rotated (replay) or finds the session locked and fails
-      expect(successes.length).toBeLessThanOrEqual(1);
-      expect(failures.length).toBeGreaterThanOrEqual(1);
-
-      // Verify no duplicate active refresh hashes
-      const activeSessions = await rawClient.query(
-        "SELECT refresh_token_hash FROM identity.auth_sessions WHERE user_id = $1 AND status = 'ACTIVE'",
-        [userId],
+      // No lineage tokens created
+      const tokens = await rawClient.query(
+        "SELECT id FROM identity.auth_refresh_tokens WHERE token_family_id IN (SELECT token_family FROM identity.auth_sessions WHERE user_id = $1)",
+        [badUserId],
       );
-      const hashes = activeSessions.rows.map(
-        (r: Record<string, unknown>) => r['refresh_token_hash'],
-      );
-      const uniqueHashes = new Set(hashes);
-      expect(uniqueHashes.size).toBe(hashes.length);
+      expect(tokens.rows).toHaveLength(0);
     });
   });
 
   describe('Authorization-version enforcement', () => {
     it('should reject refresh when user is suspended', async () => {
       // Clean and create fresh session
-      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'av-clean' });
-      const { refreshToken } = await createSessionCommand(prismaClient, sessionRepo, {
-        userId,
-        correlationId: 'av-create',
-      });
+      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'av-clean' }, refreshTokenRepo);
+      const { refreshToken } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'av-create' },
+        refreshTokenRepo,
+      );
 
       // Suspend the user
       await prismaClient.$transaction(async (tx) => {
@@ -455,12 +726,19 @@ describe('Session Integration Tests (GP-03.3)', () => {
       });
 
       // Refresh should fail because user is suspended
-      await expect(
-        refreshSessionCommand(prismaClient, sessionRepo, identityRepo, {
-          refreshToken,
-          correlationId: 'av-suspended',
-        }),
-      ).rejects.toThrow(/SUSPENDED/);
+      try {
+        await refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken, correlationId: 'av-suspended' },
+          refreshTokenRepo,
+        );
+        expect.fail('Should have thrown');
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(RefreshError);
+        expect((error as RefreshError).code).toBe('AUTH_USER_SUSPENDED');
+      }
 
       // Restore user for other tests
       await prismaClient.$transaction(async (tx) => {
@@ -471,11 +749,13 @@ describe('Session Integration Tests (GP-03.3)', () => {
     });
 
     it('should reject refresh when user is deactivated', async () => {
-      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'av-clean2' });
-      const { refreshToken } = await createSessionCommand(prismaClient, sessionRepo, {
-        userId,
-        correlationId: 'av-create2',
-      });
+      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'av-clean2' }, refreshTokenRepo);
+      const { refreshToken } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'av-create2' },
+        refreshTokenRepo,
+      );
 
       // Deactivate the user
       await prismaClient.$transaction(async (tx) => {
@@ -486,12 +766,19 @@ describe('Session Integration Tests (GP-03.3)', () => {
       });
 
       // Refresh should fail
-      await expect(
-        refreshSessionCommand(prismaClient, sessionRepo, identityRepo, {
-          refreshToken,
-          correlationId: 'av-deactivated',
-        }),
-      ).rejects.toThrow(/DEACTIVATED/);
+      try {
+        await refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken, correlationId: 'av-deactivated' },
+          refreshTokenRepo,
+        );
+        expect.fail('Should have thrown');
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(RefreshError);
+        expect((error as RefreshError).code).toBe('AUTH_USER_DEACTIVATED');
+      }
 
       // Restore
       await prismaClient.$transaction(async (tx) => {
