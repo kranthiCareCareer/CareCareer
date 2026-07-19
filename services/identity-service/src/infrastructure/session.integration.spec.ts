@@ -436,4 +436,69 @@ describe('Session Integration Tests (GP-03.3)', () => {
       expect(uniqueHashes.size).toBe(hashes.length);
     });
   });
+
+  describe('Authorization-version enforcement', () => {
+    it('should reject refresh when user is suspended', async () => {
+      // Clean and create fresh session
+      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'av-clean' });
+      const { refreshToken } = await createSessionCommand(prismaClient, sessionRepo, {
+        userId,
+        correlationId: 'av-create',
+      });
+
+      // Suspend the user
+      await prismaClient.$transaction(async (tx) => {
+        await tx.$executeRaw`
+          UPDATE identity.users SET status = 'SUSPENDED', authorization_version = authorization_version + 1
+          WHERE id = ${userId}
+        `;
+      });
+
+      // Refresh should fail because user is suspended
+      await expect(
+        refreshSessionCommand(prismaClient, sessionRepo, identityRepo, {
+          refreshToken,
+          correlationId: 'av-suspended',
+        }),
+      ).rejects.toThrow(/SUSPENDED/);
+
+      // Restore user for other tests
+      await prismaClient.$transaction(async (tx) => {
+        await tx.$executeRaw`
+          UPDATE identity.users SET status = 'ACTIVE' WHERE id = ${userId}
+        `;
+      });
+    });
+
+    it('should reject refresh when user is deactivated', async () => {
+      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'av-clean2' });
+      const { refreshToken } = await createSessionCommand(prismaClient, sessionRepo, {
+        userId,
+        correlationId: 'av-create2',
+      });
+
+      // Deactivate the user
+      await prismaClient.$transaction(async (tx) => {
+        await tx.$executeRaw`
+          UPDATE identity.users SET status = 'DEACTIVATED', authorization_version = authorization_version + 1
+          WHERE id = ${userId}
+        `;
+      });
+
+      // Refresh should fail
+      await expect(
+        refreshSessionCommand(prismaClient, sessionRepo, identityRepo, {
+          refreshToken,
+          correlationId: 'av-deactivated',
+        }),
+      ).rejects.toThrow(/DEACTIVATED/);
+
+      // Restore
+      await prismaClient.$transaction(async (tx) => {
+        await tx.$executeRaw`
+          UPDATE identity.users SET status = 'ACTIVE' WHERE id = ${userId}
+        `;
+      });
+    });
+  });
 });
