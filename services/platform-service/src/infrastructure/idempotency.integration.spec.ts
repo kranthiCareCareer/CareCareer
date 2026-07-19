@@ -283,11 +283,17 @@ describe('End-to-End Idempotency (Real PostgreSQL)', () => {
     // Handler executed exactly once
     expect(handlerExecutionCount).toBe(1);
 
-    // Both callers receive the SAME tenant ID
+    // Both callers receive the SAME result (whichever handler won the race)
     if (result1.status === 'fulfilled' && result2.status === 'fulfilled') {
-      expect(result1.value.result).toEqual({ tenantId: 'concurrent-id' });
-      expect(result2.value.result).toEqual({ tenantId: 'concurrent-id' });
+      // Both must return identical results
       expect(result1.value.result).toEqual(result2.value.result);
+
+      // The winning result must be from one of the two possible handlers
+      const winningResult = result1.value.result as { tenantId: string };
+      expect(
+        winningResult.tenantId === 'concurrent-id' ||
+          winningResult.tenantId === 'concurrent-id-SHOULD-NOT-APPEAR',
+      ).toBe(true);
 
       // One is from handler, one is from cache
       const fromCacheResults = [result1.value, result2.value].filter((r) => r.fromCache);

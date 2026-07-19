@@ -26,57 +26,60 @@ export class PostgresIdempotencyStore implements IdempotencyStore {
     await client.connect();
 
     try {
-      // Check if already exists
-      const existing = await client.query(
-        'SELECT * FROM idempotency_keys WHERE tenant_id = $1 AND operation = $2 AND idempotency_key = $3',
-        [params.tenantId, params.operation, params.idempotencyKey],
+      // Use an advisory lock based on a hash of the key to serialize concurrent claims
+      const lockKey = this.hashToInt(
+        `${params.tenantId}:${params.operation}:${params.idempotencyKey}`,
       );
+      await client.query('SELECT pg_advisory_lock($1)', [lockKey]);
 
-      if (existing.rows.length > 0) {
-        const row = existing.rows[0];
-        return {
-          claimed: false,
-          existing: this.mapRow(row),
-        };
-      }
-
-      // Claim atomically via INSERT (unique constraint prevents duplicates)
-      const now = new Date();
-      await client.query(
-        `INSERT INTO idempotency_keys (tenant_id, operation, idempotency_key, request_hash, status, created_at, updated_at, expires_at, locked_until)
-         VALUES ($1, $2, $3, $4, 'PROCESSING', $5, $5, $6, $7)`,
-        [
-          params.tenantId,
-          params.operation,
-          params.idempotencyKey,
-          params.requestHash,
-          now.toISOString(),
-          params.expiresAt.toISOString(),
-          new Date(now.getTime() + params.lockDurationMs).toISOString(),
-        ],
-      );
-
-      const inserted = await client.query(
-        'SELECT * FROM idempotency_keys WHERE tenant_id = $1 AND operation = $2 AND idempotency_key = $3',
-        [params.tenantId, params.operation, params.idempotencyKey],
-      );
-
-      return { claimed: true, record: this.mapRow(inserted.rows[0]) };
-    } catch (error: unknown) {
-      // Unique constraint violation = concurrent claim
-      if (String(error).includes('duplicate key') || String(error).includes('unique constraint')) {
+      try {
+        // Check if already exists
         const existing = await client.query(
           'SELECT * FROM idempotency_keys WHERE tenant_id = $1 AND operation = $2 AND idempotency_key = $3',
           [params.tenantId, params.operation, params.idempotencyKey],
         );
+
         if (existing.rows.length > 0) {
           return { claimed: false, existing: this.mapRow(existing.rows[0]) };
         }
+
+        // Claim via INSERT
+        const now = new Date();
+        await client.query(
+          `INSERT INTO idempotency_keys (tenant_id, operation, idempotency_key, request_hash, status, created_at, updated_at, expires_at, locked_until)
+           VALUES ($1, $2, $3, $4, 'PROCESSING', $5, $5, $6, $7)`,
+          [
+            params.tenantId,
+            params.operation,
+            params.idempotencyKey,
+            params.requestHash,
+            now.toISOString(),
+            params.expiresAt.toISOString(),
+            new Date(now.getTime() + params.lockDurationMs).toISOString(),
+          ],
+        );
+
+        const inserted = await client.query(
+          'SELECT * FROM idempotency_keys WHERE tenant_id = $1 AND operation = $2 AND idempotency_key = $3',
+          [params.tenantId, params.operation, params.idempotencyKey],
+        );
+
+        return { claimed: true, record: this.mapRow(inserted.rows[0]) };
+      } finally {
+        await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
       }
-      throw error;
     } finally {
       await client.end();
     }
+  }
+
+  private hashToInt(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash + char) | 0;
+    }
+    return hash;
   }
 
   async complete(params: {

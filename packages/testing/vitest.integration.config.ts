@@ -7,5 +7,10 @@ export default defineConfig({
     testTimeout: 60000,
     hookTimeout: 60000,
     include: ['src/**/*.integration.spec.ts'],
+    pool: 'forks',
+    poolOptions: {
+      forks: { singleFork: true },
+    },
+    fileParallelism: false,
   },
 });

@@ -4,21 +4,21 @@
 
 ## Current State
 
-| Field                 | Value                                                        |
-| --------------------- | ------------------------------------------------------------ |
-| Current branch        | master                                                       |
-| GP-03.0 final commit  | 6098d85                                                      |
-| Current slice         | GP-03.1                                                      |
-| Schema status         | Complete (10 tables in identity schema)                      |
-| Migration status      | 3 migration files applied (schema, RLS/grants, seed)         |
-| RLS status            | Enforced on tenant_memberships, membership_roles             |
-| API status            | 6 endpoints implemented + 2 health                           |
-| Unit results          | 37 passed                                                    |
-| HTTP results          | 15 passed (auth, permission, validation, success)            |
-| PostgreSQL results    | 17 passed (migrations, seeding, RLS, atomicity, uniqueness)  |
-| Docker verification   | 14 checks passed                                             |
-| Platform regression   | 117 unit tests passed, Docker verified                       |
-| DEMO-01 regression    | 20 Chromium E2E + 103 frontend + 117 backend all green       |
+| Field                | Value                                                       |
+| -------------------- | ----------------------------------------------------------- |
+| Current branch       | master                                                      |
+| GP-03.0 final commit | 6098d85                                                     |
+| Current slice        | GP-03.1                                                     |
+| Schema status        | Complete (10 tables in identity schema)                     |
+| Migration status     | 3 migration files applied (schema, RLS/grants, seed)        |
+| RLS status           | Enforced on tenant_memberships, membership_roles            |
+| API status           | 6 endpoints implemented + 2 health                          |
+| Unit results         | 37 passed                                                   |
+| HTTP results         | 15 passed (auth, permission, validation, success)           |
+| PostgreSQL results   | 17 passed (migrations, seeding, RLS, atomicity, uniqueness) |
+| Docker verification  | 14 checks passed                                            |
+| Platform regression  | 117 unit tests passed, Docker verified                      |
+| DEMO-01 regression   | 20 Chromium E2E + 103 frontend + 117 backend all green      |
 
 ## Specification Status
 
@@ -48,18 +48,18 @@
 
 ### Database Schema (identity schema)
 
-| Table                       | Created | RLS | Indexed |
-| --------------------------- | :-----: | :-: | :-----: |
-| users                       |    ✓    |  —  |    ✓    |
-| external_identities         |    ✓    |  —  |    ✓    |
-| tenant_memberships          |    ✓    |  ✓  |    ✓    |
-| roles                       |    ✓    |  —  |    —    |
-| permissions                 |    ✓    |  —  |    —    |
-| role_permissions            |    ✓    |  —  |    —    |
-| membership_roles            |    ✓    |  ✓  |    —    |
-| platform_role_assignments   |    ✓    |  —  |    —    |
-| event_outbox                |    ✓    |  —  |    ✓    |
-| audit_records               |    ✓    |  —  |    ✓    |
+| Table                     | Created | RLS | Indexed |
+| ------------------------- | :-----: | :-: | :-----: |
+| users                     |    ✓    |  —  |    ✓    |
+| external_identities       |    ✓    |  —  |    ✓    |
+| tenant_memberships        |    ✓    |  ✓  |    ✓    |
+| roles                     |    ✓    |  —  |    —    |
+| permissions               |    ✓    |  —  |    —    |
+| role_permissions          |    ✓    |  —  |    —    |
+| membership_roles          |    ✓    |  ✓  |    —    |
+| platform_role_assignments |    ✓    |  —  |    —    |
+| event_outbox              |    ✓    |  —  |    ✓    |
+| audit_records             |    ✓    |  —  |    ✓    |
 
 ### Seeded System Roles
 
@@ -85,16 +85,16 @@ Tenant: tenant.members.read, tenant.members.invite, tenant.members.manage, tenan
 
 ### API Endpoints
 
-| Method | Path                                                  | Status |
-| ------ | ----------------------------------------------------- | :----: |
-| GET    | /health                                               |   ✓    |
-| GET    | /ready                                                |   ✓    |
-| POST   | /v1/platform/users                                    |   ✓    |
-| GET    | /v1/platform/users                                    |   ✓    |
-| GET    | /v1/platform/users/{userId}                           |   ✓    |
-| PATCH  | /v1/platform/users/{userId}/status                    |   ✓    |
-| POST   | /v1/platform/users/{userId}/external-identities       |   ✓    |
-| GET    | /v1/platform/users/{userId}/external-identities       |   ✓    |
+| Method | Path                                            | Status |
+| ------ | ----------------------------------------------- | :----: |
+| GET    | /health                                         |   ✓    |
+| GET    | /ready                                          |   ✓    |
+| POST   | /v1/platform/users                              |   ✓    |
+| GET    | /v1/platform/users                              |   ✓    |
+| GET    | /v1/platform/users/{userId}                     |   ✓    |
+| PATCH  | /v1/platform/users/{userId}/status              |   ✓    |
+| POST   | /v1/platform/users/{userId}/external-identities |   ✓    |
+| GET    | /v1/platform/users/{userId}/external-identities |   ✓    |
 
 ### OpenAPI
 
@@ -109,6 +109,7 @@ Tenant: tenant.members.read, tenant.members.invite, tenant.members.manage, tenan
 ## GP-03.2 Readiness Recommendation
 
 Ready to proceed. All GP-03.1 requirements satisfied:
+
 - Service skeleton operational
 - Schema proven with real PostgreSQL
 - RLS tenant isolation verified
