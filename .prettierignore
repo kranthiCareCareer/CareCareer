@@ -7,3 +7,7 @@ pnpm-lock.yaml
 *.pdf
 *.xlsx
 *.docx
+
+# Generated test reports (not source code)
+playwright-report
+test-results
