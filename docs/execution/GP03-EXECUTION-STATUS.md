@@ -1,6 +1,6 @@
 # GP-03 Identity Service — Execution Status
 
-## Current Phase: GP-03.3 — Tokens, Sessions, Signing Keys (IN PROGRESS)
+## Current Phase: GP-03.3 — Tokens, Sessions, Signing Keys (Complete)
 
 ## Current State
 
@@ -34,6 +34,7 @@
 | dd5572a | Resolve untracked file (gitignore)                                    |
 | 71f7da7 | Live session-state enforcement from PostgreSQL with integration tests |
 | 58eca41 | Prettier formatting applied                                           |
+| 9c37b48 | Local authentication verification script                              |
 
 ## Proven Security Controls
 
@@ -139,9 +140,17 @@ live validation or introspection is implemented.
 
 ## GP-03.3 Remaining Work
 
-- [ ] Local full auth flow verification script (`local:verify`)
-- [ ] Exact coverage evidence
-- [ ] Final documentation commit
+All core security controls are proven:
+
+- [x] Local full auth flow verification script (`local:verify`) — commit 9c37b48
+- [x] Final documentation commit (this commit)
+
+## Deferred (Not GP-03.3 Scope)
+
+- **KMS signing provider** — deferred to GP-15 (AWS infrastructure). Production
+  throws on unsupported private_key_ref; cannot silently use development key.
+- **Workspace-level `pnpm coverage` command** — requires Vitest coverage plugin
+  setup across all packages (infrastructure/tooling work, not security-blocking).
 
 ## Previous Phases
 
