@@ -6,6 +6,7 @@
 | --- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 1.0 | 2026-07-18 | Initial plan                                                                                                                                     |
 | 2.0 | 2026-07-18 | Mandatory corrections: RLS model, OIDC boundary, identity key, stale-auth protection, demo isolation, threat model, token architecture, diagrams |
+| 2.1 | 2026-07-18 | Resolve open questions; correct entity count (11); lock GP-03.0 as first checkpoint; add architecture decisions                                  |
 
 ---
 
@@ -912,17 +913,89 @@ Created only after ALL slices pass and demo migration is complete.
 
 ---
 
-## 18. Open Questions Requiring Review
+## 18. Resolved Architecture Decisions
 
-1. **RS256 vs ES256:** ES256 is faster for verification but less widely supported in legacy systems. Recommendation: RS256 for compatibility, consider ES256 migration later.
+All open questions have been resolved. These are binding for GP-03 implementation.
 
-2. **Custom roles:** Should tenants define custom roles in v1, or only system roles? Recommendation: system roles only for GP-03; custom roles deferred.
+### ADR-1: Signing Algorithm
 
-3. **Multi-organization membership:** Can a user be a member of one tenant but scoped to specific organizations/branches? Current design includes `branch_ids` — confirm if this is v1 scope.
+**Decision:** RS256 for GP-03.
 
-4. **Session concurrency:** Should a user have multiple active sessions (multi-device) or single-session? Recommendation: multiple sessions allowed, each independently revocable.
+**Rationale:**
 
-5. **Account linking UX:** When a user authenticates with a new provider but the email matches an existing user, should we auto-link or require explicit confirmation? Recommendation: explicit confirmation (security over convenience).
+- Broad compatibility with enterprise identity and gateway tooling
+- Straightforward JWKS support
+- Familiar operational model
+- Easier integration with existing OIDC ecosystems
+
+**Requirements:**
+
+- Implementation must be algorithm-agile (ES256 evaluable later without changing consumers)
+- Include `kid` in all tokens
+- Publish active and overlap keys through JWKS
+- Reject unsupported algorithms
+- Never accept `alg=none`
+- Never select verification algorithm solely from untrusted token header
+
+### ADR-2: Custom Roles
+
+**Decision:** Deferred. GP-03 supports only system roles.
+
+System roles: PLATFORM_ADMIN, PLATFORM_AUDITOR, TENANT_ADMIN, TENANT_OPERATOR, TENANT_AUDITOR
+
+Schema includes `role_type = SYSTEM | CUSTOM` for future extensibility, but CUSTOM role creation/modification remains disabled until a future milestone. No custom-role APIs or UI exposed in GP-03.
+
+### ADR-3: Multi-Organization Authorization Scope
+
+**Decision:** Deferred. GP-03 scopes are PLATFORM and TENANT only.
+
+No organization IDs or branch IDs in tokens for GP-03. Schema designed so a future `authorization_scope` or resource-assignment model can be added without changing existing membership identifiers.
+
+### ADR-4: Session Concurrency
+
+**Decision:** Allow configurable maximum of 5 active sessions per user.
+
+Initial default: `MAX_ACTIVE_SESSIONS_PER_USER=5`
+
+When limit reached: reject new session creation with stable error. User must revoke an existing session. No silent revocation in GP-03. Document future option for least-recently-used revocation.
+
+Each session retains: session ID, user ID, external identity ID, refresh-token family ID, created/last-used timestamps, absolute expiration, revocation status, minimal client metadata.
+
+### ADR-5: External Identity Linking
+
+**Decision:** Never auto-link by email. Require authentication to both identities or audited admin intervention.
+
+**Approved linking paths:**
+
+1. **User-controlled:** User authenticates to both (current + new) identities, then CareCareer links the new `(issuer, subject)` to the same user.
+2. **Administrative:** Platform admin initiates through explicit administrative service with required reason, verification workflow, full audit record, and outbox event.
+
+**Not allowed:**
+
+- Same email → automatic merge
+- Provider email claim alone → identity linking
+- Tenant admin → cross-provider linking
+
+### ADR-6: Session and Refresh Token Lifetime
+
+**Decision:**
+
+- Access-token lifetime: 15 minutes
+- Session absolute lifetime: 7 days (NOT extendable through refresh)
+- Refresh rotation: every successful refresh
+- Refresh-token family: required
+- Replay response: revoke entire family
+- Idle timeout: configurable future enhancement
+
+Raw refresh tokens are never stored. Only secure hash + minimum rotation metadata.
+
+### ADR-7: Signing-Key Storage
+
+**Production:** Private signing keys in AWS KMS (or equivalent KMS). Identity-service requests signing operations through an adapter. Private key material never in application config or disk.
+
+**Development/CI:** Ephemeral test keys generated at startup. Test keys never committed. Demo/test keys rejected in production mode.
+
+**Interface:** `SigningKeyProvider`, `TokenSigner`, `TokenVerifier`, `JwksProvider` — business logic does not bind to AWS KMS directly.
 
 ---
 
@@ -937,6 +1010,12 @@ Created only after ALL slices pass and demo migration is complete.
 
 ## 20. Recommended First Implementation Checkpoint
 
-After review approval: begin GP-03.1 (service skeleton + identity schema).
+**GP-03.0 — Architecture Freeze and Threat Model** must be completed, committed, and reviewed BEFORE GP-03.1 may begin.
 
-Deliverable: identity-service starts, health check passes, user CRUD with RLS proven, audit records written, no cross-table access from tenant path.
+GP-03.0 deliverables:
+
+- `docs/execution/GP03-THREAT-MODEL.md`
+- `docs/execution/GP03-TRUST-BOUNDARIES.md`
+- `docs/execution/GP03-SECURITY-TEST-MATRIX.md`
+
+No service code, migrations, controllers, or packages until GP-03.0 is reviewed.
