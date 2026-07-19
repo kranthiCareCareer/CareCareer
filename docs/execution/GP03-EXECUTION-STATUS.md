@@ -4,19 +4,19 @@
 
 ## Current State
 
-| Field                | Value                                                  |
-| -------------------- | ------------------------------------------------------ |
-| Current branch       | master                                                 |
-| GP-03.3 latest       | dd55abe                                                |
-| Working tree         | clean                                                  |
-| Unit tests           | 141 passing                                            |
-| Integration tests    | 47 passing (31 prior + 16 session lineage tests)       |
-| OpenAPI validation   | 13 checks, 27 routes                                  |
-| Docker               | identity 14/14, platform 15/15                         |
-| Build                | 15/15                                                  |
-| DEMO-01              | 20 E2E + 103 frontend + 117 backend — green            |
-| Platform integration | 34/34                                                  |
-| Identity integration | 47/47                                                  |
+| Field                | Value                                            |
+| -------------------- | ------------------------------------------------ |
+| Current branch       | master                                           |
+| GP-03.3 latest       | dd55abe                                          |
+| Working tree         | clean                                            |
+| Unit tests           | 141 passing                                      |
+| Integration tests    | 47 passing (31 prior + 16 session lineage tests) |
+| OpenAPI validation   | 13 checks, 27 routes                             |
+| Docker               | identity 14/14, platform 15/15                   |
+| Build                | 15/15                                            |
+| DEMO-01              | 20 E2E + 103 frontend + 117 backend — green      |
+| Platform integration | 34/34                                            |
+| Identity integration | 47/47                                            |
 
 ## GP-03.3 Completed Work
 
@@ -82,60 +82,60 @@
 
 ## GP-03.3 Session Security Tests
 
-| Test                                                         | Result  |
-| ------------------------------------------------------------ | ------- |
-| Session creation with audit + outbox + lineage atomically    | PASS    |
-| No raw refresh tokens stored                                 | PASS    |
-| Refresh token rotation with lineage tracking                 | PASS    |
-| Lineage parent_token_id chain preserved                      | PASS    |
-| Absolute expiry not extended on refresh                      | PASS    |
-| Historical replay A→B then replay A = AUTH_REFRESH_REPLAY    | PASS    |
-| Historical replay A→B→C then replay B = AUTH_REFRESH_REPLAY  | PASS    |
-| Token C unusable after family compromise                     | PASS    |
-| Unknown random token = AUTH_REFRESH_INVALID (not REPLAY)     | PASS    |
-| Concurrent refresh: no duplicate successors                  | PASS    |
-| Concurrent replay: family compromised, successor unusable    | PASS    |
-| Audit record for compromise (no token hashes)                | PASS    |
-| Outbox event for compromise (no token hashes)                | PASS    |
-| Logout revokes session + token lineage                       | PASS    |
-| Logout is idempotent                                         | PASS    |
-| Logout-all revokes all sessions + lineage                    | PASS    |
-| Five-session limit enforced                                  | PASS    |
-| Transaction rollback on failure (no partial records)         | PASS    |
-| Suspended user rejected on refresh                           | PASS    |
-| Deactivated user rejected on refresh                         | PASS    |
+| Test                                                        | Result |
+| ----------------------------------------------------------- | ------ |
+| Session creation with audit + outbox + lineage atomically   | PASS   |
+| No raw refresh tokens stored                                | PASS   |
+| Refresh token rotation with lineage tracking                | PASS   |
+| Lineage parent_token_id chain preserved                     | PASS   |
+| Absolute expiry not extended on refresh                     | PASS   |
+| Historical replay A→B then replay A = AUTH_REFRESH_REPLAY   | PASS   |
+| Historical replay A→B→C then replay B = AUTH_REFRESH_REPLAY | PASS   |
+| Token C unusable after family compromise                    | PASS   |
+| Unknown random token = AUTH_REFRESH_INVALID (not REPLAY)    | PASS   |
+| Concurrent refresh: no duplicate successors                 | PASS   |
+| Concurrent replay: family compromised, successor unusable   | PASS   |
+| Audit record for compromise (no token hashes)               | PASS   |
+| Outbox event for compromise (no token hashes)               | PASS   |
+| Logout revokes session + token lineage                      | PASS   |
+| Logout is idempotent                                        | PASS   |
+| Logout-all revokes all sessions + lineage                   | PASS   |
+| Five-session limit enforced                                 | PASS   |
+| Transaction rollback on failure (no partial records)        | PASS   |
+| Suspended user rejected on refresh                          | PASS   |
+| Deactivated user rejected on refresh                        | PASS   |
 
 ## GP-03.3 Platform Token Validator Tests
 
-| Test                                                         | Result  |
-| ------------------------------------------------------------ | ------- |
-| Valid RS256 token accepted                                    | PASS    |
-| alg=none rejected                                            | PASS    |
-| HS256 confusion attack rejected                              | PASS    |
-| Unknown kid rejected                                         | PASS    |
-| Missing kid rejected                                         | PASS    |
-| Wrong issuer rejected                                        | PASS    |
-| Wrong audience rejected                                      | PASS    |
-| Expired token rejected                                       | PASS    |
-| Missing subject rejected                                     | PASS    |
-| Missing session identifier rejected                          | PASS    |
-| Random string rejected                                       | PASS    |
-| Modified signature rejected                                  | PASS    |
-| Empty token rejected                                         | PASS    |
+| Test                                | Result |
+| ----------------------------------- | ------ |
+| Valid RS256 token accepted          | PASS   |
+| alg=none rejected                   | PASS   |
+| HS256 confusion attack rejected     | PASS   |
+| Unknown kid rejected                | PASS   |
+| Missing kid rejected                | PASS   |
+| Wrong issuer rejected               | PASS   |
+| Wrong audience rejected             | PASS   |
+| Expired token rejected              | PASS   |
+| Missing subject rejected            | PASS   |
+| Missing session identifier rejected | PASS   |
+| Random string rejected              | PASS   |
+| Modified signature rejected         | PASS   |
+| Empty token rejected                | PASS   |
 
 ## GP-03.3 Startup Safety Tests
 
-| Test                                                         | Result  |
-| ------------------------------------------------------------ | ------- |
-| DEMO_MODE=true rejected in production                        | PASS    |
-| DEMO_MODE=true allowed in development                        | PASS    |
-| DEMO_MODE=true allowed in test                               | PASS    |
-| DEMO_MODE without DEMO_AUTH_SECRET rejected                  | PASS    |
-| DEMO_AUTH_SECRET < 32 chars rejected                         | PASS    |
-| Missing DATABASE_URL rejected                                | PASS    |
-| Module rejects DEMO_MODE in production env                   | PASS    |
-| Module rejects missing TOKEN_ISSUER in production            | PASS    |
-| Module rejects missing TOKEN_AUDIENCE in production          | PASS    |
+| Test                                                | Result |
+| --------------------------------------------------- | ------ |
+| DEMO_MODE=true rejected in production               | PASS   |
+| DEMO_MODE=true allowed in development               | PASS   |
+| DEMO_MODE=true allowed in test                      | PASS   |
+| DEMO_MODE without DEMO_AUTH_SECRET rejected         | PASS   |
+| DEMO_AUTH_SECRET < 32 chars rejected                | PASS   |
+| Missing DATABASE_URL rejected                       | PASS   |
+| Module rejects DEMO_MODE in production env          | PASS   |
+| Module rejects missing TOKEN_ISSUER in production   | PASS   |
+| Module rejects missing TOKEN_AUDIENCE in production | PASS   |
 
 ## GP-03.3 Remaining
 

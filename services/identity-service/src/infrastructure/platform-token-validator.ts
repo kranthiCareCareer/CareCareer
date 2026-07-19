@@ -1,8 +1,18 @@
 import { createPublicKey } from 'node:crypto';
 
-import { jwtVerify, createLocalJWKSet, type JWTPayload, decodeProtectedHeader, errors as joseErrors } from 'jose';
+import {
+  jwtVerify,
+  createLocalJWKSet,
+  type JWTPayload,
+  decodeProtectedHeader,
+  errors as joseErrors,
+} from 'jose';
 
-import type { AuthenticatedPrincipal, TenantMembershipClaim, TokenValidator } from '@carecareer/auth';
+import type {
+  AuthenticatedPrincipal,
+  TenantMembershipClaim,
+  TokenValidator,
+} from '@carecareer/auth';
 import { InvalidTokenError, TokenExpiredError } from '@carecareer/auth';
 import type { PrismaLikeClient, TransactionClient } from '@carecareer/database';
 

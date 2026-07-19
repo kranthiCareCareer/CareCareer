@@ -17,7 +17,10 @@ import { IdentityAuthGuard } from './infrastructure/identity-auth.guard.js';
 import { PlatformTokenValidator } from './infrastructure/platform-token-validator.js';
 import { PostgresIdentityRepository } from './infrastructure/postgres-identity-repository.js';
 import { PostgresMembershipRepository } from './infrastructure/postgres-membership-repository.js';
-import { PostgresSessionRepository, PostgresSigningKeyRepository } from './infrastructure/postgres-session-repository.js';
+import {
+  PostgresSessionRepository,
+  PostgresSigningKeyRepository,
+} from './infrastructure/postgres-session-repository.js';
 import { SessionStateValidator } from './infrastructure/session-state-validator.js';
 import { AuthController } from './interface/http/auth.controller.js';
 import { HealthController } from './interface/http/health.controller.js';

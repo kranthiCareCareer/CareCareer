@@ -14,7 +14,10 @@ import { generateRsaKeyPair, signPlatformJwt } from '../infrastructure/jwt-servi
 
 import { PostgresIdentityRepository } from './postgres-identity-repository.js';
 import { PostgresRefreshTokenRepository } from './postgres-refresh-token-repository.js';
-import { PostgresSessionRepository, PostgresSigningKeyRepository } from './postgres-session-repository.js';
+import {
+  PostgresSessionRepository,
+  PostgresSigningKeyRepository,
+} from './postgres-session-repository.js';
 import { SessionStateValidator } from './session-state-validator.js';
 
 function createPoolPrismaClient(connectionUri: string): { client: PrismaLikeClient; pool: Pool } {

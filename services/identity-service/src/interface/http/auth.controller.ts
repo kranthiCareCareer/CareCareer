@@ -129,11 +129,16 @@ export class AuthController {
 
     // Extract session ID from the token (stored in 'sid' claim)
     // For now, revoke based on user context
-    await logoutCommand(this.prismaClient, this.sessionRepo, {
-      sessionId: corrId, // Placeholder — real impl uses sid from token
-      userId,
-      correlationId: corrId,
-    }, this.refreshTokenRepo);
+    await logoutCommand(
+      this.prismaClient,
+      this.sessionRepo,
+      {
+        sessionId: corrId, // Placeholder — real impl uses sid from token
+        userId,
+        correlationId: corrId,
+      },
+      this.refreshTokenRepo,
+    );
 
     return { status: 'ok' };
   }
@@ -150,10 +155,15 @@ export class AuthController {
     }
 
     const corrId = correlationId ?? crypto.randomUUID();
-    const count = await logoutAllCommand(this.prismaClient, this.sessionRepo, {
-      userId: principal.subject,
-      correlationId: corrId,
-    }, this.refreshTokenRepo);
+    const count = await logoutAllCommand(
+      this.prismaClient,
+      this.sessionRepo,
+      {
+        userId: principal.subject,
+        correlationId: corrId,
+      },
+      this.refreshTokenRepo,
+    );
 
     return { status: 'ok', revokedCount: count };
   }
@@ -207,11 +217,16 @@ export class AuthController {
       throw new NotFoundException({ code: 'SESSION_NOT_FOUND', message: 'Session not found' });
     }
 
-    await logoutCommand(this.prismaClient, this.sessionRepo, {
-      sessionId,
-      userId: principal.subject,
-      correlationId: corrId,
-    }, this.refreshTokenRepo);
+    await logoutCommand(
+      this.prismaClient,
+      this.sessionRepo,
+      {
+        sessionId,
+        userId: principal.subject,
+        correlationId: corrId,
+      },
+      this.refreshTokenRepo,
+    );
 
     return { status: 'revoked' };
   }

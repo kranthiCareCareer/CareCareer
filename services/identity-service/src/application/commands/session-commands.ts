@@ -192,9 +192,7 @@ async function refreshWithDurableLineage(
 }
 
 /** Result from the lineage-based refresh transaction */
-type LineageRefreshOutcome =
-  | { type: 'success'; value: RefreshSessionResult }
-  | { type: 'replay' };
+type LineageRefreshOutcome = { type: 'success'; value: RefreshSessionResult } | { type: 'replay' };
 
 /**
  * Refresh with durable lineage — the correct production path.

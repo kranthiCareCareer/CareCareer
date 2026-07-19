@@ -414,7 +414,12 @@ describe('Session Integration Tests (GP-03.3 — Durable Lineage)', () => {
   describe('Concurrent refresh safety', () => {
     it('should prevent two valid successors from one refresh token', async () => {
       // Clean start
-      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'conc-clean' }, refreshTokenRepo);
+      await logoutAllCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'conc-clean' },
+        refreshTokenRepo,
+      );
 
       const { refreshToken } = await createSessionCommand(
         prismaClient,
@@ -456,7 +461,9 @@ describe('Session Integration Tests (GP-03.3 — Durable Lineage)', () => {
         const failedResult = failures[0] as PromiseRejectedResult;
         const failError = failedResult.reason as RefreshError;
         // After FOR UPDATE lock release, the second caller sees ROTATED status → REPLAY
-        expect(failError.code === 'AUTH_REFRESH_REPLAY' || failError.code === 'AUTH_REFRESH_INVALID').toBe(true);
+        expect(
+          failError.code === 'AUTH_REFRESH_REPLAY' || failError.code === 'AUTH_REFRESH_INVALID',
+        ).toBe(true);
       }
 
       // Verify no duplicate active refresh hashes in the lineage table
@@ -469,7 +476,12 @@ describe('Session Integration Tests (GP-03.3 — Durable Lineage)', () => {
     });
 
     it('should ensure deterministic outcome: family compromised after concurrent replay', async () => {
-      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'conc2-clean' }, refreshTokenRepo);
+      await logoutAllCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'conc2-clean' },
+        refreshTokenRepo,
+      );
 
       const { refreshToken: tokenA } = await createSessionCommand(
         prismaClient,
@@ -645,7 +657,12 @@ describe('Session Integration Tests (GP-03.3 — Durable Lineage)', () => {
   describe('Five-session limit', () => {
     it('should enforce maximum 5 active sessions (oldest revoked at limit)', async () => {
       // Clean slate: revoke all
-      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'limit-clean' }, refreshTokenRepo);
+      await logoutAllCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'limit-clean' },
+        refreshTokenRepo,
+      );
 
       // Create 5 sessions
       const sessions = [];
@@ -699,7 +716,7 @@ describe('Session Integration Tests (GP-03.3 — Durable Lineage)', () => {
 
       // No lineage tokens created
       const tokens = await rawClient.query(
-        "SELECT id FROM identity.auth_refresh_tokens WHERE token_family_id IN (SELECT token_family FROM identity.auth_sessions WHERE user_id = $1)",
+        'SELECT id FROM identity.auth_refresh_tokens WHERE token_family_id IN (SELECT token_family FROM identity.auth_sessions WHERE user_id = $1)',
         [badUserId],
       );
       expect(tokens.rows).toHaveLength(0);
@@ -709,7 +726,12 @@ describe('Session Integration Tests (GP-03.3 — Durable Lineage)', () => {
   describe('Authorization-version enforcement', () => {
     it('should reject refresh when user is suspended', async () => {
       // Clean and create fresh session
-      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'av-clean' }, refreshTokenRepo);
+      await logoutAllCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'av-clean' },
+        refreshTokenRepo,
+      );
       const { refreshToken } = await createSessionCommand(
         prismaClient,
         sessionRepo,
@@ -749,7 +771,12 @@ describe('Session Integration Tests (GP-03.3 — Durable Lineage)', () => {
     });
 
     it('should reject refresh when user is deactivated', async () => {
-      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'av-clean2' }, refreshTokenRepo);
+      await logoutAllCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'av-clean2' },
+        refreshTokenRepo,
+      );
       const { refreshToken } = await createSessionCommand(
         prismaClient,
         sessionRepo,
