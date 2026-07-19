@@ -7,9 +7,9 @@
 | Document                      | Status                               |
 | ----------------------------- | ------------------------------------ |
 | GP03-IDENTITY-SERVICE-SPEC.md | Rev 2.1 — Approved with corrections  |
-| GP03-THREAT-MODEL.md          | Complete (36 threats)                |
+| GP03-THREAT-MODEL.md          | Complete (40 threats)                |
 | GP03-TRUST-BOUNDARIES.md      | Complete                             |
-| GP03-SECURITY-TEST-MATRIX.md  | Complete (58 security tests planned) |
+| GP03-SECURITY-TEST-MATRIX.md  | Complete (62 security tests planned) |
 
 ## Architecture Decisions (Resolved)
 

@@ -620,14 +620,136 @@ This threat model covers the identity-service and its interactions with external
 | Severity       | Medium                                                                |
 | Likelihood     | Medium                                                                |
 
+### T37: Expired Invitation Acceptance
+
+| Field          | Value                                                       |
+| -------------- | ----------------------------------------------------------- |
+| Asset          | Invitation integrity                                        |
+| Actor          | Attacker with old invitation link                           |
+| Entry point    | POST /v1/invitations/:token/accept                          |
+| Attack path    | Use an invitation token after the 7-day expiry window       |
+| Trust boundary | Browser → identity-service                                  |
+| Preventive     | Check expires_at before accepting; reject expired tokens    |
+| Detective      | Log expired acceptance attempts                             |
+| Recovery       | No membership created; invitation remains expired           |
+| Test           | Accept invitation after expiry → rejected with stable error |
+| Residual risk  | None (deterministic)                                        |
+| Risk owner     | Identity-service team                                       |
+| Severity       | Medium                                                      |
+| Likelihood     | Medium                                                      |
+
+### T38: Direct JWT-to-app.is_admin Mapping
+
+| Field          | Value                                                                                                                                               |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Asset          | Database administrative privilege                                                                                                                   |
+| Actor          | Compromised service code or misconfiguration                                                                                                        |
+| Entry point    | Tenant-facing controller or middleware                                                                                                              |
+| Attack path    | Code reads platform_roles from JWT and directly sets app.is_admin in DB                                                                             |
+| Trust boundary | JWT claims → PostgreSQL session variable                                                                                                            |
+| Preventive     | Architectural rule: only AdministrativeDatabase sets app.is_admin; tenant controllers cannot access it; enforced by code review and static analysis |
+| Detective      | Static analysis for SET app.is_admin outside administrative module                                                                                  |
+| Recovery       | Remove offending code; RLS still blocks cross-tenant reads                                                                                          |
+| Test           | Tenant controller with platform_roles in JWT → app.is_admin remains unset                                                                           |
+| Residual risk  | Code review failure allowing bypass                                                                                                                 |
+| Risk owner     | Platform engineering lead                                                                                                                           |
+| Severity       | Critical                                                                                                                                            |
+| Likelihood     | Very Low                                                                                                                                            |
+
+### T39: Removed Role Continuing Access
+
+| Field          | Value                                                                                           |
+| -------------- | ----------------------------------------------------------------------------------------------- |
+| Asset          | Authorization accuracy                                                                          |
+| Actor          | User whose role was removed                                                                     |
+| Entry point    | Any permission-protected endpoint                                                               |
+| Attack path    | Continue using token with old role permissions after removal                                    |
+| Trust boundary | Token issuance time → current role state                                                        |
+| Preventive     | Increment membership_authorization_version on role change; version check; 15-min token lifetime |
+| Detective      | Stale-version rejections logged                                                                 |
+| Recovery       | Token expires ≤15 min; refresh rejected with stale version                                      |
+| Test           | Remove role → token with old membership_authorization_version → rejected                        |
+| Residual risk  | Up to 60s cache window for non-sensitive operations                                             |
+| Risk owner     | Identity-service team                                                                           |
+| Severity       | Medium                                                                                          |
+| Likelihood     | High                                                                                            |
+
+### T40: Tokens or Secrets Written to Outbox Events
+
+| Field          | Value                                                                       |
+| -------------- | --------------------------------------------------------------------------- |
+| Asset          | Credential confidentiality                                                  |
+| Actor          | Outbox consumer, event subscriber                                           |
+| Entry point    | Outbox event payload                                                        |
+| Attack path    | Read tokens, invitation tokens, or secrets from published domain events     |
+| Trust boundary | Identity-service → outbox → consumers                                       |
+| Preventive     | Never include raw tokens or secrets in event data; include only identifiers |
+| Detective      | Event schema validation; grep outbox for token patterns                     |
+| Recovery       | Rotate compromised credential; purge affected events                        |
+| Test           | After invitation/session creation, outbox event contains no raw token       |
+| Residual risk  | Future field accidentally included                                          |
+| Risk owner     | Identity-service team                                                       |
+| Severity       | High                                                                        |
+| Likelihood     | Low                                                                         |
+
 ---
 
 ## Summary
 
 | Severity | Count                                      |
 | -------- | ------------------------------------------ |
-| Critical | 7 (T01, T04, T06, T16, T20, T21, T28, T29) |
-| High     | 14                                         |
-| Medium   | 15                                         |
+| Critical | 8 (T01, T04, T06, T16, T20, T21, T22, T38) |
+| High     | 15                                         |
+| Medium   | 13                                         |
+| Low      | 4                                          |
 
-Total threats documented: **36**
+Total threats documented: **40**
+
+---
+
+## 40-Threat Coverage Traceability
+
+| #   | Required Threat                                     | Threat ID | Trust Boundary                   | Tests                                  |
+| --- | --------------------------------------------------- | --------- | -------------------------------- | -------------------------------------- |
+| 1   | Forged external identity token                      | T01       | External IdP → identity-service  | SEC-TOKEN-001                          |
+| 2   | Incorrect issuer validation                         | T02       | External IdP → identity-service  | SEC-TOKEN-002, SEC-CONFIG-001          |
+| 3   | Incorrect audience validation                       | T03       | External IdP → identity-service  | SEC-TOKEN-003, SEC-CONFIG-002          |
+| 4   | Algorithm confusion                                 | T04       | Token → verification             | SEC-TOKEN-004                          |
+| 5   | Unknown signing key                                 | T05       | Client → service                 | SEC-TOKEN-005                          |
+| 6   | Signing-key compromise                              | T06       | Key storage → signing            | SEC-TOKEN-006                          |
+| 7   | Stolen access token                                 | T07       | Browser → API                    | SEC-TOKEN-007, SEC-HTTP-001            |
+| 8   | Stolen refresh token                                | T08       | Browser → identity-service       | SEC-HTTP-002, SEC-PG-001               |
+| 9   | Refresh-token replay                                | T09       | Client → identity-service        | SEC-HTTP-003, SEC-PG-002               |
+| 10  | Session fixation                                    | T10       | Browser → identity-service       | SEC-HTTP-004                           |
+| 11  | CSRF during OIDC callback                           | T11       | Browser → identity-service       | SEC-HTTP-005                           |
+| 12  | Missing state validation                            | T12       | IdP → identity-service           | SEC-HTTP-006                           |
+| 13  | Missing nonce validation                            | T13       | IdP → identity-service           | SEC-TOKEN-008                          |
+| 14  | PKCE downgrade                                      | T14       | Browser → IdP → identity-service | SEC-HTTP-007                           |
+| 15  | Account enumeration                                 | T15       | Browser → identity-service       | SEC-HTTP-008                           |
+| 16  | Automatic email-based account linking               | T16       | External IdP → identity-service  | SEC-UNIT-001, SEC-PG-003               |
+| 17  | Invitation-token leakage                            | T17       | identity-service → logging/audit | SEC-UNIT-002, SEC-PG-004               |
+| 18  | Invitation replay                                   | T18       | Browser → identity-service       | SEC-HTTP-009, SEC-PG-005               |
+| 19  | Expired invitation acceptance                       | T37       | Browser → identity-service       | SEC-HTTP-010, SEC-PG-006               |
+| 20  | Cross-tenant membership access                      | T19       | Tenant A → Tenant B              | SEC-HTTP-011, SEC-PG-007               |
+| 21  | Tenant-admin privilege escalation                   | T20       | Tenant scope → Platform scope    | SEC-UNIT-003, SEC-HTTP-012             |
+| 22  | Platform-admin privilege escalation                 | T21       | Token claims → DB session        | SEC-HTTP-013, SEC-PG-008               |
+| 23  | Direct JWT-to-app.is_admin mapping                  | T38       | JWT claims → PostgreSQL session  | SEC-HTTP-014, SEC-PG-009               |
+| 24  | RLS context spoofing                                | T22       | Application → PostgreSQL         | SEC-PG-010                             |
+| 25  | Database-role misuse                                | T23       | Application → PostgreSQL         | SEC-PG-011                             |
+| 26  | Stale authorization token                           | T24       | Token time → current state       | SEC-UNIT-004, SEC-HTTP-015, SEC-PG-012 |
+| 27  | Suspended membership continuing access              | T25       | Token → membership state         | SEC-HTTP-016, SEC-PG-013, SEC-E2E-001  |
+| 28  | Deactivated user continuing access                  | T26       | Token → user state               | SEC-HTTP-017, SEC-PG-014               |
+| 29  | Removed role continuing access                      | T39       | Token time → role state          | SEC-UNIT-005, SEC-HTTP-018, SEC-PG-015 |
+| 30  | Tenant deactivation not taking effect               | T27       | Token → tenant state             | SEC-HTTP-019, SEC-PG-016               |
+| 31  | Demo authentication enabled in production           | T28       | Configuration → runtime          | SEC-CONFIG-003                         |
+| 32  | Mock OIDC enabled in production                     | T29       | Configuration → trust            | SEC-CONFIG-004                         |
+| 33  | Tokens or secrets written to logs                   | T30       | Application → observability      | SEC-UNIT-006, SEC-HTTP-020, SEC-PG-017 |
+| 34  | Tokens or secrets written to audit or outbox        | T40       | identity-service → outbox/audit  | SEC-UNIT-007, SEC-PG-018               |
+| 35  | Audit-record tampering                              | T31       | Application → database           | SEC-PG-019                             |
+| 36  | Session concurrency abuse                           | T32       | IdP → identity-service           | SEC-HTTP-021, SEC-PG-020               |
+| 37  | External identity takeover                          | T33       | External IdP → identity-service  | SEC-PEN-001                            |
+| 38  | Administrative identity-linking abuse               | T34       | Admin privilege → identity       | SEC-HTTP-022, SEC-PG-021               |
+| 39  | JWKS cache poisoning or stale-key handling          | T35       | JWKS endpoint → consumers        | SEC-TOKEN-009                          |
+| 40  | Denial of service through token exchange or refresh | T36       | Internet → identity-service      | SEC-HTTP-023                           |
+
+**Coverage: 40/40 required threats documented with controls and test IDs.**

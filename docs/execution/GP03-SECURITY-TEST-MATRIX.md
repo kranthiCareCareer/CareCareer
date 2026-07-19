@@ -52,10 +52,14 @@
 | T34 Admin linking abuse      |      |  ✓   |      ✓      |        |         |        |
 | T35 JWKS cache poisoning     |      |      |             |   ✓    |         |        |
 | T36 DoS token exchange       |      |  ✓   |             |        |         |        |
+| T37 Expired invitation       |      |  ✓   |      ✓      |        |         |        |
+| T38 Direct JWT→app.is_admin  |      |  ✓   |      ✓      |        |         |        |
+| T39 Removed role access      |  ✓   |  ✓   |      ✓      |        |         |        |
+| T40 Secrets in outbox        |  ✓   |      |      ✓      |        |         |        |
 
 ---
 
-## Mandatory Automated Security Tests (58 tests planned)
+## Mandatory Automated Security Tests (62 tests planned)
 
 ### Crypto/Token Tests (12)
 
@@ -132,6 +136,10 @@
 56. Suspended membership → UI shows access denied
 57. Persona switch in demo → correct tenant context
 58. DEMO-01 flows remain operational after identity migration
+59. Expired invitation token → rejected with stable error (T37)
+60. Tenant controller cannot set app.is_admin even with platform JWT (T38)
+61. Removed role → token with stale membership_authorization_version rejected (T39)
+62. Outbox event after invitation/session contains no raw token or secret (T40)
 
 ---
 
