@@ -7,62 +7,57 @@
 | Field                | Value                                                       |
 | -------------------- | ----------------------------------------------------------- |
 | Current branch       | master                                                      |
-| GP-03.0 final commit | 6098d85                                                     |
-| GP-03.1 original     | 010f0ef                                                     |
-| GP-03.1 closure      | 4157886                                                     |
-| GP-03.2 commit       | 4f80b6e                                                     |
-| Current slice        | GP-03.3 (domain + signing complete, HTTP endpoints pending) |
-| Schema status        | 12 tables (added auth_sessions, signing_keys)               |
-| API status           | 20 implemented, 7 more pending (refresh, logout, JWKS, me)  |
-| Unit tests           | 105 passed                                                  |
-| Integration tests    | 31 passed                                                   |
+| GP-03.3 latest       | dd1e990                                                     |
+| Working tree         | clean                                                       |
+| Typecheck            | passing (24/24 packages)                                    |
+| Unit tests           | 119 identity + all packages passing                         |
+| Integration tests    | 31 identity + 34 platform + 8 testing                       |
+| OpenAPI validation   | 13 checks, 27 routes documented                            |
+| Docker               | identity 14/14, platform 15/15                              |
+| DEMO-01              | 20 E2E + 103 frontend + 117 backend — all green             |
+| Build                | 15/15 packages                                              |
 
-## GP-03.3 Progress
+## GP-03.3 Commits
 
-### Completed
+| Commit  | Description                                              |
+| ------- | -------------------------------------------------------- |
+| 69a47c1 | Session domain, signing-key lifecycle, JWT service        |
+| 3f8b45e | PostgreSQL session/signing-key repos, session commands    |
+| dd1e990 | Auth HTTP controller, JWKS, /me, session endpoints       |
 
-- Migration 004: auth_sessions and signing_keys tables with grants
-- SigningKey domain entity (create, rotate, revoke)
-- AuthSession domain entity (create, rotate, revoke, verify, expiry check)
-- Refresh-token generation (32 bytes cryptographically random)
-- SHA-256 token hashing (no raw tokens stored)
-- JWT signing service (RS256, kid, platform claims)
-- JWT verification service (JWKS-based, clock skew tolerance)
-- JWKS builder (includes ACTIVE + ROTATED, excludes REVOKED)
-- RSA key pair generation for development/test
-- Unit tests: 20 new tests proving session lifecycle + JWT signing/verification
+## GP-03.3 Completed
 
-### Next Tasks (resume here)
+- Session domain model (create, rotate, revoke, verify, expiry)
+- SigningKey domain (create, rotate, revoke)
+- RS256 JWT signing and verification via jose library
+- JWKS builder (ACTIVE + ROTATED, excludes REVOKED, no private fields)
+- PostgreSQL session repository with FOR UPDATE locking
+- PostgreSQL signing-key repository
+- Session commands: create, refresh with replay detection, logout, logout-all
+- Maximum 5 sessions enforcement (revokes oldest)
+- Refresh-token rotation (SHA-256 hash, no raw tokens stored)
+- Replay detection (family compromise on old token reuse)
+- Auth HTTP controller: refresh, logout, logout-all, sessions, revoke, /me, JWKS
+- Dev-only session creation endpoint (disabled in production)
+- OpenAPI extended with all 7 auth routes
+- HTTP contract tests (14 tests proving auth boundaries)
+- Full regression gate passing
 
-1. Auth controller: POST /v1/auth/refresh, POST /v1/auth/logout, POST /v1/auth/logout-all
-2. Auth controller: GET /v1/auth/sessions, DELETE /v1/auth/sessions/{sessionId}
-3. JWKS controller: GET /.well-known/jwks.json
-4. Me controller: GET /v1/auth/me
-5. Session repository (PostgreSQL)
-6. Signing-key repository (PostgreSQL) with initialization
-7. Authorization-version enforcement middleware
-8. Maximum 5 sessions per user enforcement
-9. Replay detection (old token → family revocation)
-10. Integration tests for sessions and tokens
-11. HTTP contract tests for auth endpoints
-12. OpenAPI extension
-13. Full GP-03.3 gate
+## GP-03.3 Remaining (resume here)
 
-## GP-03.2 Summary (Complete)
-
-- Membership lifecycle: INVITED → ACTIVE → SUSPENDED → DEACTIVATED
-- System roles: 5 seeded
-- Permission derivation: deriveEffectivePermissions + derivePlatformPermissions
-- Platform-role controls: admin path only, user auth_version incremented
-- RLS: cross-tenant SELECT/UPDATE/INSERT blocked
-- Administrative isolation: proven
-- Integration tests: deterministic (3/3 platform runs)
-- DEMO-01: all green
+1. Session integration test: concurrent refresh safety with real PostgreSQL
+2. Session integration test: replay family revocation with real PostgreSQL
+3. Session integration test: 5-session limit under concurrency
+4. Authorization-version enforcement middleware (live check)
+5. Production startup safety tests (fail when dev keys in production)
+6. Local full authentication validation flow script
+7. Final GP-03.3 documentation and commit
 
 ## Known Gaps
 
-1. Auth HTTP endpoints not yet implemented (GP-03.3 in progress)
-2. OIDC exchange not yet implemented (GP-03.4)
-3. Invitations not yet implemented (GP-03.5)
-4. Identity admin UI not yet built (GP-03.6)
-5. Demo auth replacement not yet done (GP-03.7)
+- Authorization-version live enforcement not yet integrated into token guard
+- Concurrent refresh integration test not yet written
+- Local full auth flow validation script pending
+- Production startup safety tests pending
+- GP-03.4 (OIDC exchange) not started
+- GP-03.5 (Invitations) not started
