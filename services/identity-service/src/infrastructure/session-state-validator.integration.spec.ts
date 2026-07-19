@@ -296,21 +296,78 @@ describe('Live Session-State Enforcement (GP-03.3)', () => {
 
   describe('Administrative context safety', () => {
     it('should not have any mechanism for JWT claims to activate app.is_admin', async () => {
-      // The SessionStateValidator only queries session status.
-      // It never sets app.is_admin or any administrative database context.
-      // This test proves the validator does not execute any SET command.
       const { sessionId } = await createTestSession();
 
-      // Validate — should work normally without touching admin context
       const result = await sessionValidator.validate({ sessionId, userId });
       expect(result.valid).toBe(true);
 
-      // Verify no admin setting was activated (check pg_settings)
       const pgResult = await rawClient.query(
         "SELECT current_setting('app.is_admin', true) as is_admin",
       );
-      // Should be null/empty — never set
       expect(pgResult.rows[0].is_admin).toBeNull();
+    });
+  });
+
+  describe('Authorization version enforcement', () => {
+    it('should reject when user authorization version is stale', async () => {
+      const { sessionId } = await createTestSession();
+
+      // Session was created with user_authorization_version = 1
+      // Pass a mismatched version
+      const result = await sessionValidator.validate({
+        sessionId,
+        userId,
+        userAuthorizationVersion: 99,
+      });
+      expect(result.valid).toBe(false);
+      expect(result.code).toBe('AUTH_TOKEN_INVALID');
+    });
+
+    it('should accept when user authorization version matches', async () => {
+      const { sessionId } = await createTestSession();
+
+      const result = await sessionValidator.validate({
+        sessionId,
+        userId,
+        userAuthorizationVersion: 1,
+      });
+      expect(result.valid).toBe(true);
+    });
+
+    it('should reject when membership authorization version is stale', async () => {
+      const { sessionId } = await createTestSession();
+
+      // Set membership_authorization_version on the session
+      await rawClient.query(
+        'UPDATE identity.auth_sessions SET membership_authorization_version = 5 WHERE id = $1',
+        [sessionId],
+      );
+
+      // Pass a mismatched membership version
+      const result = await sessionValidator.validate({
+        sessionId,
+        userId,
+        membershipAuthorizationVersion: 3,
+      });
+      expect(result.valid).toBe(false);
+      expect(result.code).toBe('AUTH_TOKEN_INVALID');
+    });
+
+    it('should accept when membership authorization version matches', async () => {
+      const { sessionId } = await createTestSession();
+
+      // Set membership_authorization_version on the session
+      await rawClient.query(
+        'UPDATE identity.auth_sessions SET membership_authorization_version = 5 WHERE id = $1',
+        [sessionId],
+      );
+
+      const result = await sessionValidator.validate({
+        sessionId,
+        userId,
+        membershipAuthorizationVersion: 5,
+      });
+      expect(result.valid).toBe(true);
     });
   });
 });
