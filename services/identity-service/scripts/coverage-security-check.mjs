@@ -29,9 +29,10 @@ const SECURITY_THRESHOLDS = [
   { pattern: 'platform-token-validator.ts', lines: 95, branches: 90, functions: 95, stmts: 95 },
   { pattern: 'identity-auth.guard.ts', lines: 95, branches: 90, functions: 95, stmts: 95 },
   { pattern: 'session-state-validator.ts', lines: 95, branches: 90, functions: 95, stmts: 95 },
-  { pattern: 'session-commands.ts', lines: 95, branches: 88, functions: 95, stmts: 95 },
+  { pattern: 'session-commands.ts', lines: 95, branches: 90, functions: 95, stmts: 95 },
   { pattern: 'postgres-session-repository.ts', lines: 95, branches: 85, functions: 95, stmts: 95 },
   { pattern: 'postgres-refresh-token-repository.ts', lines: 95, branches: 85, functions: 95, stmts: 95 },
+  { pattern: 'postgres-signing-key-repository.ts', lines: 70, branches: 50, functions: 50, stmts: 70 },
   { pattern: 'identity-config.ts', lines: 95, branches: 90, functions: 95, stmts: 95 },
 ];
 

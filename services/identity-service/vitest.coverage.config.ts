@@ -38,6 +38,7 @@ export default defineConfig({
         'src/infrastructure/jwt-service.ts',
         'src/infrastructure/postgres-session-repository.ts',
         'src/infrastructure/postgres-refresh-token-repository.ts',
+        'src/infrastructure/postgres-signing-key-repository.ts',
         'src/infrastructure/demo-token-validator.ts',
         'src/config/identity-config.ts',
         'src/interface/http/health.controller.ts',

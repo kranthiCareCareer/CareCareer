@@ -1007,4 +1007,25 @@ describe('Session Integration Tests (GP-03.3 — Durable Lineage)', () => {
       }
     });
   });
+
+  describe('Session expiry during refresh', () => {
+    it('should reject refresh when session has expired', async () => {
+      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'exp-clean' }, refreshTokenRepo);
+      const { session, refreshToken } = await createSessionCommand(prismaClient, sessionRepo, { userId, correlationId: 'exp-create' }, refreshTokenRepo);
+
+      // Force session to be expired
+      await rawClient.query(
+        `UPDATE identity.auth_sessions SET expires_at = NOW() - INTERVAL '1 second' WHERE id = $1`,
+        [session.id]
+      );
+
+      try {
+        await refreshSessionCommand(prismaClient, sessionRepo, identityRepo, { refreshToken, correlationId: 'exp-refresh' }, refreshTokenRepo);
+        expect.fail('Should have thrown');
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(RefreshError);
+        expect((error as RefreshError).code).toBe('AUTH_SESSION_EXPIRED');
+      }
+    });
+  });
 });
