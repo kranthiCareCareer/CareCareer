@@ -10,10 +10,6 @@ import type { SigningKey } from '../domain/signing-key.js';
 export interface SessionRepository {
   createSession(tx: TransactionClient, session: AuthSession): Promise<void>;
   getSessionById(tx: TransactionClient, id: string): Promise<AuthSession | null>;
-  getSessionForRefreshLocked(
-    tx: TransactionClient,
-    tokenFamily: string,
-  ): Promise<AuthSession | null>;
   rotateRefreshToken(tx: TransactionClient, sessionId: string, newHash: string): Promise<void>;
   revokeSession(tx: TransactionClient, sessionId: string, reason: string): Promise<void>;
   revokeAllUserSessions(tx: TransactionClient, userId: string, reason: string): Promise<number>;
@@ -59,22 +55,6 @@ export class PostgresSessionRepository implements SessionRepository {
   async getSessionById(tx: TransactionClient, id: string): Promise<AuthSession | null> {
     const rows = await tx.$queryRaw<SessionRow>`
       SELECT * FROM identity.auth_sessions WHERE id = ${id}
-    `;
-    return rows.length > 0 ? mapSessionRow(rows[0]!) : null;
-  }
-
-  /**
-   * Lock the session row for safe refresh rotation.
-   * Uses FOR UPDATE to prevent concurrent refresh from creating duplicate successors.
-   */
-  async getSessionForRefreshLocked(
-    tx: TransactionClient,
-    tokenFamily: string,
-  ): Promise<AuthSession | null> {
-    const rows = await tx.$queryRaw<SessionRow>`
-      SELECT * FROM identity.auth_sessions
-      WHERE token_family = ${tokenFamily} AND status = 'ACTIVE'
-      FOR UPDATE
     `;
     return rows.length > 0 ? mapSessionRow(rows[0]!) : null;
   }

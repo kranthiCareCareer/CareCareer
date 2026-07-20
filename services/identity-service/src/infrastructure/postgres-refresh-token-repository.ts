@@ -20,17 +20,11 @@ export interface RefreshTokenRepository {
   /** Mark a token as ROTATED (used successfully) */
   rotateRefreshToken(tx: TransactionClient, tokenId: string): Promise<void>;
 
-  /** List all tokens in a family (for compromise operations) */
-  listTokenFamily(tx: TransactionClient, tokenFamilyId: string): Promise<RefreshToken[]>;
-
   /** Mark all ACTIVE/ROTATED tokens in a family as COMPROMISED */
   compromiseTokenFamily(tx: TransactionClient, tokenFamilyId: string): Promise<number>;
 
   /** Mark all ACTIVE tokens in a family as REVOKED (logout) */
   revokeTokenFamily(tx: TransactionClient, tokenFamilyId: string, reason: string): Promise<number>;
-
-  /** Expire tokens past their TTL */
-  expireRefreshTokens(tx: TransactionClient): Promise<number>;
 }
 
 /**
@@ -77,15 +71,6 @@ export class PostgresRefreshTokenRepository implements RefreshTokenRepository {
     `;
   }
 
-  async listTokenFamily(tx: TransactionClient, tokenFamilyId: string): Promise<RefreshToken[]> {
-    const rows = await tx.$queryRaw<RefreshTokenRow>`
-      SELECT * FROM identity.auth_refresh_tokens
-      WHERE token_family_id = ${tokenFamilyId}
-      ORDER BY issued_at ASC
-    `;
-    return rows.map(mapRefreshTokenRow);
-  }
-
   /**
    * Compromise all active/rotated tokens in a family.
    * Returns the count of affected rows.
@@ -109,14 +94,6 @@ export class PostgresRefreshTokenRepository implements RefreshTokenRepository {
       SET status = 'REVOKED', revoked_at = NOW(), revocation_reason = ${reason}
       WHERE token_family_id = ${tokenFamilyId}
         AND status = 'ACTIVE'
-    `;
-  }
-
-  async expireRefreshTokens(tx: TransactionClient): Promise<number> {
-    return tx.$executeRaw`
-      UPDATE identity.auth_refresh_tokens
-      SET status = 'EXPIRED'
-      WHERE status = 'ACTIVE' AND expires_at < NOW()
     `;
   }
 }
