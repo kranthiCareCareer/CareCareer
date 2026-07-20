@@ -11,9 +11,10 @@ export default defineConfig({
   },
   server: {
     port: 4000,
+    allowedHosts: ['localhost', 'host.docker.internal'],
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: process.env['VITE_API_TARGET'] || 'http://localhost:3001',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
