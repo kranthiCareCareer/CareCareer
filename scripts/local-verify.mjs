@@ -2,8 +2,9 @@
 /**
  * local:verify — Complete identity authentication lifecycle verification.
  *
- * Exercises the identity service against real PostgreSQL (via Testcontainers)
- * proving the complete authentication flow without mock services.
+ * Exercises the identity service against real PostgreSQL (via Testcontainers
+ * and Docker containers) proving the complete authentication flow without
+ * mock services.
  *
  * This is NOT a health-check script. It validates:
  * 1. Real RS256 token issuance
@@ -16,6 +17,7 @@
  * 8. User suspension (access denied)
  * 9. JWKS verification
  * 10. Tenant isolation
+ * 11. Data persistence across service restart
  *
  * Requires: Docker (for Testcontainers PostgreSQL)
  *
