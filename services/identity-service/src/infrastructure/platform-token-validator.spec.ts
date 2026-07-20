@@ -324,14 +324,14 @@ describe('PlatformTokenValidator', () => {
 describe('mapJoseError', () => {
   it('should map JWTExpired to TokenExpiredError', async () => {
     const { errors } = await import('jose');
-    const joseErr = new errors.JWTExpired('expired');
+    const joseErr = new errors.JWTExpired('expired', {});
     const result = mapJoseError(joseErr);
     expect(result).toBeInstanceOf(TokenExpiredError);
   });
 
   it('should map JWTClaimValidationFailed to InvalidTokenError with claim message', async () => {
     const { errors } = await import('jose');
-    const joseErr = new errors.JWTClaimValidationFailed('bad claim');
+    const joseErr = new errors.JWTClaimValidationFailed('bad claim', {});
     const result = mapJoseError(joseErr);
     expect(result).toBeInstanceOf(InvalidTokenError);
     expect(result.message).toContain('claim validation failed');

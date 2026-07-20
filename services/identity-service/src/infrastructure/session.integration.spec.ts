@@ -19,6 +19,7 @@ import { hashToken } from '../domain/session.js';
 import { createUser } from '../domain/user.js';
 
 import { PostgresIdentityRepository } from './postgres-identity-repository.js';
+import { PostgresMembershipRepository } from './postgres-membership-repository.js';
 import { PostgresRefreshTokenRepository } from './postgres-refresh-token-repository.js';
 import { PostgresSessionRepository } from './postgres-session-repository.js';
 
@@ -77,6 +78,7 @@ describe('Session Integration Tests (GP-03.3 — Durable Lineage)', () => {
   let sessionRepo: PostgresSessionRepository;
   let identityRepo: PostgresIdentityRepository;
   let refreshTokenRepo: PostgresRefreshTokenRepository;
+  let membershipRepo: PostgresMembershipRepository;
 
   const userId = '00000000-0000-0000-0000-000000000100';
 
@@ -111,6 +113,7 @@ describe('Session Integration Tests (GP-03.3 — Durable Lineage)', () => {
     sessionRepo = new PostgresSessionRepository();
     identityRepo = new PostgresIdentityRepository();
     refreshTokenRepo = new PostgresRefreshTokenRepository();
+    membershipRepo = new PostgresMembershipRepository();
 
     // Seed a user for session tests
     await prismaClient.$transaction(async (tx) => {
@@ -813,6 +816,178 @@ describe('Session Integration Tests (GP-03.3 — Durable Lineage)', () => {
           UPDATE identity.users SET status = 'ACTIVE' WHERE id = ${userId}
         `;
       });
+    });
+  });
+
+  describe('Membership authorization-version enforcement', () => {
+    const tenantId = '00000000-0000-0000-0000-000000000900';
+    const membershipId = '00000000-0000-0000-0000-000000000901';
+
+    it('should reject refresh when membership is SUSPENDED', async () => {
+      // Seed a membership
+      await rawClient.query(
+        `INSERT INTO identity.tenant_memberships (id, user_id, tenant_id, status, authorization_version, created_at, updated_at, version)
+         VALUES ($1, $2, $3, 'SUSPENDED', 1, NOW(), NOW(), 1)
+         ON CONFLICT (user_id, tenant_id) DO UPDATE SET status = 'SUSPENDED'`,
+        [membershipId, userId, tenantId],
+      );
+
+      // Create session and link it to the membership
+      await logoutAllCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'ms-clean' },
+        refreshTokenRepo,
+      );
+      const { session, refreshToken } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'ms-create' },
+        refreshTokenRepo,
+      );
+
+      // Set membership_id on the session
+      await rawClient.query(
+        'UPDATE identity.auth_sessions SET membership_id = $1, membership_authorization_version = 1 WHERE id = $2',
+        [membershipId, session.id],
+      );
+
+      // Refresh should fail because membership is suspended
+      try {
+        await refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken, correlationId: 'ms-suspended' },
+          refreshTokenRepo,
+          membershipRepo,
+        );
+        expect.fail('Should have thrown');
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(RefreshError);
+        expect((error as RefreshError).code).toBe('AUTH_MEMBERSHIP_SUSPENDED');
+      }
+    });
+
+    it('should reject refresh when membership is DEACTIVATED', async () => {
+      // Update membership to DEACTIVATED
+      await rawClient.query(
+        `UPDATE identity.tenant_memberships SET status = 'DEACTIVATED' WHERE id = $1`,
+        [membershipId],
+      );
+
+      await logoutAllCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'md-clean' },
+        refreshTokenRepo,
+      );
+      const { session, refreshToken } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'md-create' },
+        refreshTokenRepo,
+      );
+
+      await rawClient.query(
+        'UPDATE identity.auth_sessions SET membership_id = $1, membership_authorization_version = 1 WHERE id = $2',
+        [membershipId, session.id],
+      );
+
+      try {
+        await refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken, correlationId: 'md-deactivated' },
+          refreshTokenRepo,
+          membershipRepo,
+        );
+        expect.fail('Should have thrown');
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(RefreshError);
+        expect((error as RefreshError).code).toBe('AUTH_MEMBERSHIP_DEACTIVATED');
+      }
+    });
+
+    it('should reject refresh when membership authorization version is stale', async () => {
+      // Update membership to ACTIVE with version 5
+      await rawClient.query(
+        `UPDATE identity.tenant_memberships SET status = 'ACTIVE', authorization_version = 5 WHERE id = $1`,
+        [membershipId],
+      );
+
+      await logoutAllCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'mv-clean' },
+        refreshTokenRepo,
+      );
+      const { session, refreshToken } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'mv-create' },
+        refreshTokenRepo,
+      );
+
+      // Session has stale version 1, membership is at 5
+      await rawClient.query(
+        'UPDATE identity.auth_sessions SET membership_id = $1, membership_authorization_version = 1 WHERE id = $2',
+        [membershipId, session.id],
+      );
+
+      try {
+        await refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken, correlationId: 'mv-stale' },
+          refreshTokenRepo,
+          membershipRepo,
+        );
+        expect.fail('Should have thrown');
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(RefreshError);
+        expect((error as RefreshError).code).toBe('AUTH_MEMBERSHIP_VERSION_STALE');
+      }
+    });
+
+    it('should accept refresh when membership is ACTIVE with matching version', async () => {
+      // Update membership to ACTIVE with version 5
+      await rawClient.query(
+        `UPDATE identity.tenant_memberships SET status = 'ACTIVE', authorization_version = 5 WHERE id = $1`,
+        [membershipId],
+      );
+
+      await logoutAllCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'ma-clean' },
+        refreshTokenRepo,
+      );
+      const { session, refreshToken } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'ma-create' },
+        refreshTokenRepo,
+      );
+
+      // Session has matching version 5
+      await rawClient.query(
+        'UPDATE identity.auth_sessions SET membership_id = $1, membership_authorization_version = 5 WHERE id = $2',
+        [membershipId, session.id],
+      );
+
+      // Should succeed
+      const { newRefreshToken } = await refreshSessionCommand(
+        prismaClient,
+        sessionRepo,
+        identityRepo,
+        { refreshToken, correlationId: 'ma-success' },
+        refreshTokenRepo,
+        membershipRepo,
+      );
+      expect(newRefreshToken).toBeTruthy();
     });
   });
 });
