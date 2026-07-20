@@ -2,9 +2,12 @@ import { test, expect } from '@playwright/test';
 import { PersonaSelectorPage } from '../pages/persona-selector.page';
 import { DashboardPage } from '../pages/dashboard.page';
 import { TenantCreatePage } from '../pages/tenant-create.page';
-import { resolve } from 'node:path';
+import { resolve, dirname } from 'node:path';
 import { mkdirSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const SCREENSHOTS_DIR = resolve(__dirname, '../../../artifacts/demo-screenshots');
 
 // Ensure screenshots directory exists
