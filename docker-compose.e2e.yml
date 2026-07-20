@@ -1,84 +1,30 @@
 ##
-# CareCareer Standard E2E Test Environment
+# CareCareer Standard Playwright E2E Runner
 #
-# Runs the standard Playwright Test runner against real services.
-# All containers share a Docker network; no host dependencies needed.
+# Runs the standard @playwright/test runner against services accessible on the host.
+# Uses host network mode to reach localhost:4000 (frontend) and localhost:3001 (backend).
+#
+# Prerequisites: Start demo services before running.
+#   pnpm demo:up && start backend && start frontend
 #
 # Usage:
-#   pnpm test:e2e:standard -- --project=chromium --grep=@smoke
-#   docker compose -f docker-compose.e2e.yml run --rm playwright-runner
+#   docker compose -f docker-compose.e2e.yml run --rm playwright-runner --project=chromium --reporter=line
+#   docker compose -f docker-compose.e2e.yml run --rm playwright-runner --project=firefox-nightly
 ##
 services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: carecareer_admin
-      POSTGRES_PASSWORD: e2e_password_not_for_production
-      POSTGRES_DB: carecareer_e2e
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U carecareer_admin"]
-      interval: 2s
-      timeout: 5s
-      retries: 15
-    ports:
-      - "5433:5432"
-
-  platform-service:
-    build:
-      context: .
-      dockerfile: services/platform-service/Dockerfile
-    environment:
-      DATABASE_URL: postgresql://carecareer_admin:e2e_password_not_for_production@postgres:5432/carecareer_e2e
-      PORT: "3001"
-      HOST: "0.0.0.0"
-      NODE_ENV: development
-      DEMO_MODE: "true"
-      DEMO_AUTH_SECRET: carecareer-demo-secret-for-testing-only-do-not-use-in-production
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q -O- http://localhost:3001/health/ready || exit 1"]
-      interval: 3s
-      timeout: 5s
-      retries: 20
-
-  platform-admin-console:
-    build:
-      context: .
-      dockerfile: apps/platform-admin-console/Dockerfile
-      args:
-        VITE_API_URL: http://platform-service:3001
-    ports:
-      - "4001:4000"
-    depends_on:
-      platform-service:
-        condition: service_healthy
-
   playwright-runner:
-    image: node:22-bookworm
-    working_dir: /work/apps/platform-admin-console
+    build:
+      context: .
+      dockerfile: docker/e2e/Dockerfile
+    network_mode: host
     environment:
       CI: "1"
-      BASE_URL: http://platform-admin-console:4000
+      HOME: /tmp
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     volumes:
-      - .:/work:ro
-      - pw-node-modules:/work/node_modules
-      - pw-app-modules:/work/apps/platform-admin-console/node_modules
-    depends_on:
-      platform-admin-console:
-        condition: service_started
-    entrypoint: >
-      bash -c "
-        corepack enable &&
-        cd /work &&
-        pnpm install --frozen-lockfile --ignore-scripts 2>/dev/null &&
-        cd /work/apps/platform-admin-console &&
-        pnpm exec playwright install --with-deps chromium firefox webkit &&
-        pnpm exec playwright test $$@
-      "
+      - playwright-browsers:/ms-playwright
+    entrypoint: ["pnpm", "exec", "playwright", "test"]
     command: ["--project=chromium", "--reporter=line"]
 
 volumes:
-  pw-node-modules:
-  pw-app-modules:
+  playwright-browsers:

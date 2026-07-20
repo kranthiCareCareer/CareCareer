@@ -13,3 +13,8 @@ playwright-report
 test-results
 blob-report
 traces
+
+# Files without Prettier parsers
+.nvmrc
+.node-version
+*.sh

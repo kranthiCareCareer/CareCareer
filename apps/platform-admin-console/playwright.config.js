@@ -29,7 +29,7 @@ export default defineConfig({
     ...(process.env['CI'] ? [['junit', { outputFile: 'test-results/junit.xml' }]] : []),
   ],
   use: {
-    baseURL: 'http://localhost:4000',
+    baseURL: process.env['BASE_URL'] || 'http://localhost:4000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
