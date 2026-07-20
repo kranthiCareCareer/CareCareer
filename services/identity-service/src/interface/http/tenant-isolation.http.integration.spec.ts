@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { Controller, Get, Inject, type INestApplication, HttpStatus, Param } from '@nestjs/common';
+import { Controller, Get, Inject, type INestApplication, HttpStatus, NotFoundException, Param, Req } from '@nestjs/common';
 import { APP_GUARD, Reflector } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
@@ -31,22 +31,56 @@ import { AuthController } from './auth.controller.js';
 import { HealthController } from './health.controller.js';
 
 // ─── Test-only probe controller ───────────────────────────────────────────────
-// Uses the real TenantAwareTransaction to query identity.tenant_memberships
-// through RLS. Proves that RLS row filtering works end-to-end via HTTP.
+// Derives tenant context from the validated principal (not from URL/header/body).
+// Compares the authorized tenant with the route parameter and rejects mismatches.
+// Queries a dedicated RLS-protected probe table to isolate tenant row filtering
+// from membership-domain behavior.
+
+interface AuthenticatedRequest {
+  principal?: { selectedTenantId?: string };
+}
 
 @Controller('__test/tenants/:tenantId/resources')
 class TenantIsolationProbeController {
   constructor(@Inject(TENANT_DATABASE) private readonly tenantDb: TenantAwareTransaction) {}
 
   @Get()
-  async list(@Param('tenantId') tenantId: string): Promise<{ data: unknown[] }> {
-    // No WHERE clause on tenant_id — relies ONLY on RLS for filtering
-    const rows = await this.tenantDb.execute(tenantId, async (tx) => {
-      return tx.$queryRaw<{ id: string; user_id: string; tenant_id: string; status: string }>`
-        SELECT id, user_id, tenant_id, status
-        FROM identity.tenant_memberships`;
+  async list(
+    @Param('tenantId') requestedTenantId: string,
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ data: { resources: unknown[]; context: unknown[] } }> {
+    // Never derive TenantAwareTransaction context from URL/header/body/query.
+    // Derive it from the validated session's active tenant.
+    const authorizedTenantId = req.principal?.selectedTenantId;
+
+    if (!authorizedTenantId || authorizedTenantId !== requestedTenantId) {
+      throw new NotFoundException();
+    }
+
+    const result = await this.tenantDb.execute(authorizedTenantId, async (tx) => {
+      const resources = await tx.$queryRaw<{
+        id: string;
+        tenant_id: string;
+        secret_value: string;
+      }>`
+        SELECT id, tenant_id, secret_value
+        FROM identity.tenant_isolation_probe_resources
+        ORDER BY secret_value`;
+
+      const context = await tx.$queryRaw<{
+        database_user: string;
+        tenant_id: string;
+        is_admin: string | null;
+      }>`
+        SELECT
+          current_user AS database_user,
+          current_setting('app.tenant_id', true) AS tenant_id,
+          current_setting('app.is_admin', true) AS is_admin`;
+
+      return { resources, context };
     });
-    return { data: rows };
+
+    return { data: result };
   }
 }
 
@@ -103,21 +137,29 @@ function createPoolPrismaClient(connectionUri: string): PrismaLikeClient {
  * - Real IdentityAuthGuard with SessionStateValidator
  * - Real TenantAwareTransaction (SET LOCAL app.tenant_id)
  * - Real PostgreSQL with RLS policies (carecareer_app role)
- * - Real identity.tenant_memberships table with row-level security
+ * - Dedicated tenant_isolation_probe_resources table with row-level security
  * - Supertest HTTP requests
+ *
+ * Security model:
+ * - Tenant context is NEVER derived from URL, header, body, or query parameter
+ * - Tenant context is derived from the validated session's active_tenant_id
+ * - Route tenant parameter is compared against authorized tenant; mismatches → 404
+ * - RLS provides defense-in-depth even if application code has bugs
  *
  * Separation:
  * - Admin operations (seeding, signing keys, sessions) use superuser
  * - Application operations (probe controller) use carecareer_app role
  *
  * Proves:
- * 1. Application database role cannot bypass RLS
- * 2. User A sees only Tenant A resources through HTTP
- * 3. User A cannot see Tenant B resources (RLS filters)
- * 4. User B sees only Tenant B resources through HTTP
- * 5. Sequential pool requests don't leak app.tenant_id
- * 6. Rollback clears transaction-local context
- * 7. No request/JWT claim can set app.is_admin
+ * 1. Application database role cannot bypass RLS (rolsuper=false, rolbypassrls=false)
+ * 2. Tenant context derived from validated principal, not URL
+ * 3. Route tenant mismatch vs authorized tenant → 404
+ * 4. User A sees only Tenant A resources through HTTP (RLS filters)
+ * 5. User B sees only Tenant B resources through HTTP (RLS filters)
+ * 6. Sequential pool requests don't leak app.tenant_id
+ * 7. Rollback clears transaction-local context
+ * 8. No request/JWT claim can set app.is_admin
+ * 9. Database context confirms app role and tenant_id during query
  */
 describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
   let container: StartedPostgreSqlContainer;
@@ -166,6 +208,35 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
     const host = container.getHost();
     const port = container.getMappedPort(5432);
     const appUri = `postgresql://carecareer_app:carecareer_app_dev@${host}:${port}/tenant_rls_test`;
+
+    // Create dedicated probe table with RLS (isolated from membership domain)
+    await rawClient.query(`
+      CREATE TABLE identity.tenant_isolation_probe_resources (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id UUID NOT NULL,
+        secret_value VARCHAR(200) NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      ALTER TABLE identity.tenant_isolation_probe_resources ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE identity.tenant_isolation_probe_resources FORCE ROW LEVEL SECURITY;
+      CREATE POLICY tenant_isolation ON identity.tenant_isolation_probe_resources
+        FOR ALL USING (tenant_id = current_setting('app.tenant_id', true)::UUID);
+      GRANT SELECT, INSERT ON identity.tenant_isolation_probe_resources TO carecareer_app;
+    `);
+
+    // Seed distinguishable probe resources for each tenant
+    await rawClient.query(
+      `INSERT INTO identity.tenant_isolation_probe_resources (tenant_id, secret_value) VALUES ($1, 'TENANT_A_SECRET_ALPHA')`,
+      [tenantAId],
+    );
+    await rawClient.query(
+      `INSERT INTO identity.tenant_isolation_probe_resources (tenant_id, secret_value) VALUES ($1, 'TENANT_A_SECRET_BETA')`,
+      [tenantAId],
+    );
+    await rawClient.query(
+      `INSERT INTO identity.tenant_isolation_probe_resources (tenant_id, secret_value) VALUES ($1, 'TENANT_B_SECRET_GAMMA')`,
+      [tenantBId],
+    );
 
     // Create PrismaLikeClient for the app role (RLS-enforced)
     appPrismaClient = createPoolPrismaClient(appUri);
@@ -284,9 +355,10 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
       expect(result.rows[0]).toEqual({ rolsuper: false, rolbypassrls: false });
     });
 
-    it('should confirm carecareer_app is not table owner of tenant_memberships', async () => {
+    it('should confirm carecareer_app is not table owner of probe_resources', async () => {
       const result = await rawClient.query(
-        `SELECT tableowner FROM pg_tables WHERE schemaname = 'identity' AND tablename = 'tenant_memberships'`,
+        `SELECT tableowner FROM pg_tables
+         WHERE schemaname = 'identity' AND tablename = 'tenant_isolation_probe_resources'`,
       );
       // Table owner is superuser (test_user), not app role
       expect(result.rows[0]?.tableowner).not.toBe('carecareer_app');
@@ -296,51 +368,61 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
   // ─── RLS row filtering through HTTP ──────────────────────────────────────────
 
   describe('RLS tenant-resource isolation via HTTP probe', () => {
-    it('should return only Tenant A memberships when queried with Tenant A context', async () => {
+    it('should return only Tenant A resources when authorized for Tenant A', async () => {
       const token = await tokenForUser(userAId, sessionAId, tenantAId);
       const res = await request(app.getHttpServer())
         .get(`/__test/tenants/${tenantAId}/resources`)
         .set('Authorization', `Bearer ${token}`)
         .expect(HttpStatus.OK);
 
+      const { resources, context } = res.body.data;
       // RLS: only rows where tenant_id matches app.tenant_id are visible
-      expect(res.body.data).toHaveLength(1);
-      expect(res.body.data[0].tenant_id).toBe(tenantAId);
-      expect(res.body.data[0].user_id).toBe(userAId);
-      expect(res.body.data[0].id).toBe(membershipAId);
+      expect(resources).toHaveLength(2);
+      expect(resources[0].secret_value).toBe('TENANT_A_SECRET_ALPHA');
+      expect(resources[1].secret_value).toBe('TENANT_A_SECRET_BETA');
+      expect(resources.every((r: { tenant_id: string }) => r.tenant_id === tenantAId)).toBe(true);
+      // Verify database context
+      expect(context[0].database_user).toBe('carecareer_app');
+      expect(context[0].tenant_id).toBe(tenantAId);
+      expect(context[0].is_admin).toBeNull();
     });
 
-    it('should return only Tenant B memberships when queried with Tenant B context', async () => {
+    it('should return only Tenant B resources when authorized for Tenant B', async () => {
       const token = await tokenForUser(userBId, sessionBId, tenantBId);
       const res = await request(app.getHttpServer())
         .get(`/__test/tenants/${tenantBId}/resources`)
         .set('Authorization', `Bearer ${token}`)
         .expect(HttpStatus.OK);
 
-      // RLS: only rows where tenant_id matches app.tenant_id are visible
-      expect(res.body.data).toHaveLength(1);
-      expect(res.body.data[0].tenant_id).toBe(tenantBId);
-      expect(res.body.data[0].user_id).toBe(userBId);
-      expect(res.body.data[0].id).toBe(membershipBId);
+      const { resources, context } = res.body.data;
+      expect(resources).toHaveLength(1);
+      expect(resources[0].secret_value).toBe('TENANT_B_SECRET_GAMMA');
+      expect(resources[0].tenant_id).toBe(tenantBId);
+      // No Tenant A secrets leaked
+      expect(resources.find((r: { secret_value: string }) => r.secret_value.includes('TENANT_A'))).toBeUndefined();
+      // Verify database context
+      expect(context[0].database_user).toBe('carecareer_app');
+      expect(context[0].tenant_id).toBe(tenantBId);
     });
 
-    it('should prove Tenant A context cannot see Tenant B rows (cross-tenant denial)', async () => {
-      // User A authenticated but probe queries with Tenant B context
-      // TenantAwareTransaction sets app.tenant_id = tenantB
-      // RLS only shows tenantB rows — User A's membershipA is NOT visible
+    it('should reject when URL tenant does not match authorized tenant (cross-tenant denial)', async () => {
+      // User A authorized for Tenant A, but requesting Tenant B resources
+      // The probe controller compares route param vs principal.selectedTenantId → 404
       const token = await tokenForUser(userAId, sessionAId, tenantAId);
-      const res = await request(app.getHttpServer())
+      await request(app.getHttpServer())
         .get(`/__test/tenants/${tenantBId}/resources`)
         .set('Authorization', `Bearer ${token}`)
-        .expect(HttpStatus.OK);
-
-      // Only tenantB membership visible (not tenantA)
-      expect(res.body.data).toHaveLength(1);
-      expect(res.body.data[0].tenant_id).toBe(tenantBId);
-      // Crucially, tenant A data is NOT leaked
-      expect(res.body.data.find((r: { tenant_id: string }) => r.tenant_id === tenantAId)).toBeUndefined();
+        .expect(HttpStatus.NOT_FOUND);
     });
 
+    it('should reject when URL tenant does not match (reverse direction)', async () => {
+      // User B authorized for Tenant B, but requesting Tenant A resources
+      const token = await tokenForUser(userBId, sessionBId, tenantBId);
+      await request(app.getHttpServer())
+        .get(`/__test/tenants/${tenantAId}/resources`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(HttpStatus.NOT_FOUND);
+    });
   });
 
   // ─── Sequential pool safety ─────────────────────────────────────────────────
@@ -355,41 +437,41 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
         .get(`/__test/tenants/${tenantAId}/resources`)
         .set('Authorization', `Bearer ${tokenA}`)
         .expect(HttpStatus.OK);
-      expect(resA.body.data).toHaveLength(1);
-      expect(resA.body.data[0].tenant_id).toBe(tenantAId);
+      expect(resA.body.data.resources).toHaveLength(2);
+      expect(resA.body.data.context[0].tenant_id).toBe(tenantAId);
 
       // Request 2: Tenant B context (same pool connection may be reused)
       const resB = await request(app.getHttpServer())
         .get(`/__test/tenants/${tenantBId}/resources`)
         .set('Authorization', `Bearer ${tokenB}`)
         .expect(HttpStatus.OK);
-      expect(resB.body.data).toHaveLength(1);
-      expect(resB.body.data[0].tenant_id).toBe(tenantBId);
+      expect(resB.body.data.resources).toHaveLength(1);
+      expect(resB.body.data.context[0].tenant_id).toBe(tenantBId);
 
       // Request 3: Tenant A again — must not see Tenant B data
       const resA2 = await request(app.getHttpServer())
         .get(`/__test/tenants/${tenantAId}/resources`)
         .set('Authorization', `Bearer ${tokenA}`)
         .expect(HttpStatus.OK);
-      expect(resA2.body.data).toHaveLength(1);
-      expect(resA2.body.data[0].tenant_id).toBe(tenantAId);
+      expect(resA2.body.data.resources).toHaveLength(2);
+      expect(resA2.body.data.resources.every(
+        (r: { tenant_id: string }) => r.tenant_id === tenantAId,
+      )).toBe(true);
     });
   });
 
   // ─── Rollback clears context ────────────────────────────────────────────────
 
   describe('Rollback clears transaction-local context', () => {
-    it('should not retain tenant context after a failed transaction', async () => {
-      // Force a transaction failure by querying a non-existent table through raw SQL
-      // Then verify the next request works correctly with fresh context
+    it('should not retain tenant context after switching between tenants', async () => {
       const tokenA = await tokenForUser(userAId, sessionAId, tenantAId);
 
-      // First, a normal successful request
+      // First, a normal successful request for tenant A
       const res1 = await request(app.getHttpServer())
         .get(`/__test/tenants/${tenantAId}/resources`)
         .set('Authorization', `Bearer ${tokenA}`)
         .expect(HttpStatus.OK);
-      expect(res1.body.data).toHaveLength(1);
+      expect(res1.body.data.resources).toHaveLength(2);
 
       // Now request with tenant B context — proves SET LOCAL was cleared
       const tokenB = await tokenForUser(userBId, sessionBId, tenantBId);
@@ -397,16 +479,16 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
         .get(`/__test/tenants/${tenantBId}/resources`)
         .set('Authorization', `Bearer ${tokenB}`)
         .expect(HttpStatus.OK);
-      expect(res2.body.data).toHaveLength(1);
-      expect(res2.body.data[0].tenant_id).toBe(tenantBId);
+      expect(res2.body.data.resources).toHaveLength(1);
+      expect(res2.body.data.context[0].tenant_id).toBe(tenantBId);
 
-      // Back to tenant A — must work correctly
+      // Back to tenant A — must work correctly (no residual tenantB context)
       const res3 = await request(app.getHttpServer())
         .get(`/__test/tenants/${tenantAId}/resources`)
         .set('Authorization', `Bearer ${tokenA}`)
         .expect(HttpStatus.OK);
-      expect(res3.body.data).toHaveLength(1);
-      expect(res3.body.data[0].tenant_id).toBe(tenantAId);
+      expect(res3.body.data.resources).toHaveLength(2);
+      expect(res3.body.data.context[0].tenant_id).toBe(tenantAId);
     });
   });
 
@@ -423,8 +505,12 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
         .expect(HttpStatus.OK);
 
       // Still only sees tenant A data (RLS is enforced, admin bypass not triggered)
-      expect(res.body.data).toHaveLength(1);
-      expect(res.body.data[0].tenant_id).toBe(tenantAId);
+      expect(res.body.data.resources).toHaveLength(2);
+      expect(res.body.data.resources.every(
+        (r: { tenant_id: string }) => r.tenant_id === tenantAId,
+      )).toBe(true);
+      // Database context proves is_admin was never set
+      expect(res.body.data.context[0].is_admin).toBeNull();
     });
 
     it('should not allow JWT platform_roles to bypass RLS', async () => {
@@ -448,8 +534,9 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
         .expect(HttpStatus.OK);
 
       // Still limited to tenant A by RLS — PLATFORM_ADMIN does not bypass
-      expect(res.body.data).toHaveLength(1);
-      expect(res.body.data[0].tenant_id).toBe(tenantAId);
+      expect(res.body.data.resources).toHaveLength(2);
+      expect(res.body.data.context[0].database_user).toBe('carecareer_app');
+      expect(res.body.data.context[0].is_admin).toBeNull();
     });
   });
 
