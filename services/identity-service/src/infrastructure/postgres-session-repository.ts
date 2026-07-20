@@ -112,7 +112,7 @@ export class PostgresSessionRepository implements SessionRepository {
       SELECT count(*)::int as count FROM identity.auth_sessions
       WHERE user_id = ${userId} AND status = 'ACTIVE'
     `;
-    return rows[0]?.count ?? 0;
+    return rows[0]!.count;
   }
 
   async revokeOldestSession(tx: TransactionClient, userId: string, reason: string): Promise<void> {
@@ -144,19 +144,15 @@ interface SessionRow {
   membership_authorization_version: number | null;
   last_used_at: string | Date;
   expires_at: string | Date;
-  client_info: SessionClientInfo | string | null;
+  client_info: SessionClientInfo | null;
   created_at: string | Date;
   revoked_at: string | Date | null;
 }
 
 function mapSessionRow(row: SessionRow): AuthSession {
-  let clientInfo: SessionClientInfo | null = null;
-  if (row.client_info) {
-    clientInfo =
-      typeof row.client_info === 'string'
-        ? (JSON.parse(row.client_info) as SessionClientInfo)
-        : row.client_info;
-  }
+  const clientInfo: SessionClientInfo | null = row.client_info
+    ? (row.client_info as SessionClientInfo)
+    : null;
 
   return {
     id: row.id,
