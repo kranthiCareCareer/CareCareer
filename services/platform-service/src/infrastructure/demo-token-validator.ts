@@ -3,9 +3,9 @@ import { createHmac } from 'node:crypto';
 import {
   InvalidTokenError,
   TokenExpiredError,
-  type AuthenticatedPrincipal,
   type TenantMembershipClaim,
   type TokenValidator,
+  type ValidatedTokenContext,
 } from '@carecareer/auth';
 
 /**
@@ -24,7 +24,7 @@ export class DemoTokenValidator implements TokenValidator {
     this.audience = params.audience;
   }
 
-  async validate(token: string): Promise<AuthenticatedPrincipal> {
+  async validate(token: string): Promise<ValidatedTokenContext> {
     if (!token) throw new InvalidTokenError('Token is empty');
 
     const parts = token.split('.');
@@ -88,6 +88,13 @@ export class DemoTokenValidator implements TokenValidator {
       tenantMemberships,
       issuedAt: new Date((payload['iat'] as number) * 1000),
       expiresAt: new Date((payload['exp'] as number) * 1000),
+      sessionId: (payload['sid'] as string) ?? 'demo-session',
+      tokenId: (payload['jti'] as string) ?? 'demo-jti',
+      userAuthorizationVersion:
+        typeof payload['user_authorization_version'] === 'number'
+          ? (payload['user_authorization_version'] as number)
+          : 1,
+      selectedTenantId: tenantMemberships.length > 0 ? tenantMemberships[0]?.tenantId : undefined,
     };
   }
 }

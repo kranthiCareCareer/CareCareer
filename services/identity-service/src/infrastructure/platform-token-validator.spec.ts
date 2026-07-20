@@ -6,7 +6,7 @@ import type { PrismaLikeClient, TransactionClient } from '@carecareer/database';
 import type { SigningKey } from '../domain/signing-key.js';
 
 import { generateRsaKeyPair, signPlatformJwt } from './jwt-service.js';
-import { PlatformTokenValidator } from './platform-token-validator.js';
+import { mapJoseError, PlatformTokenValidator } from './platform-token-validator.js';
 import type { SigningKeyRepository } from './postgres-session-repository.js';
 
 /**
@@ -318,5 +318,57 @@ describe('PlatformTokenValidator', () => {
     it('should reject empty token', async () => {
       await expect(validator.validate('')).rejects.toThrow(InvalidTokenError);
     });
+  });
+});
+
+describe('mapJoseError', () => {
+  it('should map JWTExpired to TokenExpiredError', async () => {
+    const { errors } = await import('jose');
+    const joseErr = new errors.JWTExpired('expired');
+    const result = mapJoseError(joseErr);
+    expect(result).toBeInstanceOf(TokenExpiredError);
+  });
+
+  it('should map JWTClaimValidationFailed to InvalidTokenError with claim message', async () => {
+    const { errors } = await import('jose');
+    const joseErr = new errors.JWTClaimValidationFailed('bad claim');
+    const result = mapJoseError(joseErr);
+    expect(result).toBeInstanceOf(InvalidTokenError);
+    expect(result.message).toContain('claim validation failed');
+  });
+
+  it('should map JWSSignatureVerificationFailed to InvalidTokenError', async () => {
+    const { errors } = await import('jose');
+    const joseErr = new errors.JWSSignatureVerificationFailed();
+    const result = mapJoseError(joseErr);
+    expect(result).toBeInstanceOf(InvalidTokenError);
+    expect(result.message).toContain('signature verification failed');
+  });
+
+  it('should map JWSInvalid to InvalidTokenError', async () => {
+    const { errors } = await import('jose');
+    const joseErr = new errors.JWSInvalid('bad jws');
+    const result = mapJoseError(joseErr);
+    expect(result).toBeInstanceOf(InvalidTokenError);
+    expect(result.message).toContain('invalid token structure');
+  });
+
+  it('should map JWTInvalid to InvalidTokenError', async () => {
+    const { errors } = await import('jose');
+    const joseErr = new errors.JWTInvalid('bad jwt');
+    const result = mapJoseError(joseErr);
+    expect(result).toBeInstanceOf(InvalidTokenError);
+    expect(result.message).toContain('invalid token');
+  });
+
+  it('should map unknown errors to generic InvalidTokenError', () => {
+    const result = mapJoseError(new Error('something unexpected'));
+    expect(result).toBeInstanceOf(InvalidTokenError);
+    expect(result.message).toContain('token verification failed');
+  });
+
+  it('should handle non-Error objects', () => {
+    const result = mapJoseError('string error');
+    expect(result).toBeInstanceOf(InvalidTokenError);
   });
 });

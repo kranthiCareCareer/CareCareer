@@ -36,8 +36,8 @@ export interface SessionValidationResult {
 export interface SessionValidationInput {
   readonly sessionId: string;
   readonly userId: string;
-  readonly userAuthorizationVersion?: number;
-  readonly membershipAuthorizationVersion?: number;
+  readonly userAuthorizationVersion?: number | undefined;
+  readonly membershipAuthorizationVersion?: number | undefined;
 }
 
 export class SessionStateValidator {

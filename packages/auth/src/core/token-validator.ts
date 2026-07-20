@@ -1,4 +1,4 @@
-import type { AuthenticatedPrincipal } from './authenticated-principal.js';
+import type { ValidatedTokenContext } from './authenticated-principal.js';
 
 /**
  * Configuration for token validation.
@@ -18,15 +18,19 @@ export interface TokenValidationConfig {
 
 /**
  * Provider-neutral token validation interface.
- * Implementations validate the token and produce a canonical principal.
+ * Implementations validate the token and produce a typed token context.
  * No provider-specific types leak through this interface.
+ *
+ * Returns ValidatedTokenContext which extends AuthenticatedPrincipal
+ * with session and authorization-version fields. This eliminates
+ * the need for downstream consumers to reparse the JWT.
  */
 export interface TokenValidator {
   /**
-   * Validate a bearer token and extract the authenticated principal.
+   * Validate a bearer token and extract the full validated context.
    *
    * @throws AuthenticationError if the token is invalid
    * @throws TokenExpiredError if the token has expired
    */
-  validate(token: string): Promise<AuthenticatedPrincipal>;
+  validate(token: string): Promise<ValidatedTokenContext>;
 }

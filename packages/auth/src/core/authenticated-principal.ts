@@ -24,3 +24,23 @@ export interface AuthenticatedPrincipal {
   /** Token expiration time */
   readonly expiresAt: Date;
 }
+
+/**
+ * Extended validated token context returned by platform token validators.
+ * Includes session and authorization-version fields so the guard does not
+ * need to reparse the compact JWT.
+ */
+export interface ValidatedTokenContext extends AuthenticatedPrincipal {
+  /** Session ID from the sid claim */
+  readonly sessionId: string;
+  /** Token JTI (unique identifier) */
+  readonly tokenId: string;
+  /** User authorization version at token issuance */
+  readonly userAuthorizationVersion: number;
+  /** Selected tenant ID (if tenant-scoped) */
+  readonly selectedTenantId?: string | undefined;
+  /** Membership ID (if tenant-scoped) */
+  readonly membershipId?: string | undefined;
+  /** Membership authorization version (if tenant-scoped) */
+  readonly membershipAuthorizationVersion?: number | undefined;
+}

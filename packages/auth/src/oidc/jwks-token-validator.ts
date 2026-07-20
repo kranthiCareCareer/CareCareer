@@ -1,6 +1,6 @@
 import * as jose from 'jose';
 
-import type { AuthenticatedPrincipal } from '../core/authenticated-principal.js';
+import type { ValidatedTokenContext } from '../core/authenticated-principal.js';
 import { InvalidTokenError, TokenExpiredError } from '../core/errors.js';
 import type { TokenValidationConfig, TokenValidator } from '../core/token-validator.js';
 
@@ -9,6 +9,11 @@ import { ClaimsMapper, type ClaimsMapperConfig } from './claims-mapper.js';
 /**
  * JWKS-based token validator using the jose library.
  * Provider-neutral — works with any OIDC provider that exposes JWKS.
+ *
+ * Note: External OIDC tokens do not contain CareCareer-specific claims
+ * (sid, userAuthorizationVersion). Those fields are populated with defaults.
+ * This validator is used for the initial OIDC exchange flow (GP-03.4),
+ * not for ongoing platform authentication.
  */
 export class JwksTokenValidator implements TokenValidator {
   private jwks: ReturnType<typeof jose.createRemoteJWKSet> | undefined;
@@ -20,7 +25,7 @@ export class JwksTokenValidator implements TokenValidator {
     this.claimsMapper = new ClaimsMapper(claimsMapperConfig);
   }
 
-  async validate(token: string): Promise<AuthenticatedPrincipal> {
+  async validate(token: string): Promise<ValidatedTokenContext> {
     if (!token) {
       throw new InvalidTokenError('Token is empty');
     }
@@ -44,7 +49,15 @@ export class JwksTokenValidator implements TokenValidator {
         throw new InvalidTokenError('Token missing subject claim');
       }
 
-      return this.claimsMapper.toPrincipal(payload);
+      const principal = this.claimsMapper.toPrincipal(payload);
+
+      // Return ValidatedTokenContext with OIDC-appropriate defaults
+      return {
+        ...principal,
+        sessionId: (payload['sid'] as string) ?? 'oidc-exchange',
+        tokenId: payload.jti ?? 'oidc-jti',
+        userAuthorizationVersion: 0, // Not applicable for external IdP tokens
+      };
     } catch (error: unknown) {
       if (error instanceof InvalidTokenError || error instanceof TokenExpiredError) {
         throw error;

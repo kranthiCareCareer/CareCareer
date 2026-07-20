@@ -2,6 +2,7 @@
 export type {
   AuthenticatedPrincipal,
   TenantMembershipClaim,
+  ValidatedTokenContext,
 } from './core/authenticated-principal.js';
 export type { TokenValidator, TokenValidationConfig } from './core/token-validator.js';
 export type {

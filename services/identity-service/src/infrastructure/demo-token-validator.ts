@@ -1,9 +1,9 @@
 import { createHmac } from 'node:crypto';
 
 import type {
-  AuthenticatedPrincipal,
   TenantMembershipClaim,
   TokenValidator,
+  ValidatedTokenContext,
 } from '@carecareer/auth';
 import { AuthenticationError } from '@carecareer/auth';
 
@@ -18,6 +18,7 @@ export interface DemoTokenValidatorConfig {
  * Uses HMAC-SHA256 (HS256) for simplicity.
  *
  * MUST NOT be used in production — the guard verifies NODE_ENV at startup.
+ * Returns ValidatedTokenContext for contract compatibility with PlatformTokenValidator.
  */
 export class DemoTokenValidator implements TokenValidator {
   private readonly secret: string;
@@ -30,7 +31,7 @@ export class DemoTokenValidator implements TokenValidator {
     this.audience = config.audience;
   }
 
-  async validate(token: string): Promise<AuthenticatedPrincipal> {
+  async validate(token: string): Promise<ValidatedTokenContext> {
     const parts = token.split('.');
     if (parts.length !== 3) {
       throw new AuthenticationError('Invalid token format');
@@ -89,6 +90,18 @@ export class DemoTokenValidator implements TokenValidator {
       tenantMemberships: memberships,
       issuedAt: new Date(iat * 1000),
       expiresAt: new Date(exp * 1000),
+      // Demo tokens use simplified session context
+      sessionId: (payload['sid'] as string) ?? 'demo-session',
+      tokenId: (payload['jti'] as string) ?? 'demo-jti',
+      userAuthorizationVersion:
+        typeof payload['user_authorization_version'] === 'number'
+          ? (payload['user_authorization_version'] as number)
+          : 1,
+      selectedTenantId: memberships.length > 0 ? memberships[0]?.tenantId : undefined,
+      membershipId: payload['membership_id'] as string | undefined,
+      membershipAuthorizationVersion: payload['membership_authorization_version'] as
+        | number
+        | undefined,
     };
   }
 }
