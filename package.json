@@ -35,6 +35,13 @@
     "demo:e2e:record": "pnpm --filter @carecareer/platform-admin-console e2e:record",
     "demo:verify": "node scripts/demo-verify.mjs",
     "local:verify": "node scripts/local-verify.mjs",
+    "test:e2e:smoke": "pnpm --filter @carecareer/platform-admin-console e2e:smoke",
+    "test:e2e:chromium": "pnpm --filter @carecareer/platform-admin-console e2e:chromium",
+    "test:e2e:cross-browser": "pnpm --filter @carecareer/platform-admin-console e2e:cross-browser",
+    "test:e2e:navigation": "pnpm --filter @carecareer/platform-admin-console e2e:navigation",
+    "test:e2e:accessibility": "pnpm --filter @carecareer/platform-admin-console e2e:accessibility",
+    "test:e2e:responsive": "pnpm --filter @carecareer/platform-admin-console e2e:responsive",
+    "test:e2e:release": "pnpm --filter @carecareer/platform-admin-console e2e:release",
     "prepare": "husky"
   },
   "devDependencies": {
