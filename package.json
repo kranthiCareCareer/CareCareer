@@ -42,6 +42,7 @@
     "test:e2e:accessibility": "pnpm --filter @carecareer/platform-admin-console e2e:accessibility",
     "test:e2e:responsive": "pnpm --filter @carecareer/platform-admin-console e2e:responsive",
     "test:e2e:release": "pnpm --filter @carecareer/platform-admin-console e2e:release",
+    "test:e2e:standard": "node scripts/e2e-standard.mjs",
     "prepare": "husky"
   },
   "devDependencies": {

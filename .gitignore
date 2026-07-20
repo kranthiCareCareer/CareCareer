@@ -33,3 +33,9 @@ logs/
 
 # Database
 *.db
+
+# E2E test artifacts (generated, not committed)
+playwright-report/
+test-results/
+blob-report/
+traces/
