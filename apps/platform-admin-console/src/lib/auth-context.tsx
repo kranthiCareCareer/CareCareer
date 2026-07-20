@@ -2,6 +2,25 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 import type { DemoPersona } from '../api/types';
 import { apiClient } from '../api/client';
 
+/**
+ * SECURITY BOUNDARY — Demo Authentication Only
+ *
+ * This module persists the demo persona token in sessionStorage ONLY for the
+ * local development/demo authentication adapter. This enables page reloads,
+ * deep links, and direct route navigation during testing.
+ *
+ * Production authentication MUST NOT use sessionStorage for token storage.
+ * Production MUST use:
+ * - The approved identity-service session/refresh mechanism
+ * - httpOnly, Secure, SameSite cookies where appropriate
+ * - Never localStorage or sessionStorage for access/refresh tokens
+ *
+ * The demo adapter is disabled in production (identity-service startup rejects
+ * DEMO_MODE=true in production configuration).
+ */
+
+const DEMO_STORAGE_KEY = 'carecareer_demo_auth';
+
 /** Available demo personas */
 export const DEMO_PERSONAS: DemoPersona[] = [
   {
@@ -54,14 +73,14 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>(() => {
     // Restore persisted session on page reload (demo mode only)
-    const stored = sessionStorage.getItem('carecareer_demo_auth');
+    const stored = sessionStorage.getItem(DEMO_STORAGE_KEY);
     if (stored) {
       try {
         const { persona, token } = JSON.parse(stored) as { persona: DemoPersona; token: string };
         apiClient.setAuth(token, persona.id);
         return { persona, token, isAuthenticated: true };
       } catch {
-        sessionStorage.removeItem('carecareer_demo_auth');
+        sessionStorage.removeItem(DEMO_STORAGE_KEY);
       }
     }
     return { persona: null, token: null, isAuthenticated: false };
@@ -86,13 +105,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { token } = (await res.json()) as { token: string };
     apiClient.setAuth(token, persona.id);
     const newState = { persona, token, isAuthenticated: true };
-    sessionStorage.setItem('carecareer_demo_auth', JSON.stringify({ persona, token }));
+    sessionStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify({ persona, token }));
     setState(newState);
   }, []);
 
   const clearPersona = useCallback(() => {
     apiClient.clearAuth();
-    sessionStorage.removeItem('carecareer_demo_auth');
+    sessionStorage.removeItem(DEMO_STORAGE_KEY);
     setState({ persona: null, token: null, isAuthenticated: false });
   }, []);
 

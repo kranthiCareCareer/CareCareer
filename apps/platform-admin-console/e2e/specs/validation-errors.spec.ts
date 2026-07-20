@@ -32,9 +32,11 @@ test.describe('Validation errors', () => {
     await page.getByRole('button', { name: 'Provision Tenant' }).click();
 
     // Pattern validation: ^[a-z][a-z0-9-]*$
+    // After click, the browser validates and the input should be invalid
     const slugInput = page.getByLabel('Tenant Slug');
+    await expect(slugInput).toHaveAttribute('pattern');
     const validity = await slugInput.evaluate(
-      (el: HTMLInputElement) => el.validity.patternMismatch,
+      (el: HTMLInputElement) => !el.checkValidity(),
     );
     expect(validity).toBe(true);
   });

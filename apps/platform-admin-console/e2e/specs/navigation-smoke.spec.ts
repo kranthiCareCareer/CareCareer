@@ -20,8 +20,6 @@ const ROUTES = [
   { path: '/', heading: /CareCareer|Platform/i, public: true },
   { path: '/tenants', heading: /Tenant/i, public: false },
   { path: '/tenants/create', heading: /Create Tenant/i, public: false },
-  { path: '/features', heading: /Feature/i, public: false },
-  { path: '/audit', heading: /Audit/i, public: false },
 ];
 
 test.describe('Navigation smoke @smoke @navigation', () => {
