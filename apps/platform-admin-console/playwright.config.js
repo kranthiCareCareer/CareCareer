@@ -37,16 +37,16 @@ export default defineConfig({
     navigationTimeout: 15000,
   },
   projects: [
+    // ─── Default (backward compatible with demo:verify) ───────────────────────
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
+    },
     // ─── Pull Request ─────────────────────────────────────────────────────────
     {
       name: 'chromium-pr',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
       grep: [/@smoke/, /@navigation/, /@accessibility/, /@isolation/],
-    },
-    // ─── Main Branch Regression ───────────────────────────────────────────────
-    {
-      name: 'chromium-regression',
-      use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
     },
     // ─── Nightly Cross-Browser ────────────────────────────────────────────────
     {
