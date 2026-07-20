@@ -26,6 +26,7 @@ import { PostgresIdentityRepository } from '../../infrastructure/postgres-identi
 import { PostgresSessionRepository } from '../../infrastructure/postgres-session-repository.js';
 import { PostgresSigningKeyRepository } from '../../infrastructure/postgres-signing-key-repository.js';
 import { SessionStateValidator } from '../../infrastructure/session-state-validator.js';
+
 import { AuthController } from './auth.controller.js';
 import { HealthController } from './health.controller.js';
 
@@ -257,7 +258,7 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
     await container?.stop();
   });
 
-  function tokenForUser(userId: string, sessionId: string, tenantId: string) {
+  function tokenForUser(userId: string, sessionId: string, tenantId: string): Promise<string> {
     return signPlatformJwt(
       {
         sub: userId,
