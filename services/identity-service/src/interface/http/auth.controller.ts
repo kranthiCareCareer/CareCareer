@@ -33,10 +33,8 @@ import type { SigningKey } from '../../domain/signing-key.js';
 import { createPgPrismaClient } from '../../infrastructure/database-factory.js';
 import { buildJwks, signPlatformJwt } from '../../infrastructure/jwt-service.js';
 import { PostgresRefreshTokenRepository } from '../../infrastructure/postgres-refresh-token-repository.js';
-import {
-  PostgresSessionRepository,
-  PostgresSigningKeyRepository,
-} from '../../infrastructure/postgres-session-repository.js';
+import { PostgresSessionRepository } from '../../infrastructure/postgres-session-repository.js';
+import { PostgresSigningKeyRepository } from '../../infrastructure/postgres-signing-key-repository.js';
 import { Public } from '../../infrastructure/public.decorator.js';
 
 /**

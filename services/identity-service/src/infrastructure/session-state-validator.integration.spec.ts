@@ -14,10 +14,8 @@ import { generateRsaKeyPair, signPlatformJwt } from '../infrastructure/jwt-servi
 
 import { PostgresIdentityRepository } from './postgres-identity-repository.js';
 import { PostgresRefreshTokenRepository } from './postgres-refresh-token-repository.js';
-import {
-  PostgresSessionRepository,
-  PostgresSigningKeyRepository,
-} from './postgres-session-repository.js';
+import { PostgresSessionRepository } from './postgres-session-repository.js';
+import { PostgresSigningKeyRepository } from './postgres-signing-key-repository.js';
 import { SessionStateValidator } from './session-state-validator.js';
 
 function createPoolPrismaClient(connectionUri: string): { client: PrismaLikeClient; pool: Pool } {
@@ -383,6 +381,69 @@ describe('Live Session-State Enforcement (GP-03.3)', () => {
 
       // Restore active key for other tests
       await rawClient.query(`UPDATE identity.signing_keys SET status = 'ACTIVE' WHERE id = '${keyId}'`);
+    });
+
+    it('should return the active key when one exists', async () => {
+      const result = await prismaClient.$transaction(async (tx) => {
+        return signingKeyRepo.getActiveKey(tx);
+      });
+      expect(result).not.toBeNull();
+      expect(result!.id).toBe(keyId);
+      expect(result!.status).toBe('ACTIVE');
+      expect(result!.algorithm).toBe('RS256');
+    });
+
+    it('should handle key with null activatedAt and null rotatedAt', async () => {
+      // Insert a key directly without activatedAt
+      const nullKeyId = '00000000-0000-0000-0000-000000000099';
+      await rawClient.query(
+        `INSERT INTO identity.signing_keys (id, algorithm, public_key, private_key_ref, status, activated_at, rotated_at, created_at)
+         VALUES ($1, 'RS256', 'test-pub-key', 'inline:test', 'ROTATED', NULL, NOW(), NOW())
+         ON CONFLICT (id) DO UPDATE SET activated_at = NULL, rotated_at = NOW(), status = 'ROTATED'`,
+        [nullKeyId],
+      );
+
+      // getVerificationKeys includes ROTATED keys — this exercises null activatedAt/rotatedAt mapping
+      const keys = await prismaClient.$transaction(async (tx) => {
+        return signingKeyRepo.getVerificationKeys(tx);
+      });
+      const nullKey = keys.find((k) => k.id === nullKeyId);
+      expect(nullKey).toBeDefined();
+      expect(nullKey!.activatedAt).toBeNull();
+      expect(nullKey!.rotatedAt).toBeInstanceOf(Date);
+
+      // Cleanup
+      await rawClient.query('DELETE FROM identity.signing_keys WHERE id = $1', [nullKeyId]);
+    });
+
+    it('should create a key without activatedAt', async () => {
+      const noActivateKeyId = '00000000-0000-0000-0000-000000000098';
+      await prismaClient.$transaction(async (tx) => {
+        await signingKeyRepo.createKey(
+          tx,
+          {
+            id: noActivateKeyId,
+            algorithm: 'RS256',
+            publicKey: 'test-pub',
+            privateKeyRef: 'inline:test',
+            status: 'ACTIVE',
+            activatedAt: null,
+            rotatedAt: null,
+            createdAt: new Date(),
+          },
+          'inline:test',
+        );
+      });
+
+      // Verify it was stored
+      const result = await rawClient.query(
+        'SELECT activated_at FROM identity.signing_keys WHERE id = $1',
+        [noActivateKeyId],
+      );
+      expect(result.rows[0].activated_at).toBeNull();
+
+      // Cleanup
+      await rawClient.query('DELETE FROM identity.signing_keys WHERE id = $1', [noActivateKeyId]);
     });
   });
 });

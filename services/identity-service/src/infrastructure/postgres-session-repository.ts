@@ -2,10 +2,6 @@ import type { TransactionClient } from '@carecareer/database';
 
 import type { AuthSession, SessionClientInfo } from '../domain/session.js';
 
-// Re-export signing-key types and implementation for backward compatibility
-export type { SigningKeyRepository } from './postgres-signing-key-repository.js';
-export { PostgresSigningKeyRepository } from './postgres-signing-key-repository.js';
-
 /**
  * Session repository port — PostgreSQL-backed.
  * All refresh operations use row-level locking for concurrency safety.

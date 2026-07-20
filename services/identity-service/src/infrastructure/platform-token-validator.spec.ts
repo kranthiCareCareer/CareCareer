@@ -7,7 +7,7 @@ import type { SigningKey } from '../domain/signing-key.js';
 
 import { generateRsaKeyPair, signPlatformJwt } from './jwt-service.js';
 import { mapJoseError, PlatformTokenValidator } from './platform-token-validator.js';
-import type { SigningKeyRepository } from './postgres-session-repository.js';
+import type { SigningKeyRepository } from './postgres-signing-key-repository.js';
 
 /**
  * Unit tests for PlatformTokenValidator.

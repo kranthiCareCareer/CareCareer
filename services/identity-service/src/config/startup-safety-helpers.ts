@@ -3,7 +3,7 @@ import type { TokenValidator } from '@carecareer/auth';
 import { createPgPrismaClient } from '../infrastructure/database-factory.js';
 import { DemoTokenValidator } from '../infrastructure/demo-token-validator.js';
 import { PlatformTokenValidator } from '../infrastructure/platform-token-validator.js';
-import { PostgresSigningKeyRepository } from '../infrastructure/postgres-session-repository.js';
+import { PostgresSigningKeyRepository } from '../infrastructure/postgres-signing-key-repository.js';
 
 /**
  * Exported for testing purposes only.

@@ -44,7 +44,7 @@ export default defineConfig({
         'src/interface/http/health.controller.ts',
       ],
       exclude: ['src/**/*.spec.ts', 'src/**/*.integration.spec.ts'],
-      reporter: ['text', 'json-summary', 'lcov'],
+      reporter: ['text', 'json-summary', 'json', 'lcov'],
       reportsDirectory: './coverage',
       thresholds: {
         statements: 85,

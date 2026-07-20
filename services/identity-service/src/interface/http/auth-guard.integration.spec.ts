@@ -22,10 +22,8 @@ import { IdentityAuthGuard } from '../../infrastructure/identity-auth.guard.js';
 import { generateRsaKeyPair, signPlatformJwt } from '../../infrastructure/jwt-service.js';
 import { PlatformTokenValidator } from '../../infrastructure/platform-token-validator.js';
 import { PostgresIdentityRepository } from '../../infrastructure/postgres-identity-repository.js';
-import {
-  PostgresSessionRepository,
-  PostgresSigningKeyRepository,
-} from '../../infrastructure/postgres-session-repository.js';
+import { PostgresSessionRepository } from '../../infrastructure/postgres-session-repository.js';
+import { PostgresSigningKeyRepository } from '../../infrastructure/postgres-signing-key-repository.js';
 import { SessionStateValidator } from '../../infrastructure/session-state-validator.js';
 
 import { AuthController } from './auth.controller.js';

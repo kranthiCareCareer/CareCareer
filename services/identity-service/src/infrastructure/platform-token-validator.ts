@@ -18,7 +18,7 @@ import type { PrismaLikeClient, TransactionClient } from '@carecareer/database';
 
 import type { SigningKey } from '../domain/signing-key.js';
 
-import type { SigningKeyRepository } from './postgres-session-repository.js';
+import type { SigningKeyRepository } from './postgres-signing-key-repository.js';
 
 /**
  * Configuration for the production platform token validator.

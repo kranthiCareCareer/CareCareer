@@ -32,11 +32,7 @@ const SECURITY_THRESHOLDS = [
   { pattern: 'session-commands.ts', lines: 95, branches: 90, functions: 95, stmts: 95 },
   { pattern: 'postgres-session-repository.ts', lines: 95, branches: 85, functions: 95, stmts: 95 },
   { pattern: 'postgres-refresh-token-repository.ts', lines: 95, branches: 85, functions: 95, stmts: 95 },
-  // Signing-key repo: 3 methods (getActiveKey, getVerificationKeys, createKey)
-  // Branches at 50% due to V8 ternary counting on rows.length > 0 and activatedAt?.
-  // The null branches ARE tested (getActiveKey returns null when no key exists)
-  // but V8 counts template-literal ternaries differently.
-  { pattern: 'postgres-signing-key-repository.ts', lines: 95, branches: 50, functions: 95, stmts: 95 },
+  { pattern: 'postgres-signing-key-repository.ts', lines: 95, branches: 90, functions: 95, stmts: 95 },
   { pattern: 'identity-config.ts', lines: 95, branches: 90, functions: 95, stmts: 95 },
 ];
 
