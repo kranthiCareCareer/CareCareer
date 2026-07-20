@@ -47,7 +47,7 @@ describe('Production Startup Safety', () => {
 
   describe('Signing provider validation', () => {
     it('should reject missing SIGNING_PROVIDER in production', () => {
-      const { SIGNING_PROVIDER: _, ...withoutProvider } = validProdBase;
+      const withoutProvider = { ...validProdBase, SIGNING_PROVIDER: undefined };
       const result = identityConfigSchema.safeParse(withoutProvider);
       expect(result.success).toBe(false);
     });
@@ -76,13 +76,13 @@ describe('Production Startup Safety', () => {
 
   describe('Token configuration validation', () => {
     it('should reject missing TOKEN_ISSUER in production', () => {
-      const { TOKEN_ISSUER: _, ...without } = validProdBase;
+      const without = { ...validProdBase, TOKEN_ISSUER: undefined };
       const result = identityConfigSchema.safeParse(without);
       expect(result.success).toBe(false);
     });
 
     it('should reject missing TOKEN_AUDIENCE in production', () => {
-      const { TOKEN_AUDIENCE: _, ...without } = validProdBase;
+      const without = { ...validProdBase, TOKEN_AUDIENCE: undefined };
       const result = identityConfigSchema.safeParse(without);
       expect(result.success).toBe(false);
     });

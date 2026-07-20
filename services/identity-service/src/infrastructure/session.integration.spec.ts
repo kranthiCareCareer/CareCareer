@@ -1003,9 +1003,7 @@ describe('Session Integration Tests (GP-03.3 — Durable Lineage)', () => {
       try {
         await refreshSessionCommand(prismaClient, sessionRepo, identityRepo, { refreshToken, correlationId: 'mnf-refresh' }, refreshTokenRepo, membershipRepo);
         expect.fail('Should have thrown');
-      } catch (error) {
-        expect(error).toBeInstanceOf(RefreshError);
-        expect((error).code).toBe('AUTH_MEMBERSHIP_INVALID');
+      } catch (error: unknown) { expect(error).toBeInstanceOf(RefreshError); expect((error as RefreshError).code).toBe('AUTH_MEMBERSHIP_INVALID');
       }
     });
   });
