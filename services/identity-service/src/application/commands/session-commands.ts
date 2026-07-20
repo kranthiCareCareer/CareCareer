@@ -131,26 +131,20 @@ export async function refreshSessionCommand(
   sessionRepo: SessionRepository,
   identityRepo: IdentityRepository,
   input: RefreshSessionInput,
-  refreshTokenRepo?: RefreshTokenRepository,
+  refreshTokenRepo: RefreshTokenRepository,
   membershipRepo?: MembershipRepository,
 ): Promise<RefreshSessionResult> {
   const tokenHash = hashToken(input.refreshToken);
 
-  if (refreshTokenRepo) {
-    // Durable lineage path — handles replay commit-then-throw
-    return refreshWithDurableLineage(
-      prisma,
-      sessionRepo,
-      identityRepo,
-      refreshTokenRepo,
-      tokenHash,
-      input.correlationId,
-      membershipRepo,
-    );
-  }
-
-  // Legacy path — no longer supported. All refresh operations require lineage.
-  throw new RefreshError('AUTH_REFRESH_INVALID', 'Refresh token lineage required');
+  return refreshWithDurableLineage(
+    prisma,
+    sessionRepo,
+    identityRepo,
+    refreshTokenRepo,
+    tokenHash,
+    input.correlationId,
+    membershipRepo,
+  );
 }
 
 /**

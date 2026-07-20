@@ -990,4 +990,23 @@ describe('Session Integration Tests (GP-03.3 — Durable Lineage)', () => {
       expect(newRefreshToken).toBeTruthy();
     });
   });
+
+  describe('Membership not-found handling', () => {
+    it('should reject refresh when membership ID does not exist', async () => {
+      const nonexistentMembershipId = '00000000-0000-0000-0000-000000000999';
+
+      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'mnf-clean' }, refreshTokenRepo);
+      const { session, refreshToken } = await createSessionCommand(prismaClient, sessionRepo, { userId, correlationId: 'mnf-create' }, refreshTokenRepo);
+
+      await rawClient.query('UPDATE identity.auth_sessions SET membership_id = $1, membership_authorization_version = 1 WHERE id = $2', [nonexistentMembershipId, session.id]);
+
+      try {
+        await refreshSessionCommand(prismaClient, sessionRepo, identityRepo, { refreshToken, correlationId: 'mnf-refresh' }, refreshTokenRepo, membershipRepo);
+        expect.fail('Should have thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(RefreshError);
+        expect((error).code).toBe('AUTH_MEMBERSHIP_INVALID');
+      }
+    });
+  });
 });
