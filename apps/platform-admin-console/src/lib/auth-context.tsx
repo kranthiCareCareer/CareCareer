@@ -52,10 +52,19 @@ const AuthContext = createContext<AuthContextValue | null>(null);
  * Requests a signed JWT from the backend demo endpoint.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({
-    persona: null,
-    token: null,
-    isAuthenticated: false,
+  const [state, setState] = useState<AuthState>(() => {
+    // Restore persisted session on page reload (demo mode only)
+    const stored = sessionStorage.getItem('carecareer_demo_auth');
+    if (stored) {
+      try {
+        const { persona, token } = JSON.parse(stored) as { persona: DemoPersona; token: string };
+        apiClient.setAuth(token, persona.id);
+        return { persona, token, isAuthenticated: true };
+      } catch {
+        sessionStorage.removeItem('carecareer_demo_auth');
+      }
+    }
+    return { persona: null, token: null, isAuthenticated: false };
   });
 
   const selectPersona = useCallback(async (persona: DemoPersona) => {
@@ -76,11 +85,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { token } = (await res.json()) as { token: string };
     apiClient.setAuth(token, persona.id);
-    setState({ persona, token, isAuthenticated: true });
+    const newState = { persona, token, isAuthenticated: true };
+    sessionStorage.setItem('carecareer_demo_auth', JSON.stringify({ persona, token }));
+    setState(newState);
   }, []);
 
   const clearPersona = useCallback(() => {
     apiClient.clearAuth();
+    sessionStorage.removeItem('carecareer_demo_auth');
     setState({ persona: null, token: null, isAuthenticated: false });
   }, []);
 
