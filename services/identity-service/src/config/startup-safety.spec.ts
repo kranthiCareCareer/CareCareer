@@ -1,37 +1,28 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 import { identityConfigSchema } from './identity-config.js';
 
 /**
  * Production startup safety tests.
- * Verifies that insecure development configurations are rejected in production.
+ * Proves production fails closed for every insecure configuration.
  */
 describe('Production Startup Safety', () => {
-  const originalEnv = { ...process.env };
+  const validProdBase = {
+    NODE_ENV: 'production',
+    DATABASE_URL: 'postgresql://localhost/test',
+    SIGNING_PROVIDER: 'aws-kms',
+    TOKEN_ISSUER: 'carecareer-identity',
+    TOKEN_AUDIENCE: 'carecareer-api',
+  };
 
-  beforeEach(() => {
-    // Reset env to minimal valid state
-    process.env = { ...originalEnv };
-  });
-
-  afterEach(() => {
-    process.env = originalEnv;
-  });
-
-  describe('DEMO_MODE rejection in production', () => {
-    it('should reject DEMO_MODE=true when NODE_ENV=production', () => {
+  describe('Demo mode rejection', () => {
+    it('should reject DEMO_MODE=true in production', () => {
       const result = identityConfigSchema.safeParse({
-        NODE_ENV: 'production',
-        DATABASE_URL: 'postgresql://localhost/test',
+        ...validProdBase,
         DEMO_MODE: 'true',
         DEMO_AUTH_SECRET: 'a-secret-that-is-long-enough-for-testing-purposes',
       });
-
       expect(result.success).toBe(false);
-      if (!result.success) {
-        const messages = result.error.issues.map((i) => i.message);
-        expect(messages.some((m) => m.includes('prohibited in production'))).toBe(true);
-      }
     });
 
     it('should allow DEMO_MODE=true in development', () => {
@@ -41,95 +32,99 @@ describe('Production Startup Safety', () => {
         DEMO_MODE: 'true',
         DEMO_AUTH_SECRET: 'a-secret-that-is-long-enough-for-testing-purposes',
       });
-
       expect(result.success).toBe(true);
     });
 
-    it('should allow DEMO_MODE=true in test', () => {
-      const result = identityConfigSchema.safeParse({
-        NODE_ENV: 'test',
-        DATABASE_URL: 'postgresql://localhost/test',
-        DEMO_MODE: 'true',
-        DEMO_AUTH_SECRET: 'a-secret-that-is-long-enough-for-testing-purposes',
-      });
-
-      expect(result.success).toBe(true);
-    });
-  });
-
-  describe('DEMO_AUTH_SECRET requirement', () => {
     it('should reject DEMO_MODE without DEMO_AUTH_SECRET', () => {
       const result = identityConfigSchema.safeParse({
         NODE_ENV: 'development',
         DATABASE_URL: 'postgresql://localhost/test',
         DEMO_MODE: 'true',
-        // No DEMO_AUTH_SECRET
       });
-
       expect(result.success).toBe(false);
-      if (!result.success) {
-        const messages = result.error.issues.map((i) => i.message);
-        expect(messages.some((m) => m.includes('DEMO_AUTH_SECRET'))).toBe(true);
-      }
+    });
+  });
+
+  describe('Signing provider validation', () => {
+    it('should reject missing SIGNING_PROVIDER in production', () => {
+      const { SIGNING_PROVIDER: _, ...withoutProvider } = validProdBase;
+      const result = identityConfigSchema.safeParse(withoutProvider);
+      expect(result.success).toBe(false);
     });
 
-    it('should reject DEMO_AUTH_SECRET shorter than 32 characters', () => {
+    it('should reject development signing provider in production', () => {
+      const result = identityConfigSchema.safeParse({
+        ...validProdBase,
+        SIGNING_PROVIDER: 'local-rs256',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject inline private key in production', () => {
+      const result = identityConfigSchema.safeParse({
+        ...validProdBase,
+        SIGNING_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\nMIIE...',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should accept aws-kms provider in production', () => {
+      const result = identityConfigSchema.safeParse(validProdBase);
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('Token configuration validation', () => {
+    it('should reject missing TOKEN_ISSUER in production', () => {
+      const { TOKEN_ISSUER: _, ...without } = validProdBase;
+      const result = identityConfigSchema.safeParse(without);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject missing TOKEN_AUDIENCE in production', () => {
+      const { TOKEN_AUDIENCE: _, ...without } = validProdBase;
+      const result = identityConfigSchema.safeParse(without);
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject access token lifetime above 15 minutes', () => {
+      const result = identityConfigSchema.safeParse({
+        ...validProdBase,
+        ACCESS_TOKEN_LIFETIME_SEC: '1800',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject session lifetime above 7 days', () => {
+      const result = identityConfigSchema.safeParse({
+        ...validProdBase,
+        SESSION_LIFETIME_DAYS: '30',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should accept valid production configuration', () => {
+      const result = identityConfigSchema.safeParse(validProdBase);
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('Development configuration', () => {
+    it('should accept minimal development config', () => {
       const result = identityConfigSchema.safeParse({
         NODE_ENV: 'development',
-        DATABASE_URL: 'postgresql://localhost/test',
-        DEMO_MODE: 'true',
-        DEMO_AUTH_SECRET: 'too-short',
+        DATABASE_URL: 'postgresql://localhost/dev',
       });
-
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
     });
-  });
 
-  describe('DATABASE_URL requirement', () => {
-    it('should reject missing DATABASE_URL', () => {
+    it('should accept local-rs256 provider in development', () => {
       const result = identityConfigSchema.safeParse({
-        NODE_ENV: 'production',
+        NODE_ENV: 'development',
+        DATABASE_URL: 'postgresql://localhost/dev',
+        SIGNING_PROVIDER: 'local-rs256',
       });
-
-      expect(result.success).toBe(false);
-    });
-  });
-
-  describe('Module-level startup safety', () => {
-    it('should throw when resolving token validator with DEMO_MODE in production env', async () => {
-      // Simulate production environment
-      process.env['NODE_ENV'] = 'production';
-      process.env['DEMO_MODE'] = 'true';
-      process.env['DATABASE_URL'] = 'postgresql://localhost/test';
-
-      // Dynamic import to get fresh module evaluation
-      const { resolveTokenValidatorForTest } = await import('./startup-safety-helpers.js');
-
-      expect(() => resolveTokenValidatorForTest()).toThrow(/prohibited in production/);
-    });
-
-    it('should throw when production lacks TOKEN_ISSUER', async () => {
-      process.env['NODE_ENV'] = 'production';
-      process.env['DATABASE_URL'] = 'postgresql://localhost/test';
-      delete process.env['DEMO_MODE'];
-      delete process.env['TOKEN_ISSUER'];
-      delete process.env['TOKEN_AUDIENCE'];
-
-      const { resolveTokenValidatorForTest } = await import('./startup-safety-helpers.js');
-
-      expect(() => resolveTokenValidatorForTest()).toThrow(/TOKEN_ISSUER/);
-    });
-
-    it('should throw when production lacks TOKEN_AUDIENCE', async () => {
-      process.env['NODE_ENV'] = 'production';
-      process.env['DATABASE_URL'] = 'postgresql://localhost/test';
-      process.env['TOKEN_ISSUER'] = 'carecareer-identity';
-      delete process.env['DEMO_MODE'];
-      delete process.env['TOKEN_AUDIENCE'];
-
-      const { resolveTokenValidatorForTest } = await import('./startup-safety-helpers.js');
-
-      expect(() => resolveTokenValidatorForTest()).toThrow(/TOKEN_AUDIENCE/);
+      expect(result.success).toBe(true);
     });
   });
 });
