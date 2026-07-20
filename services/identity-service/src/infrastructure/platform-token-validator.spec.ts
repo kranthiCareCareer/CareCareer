@@ -38,8 +38,6 @@ describe('PlatformTokenValidator', () => {
       getActiveKey: async () => signingKey,
       getVerificationKeys: async () => [signingKey],
       createKey: async () => {},
-      rotateKey: async () => {},
-      revokeKey: async () => {},
     };
 
     const mockPrisma: PrismaLikeClient = {

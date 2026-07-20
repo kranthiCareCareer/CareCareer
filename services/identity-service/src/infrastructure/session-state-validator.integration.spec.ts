@@ -370,4 +370,19 @@ describe('Live Session-State Enforcement (GP-03.3)', () => {
       expect(result.valid).toBe(true);
     });
   });
+
+  describe('Signing-key repository branch coverage', () => {
+    it('should return null when no active signing key exists', async () => {
+      // Temporarily remove all keys
+      await rawClient.query("UPDATE identity.signing_keys SET status = 'REVOKED'");
+
+      const result = await prismaClient.$transaction(async (tx) => {
+        return signingKeyRepo.getActiveKey(tx);
+      });
+      expect(result).toBeNull();
+
+      // Restore active key for other tests
+      await rawClient.query(`UPDATE identity.signing_keys SET status = 'ACTIVE' WHERE id = '${keyId}'`);
+    });
+  });
 });

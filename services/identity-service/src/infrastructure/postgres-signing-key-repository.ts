@@ -4,18 +4,17 @@ import type { SigningKey } from '../domain/signing-key.js';
 
 /**
  * Signing key repository port.
- * Manages RSA/EC key pairs for JWT issuance and verification.
+ * GP-03.3 scope: read and create operations for JWT verification.
+ * Key rotation and revocation are deferred to GP-15 (administrative key lifecycle).
  */
 export interface SigningKeyRepository {
   getActiveKey(tx: TransactionClient): Promise<SigningKey | null>;
   getVerificationKeys(tx: TransactionClient): Promise<SigningKey[]>;
   createKey(tx: TransactionClient, key: SigningKey, privateKeyRef: string): Promise<void>;
-  rotateKey(tx: TransactionClient, keyId: string): Promise<void>;
-  revokeKey(tx: TransactionClient, keyId: string): Promise<void>;
 }
 
 /**
- * PostgreSQL signing key repository.
+ * PostgreSQL signing key repository — GP-03.3 read/create operations.
  */
 export class PostgresSigningKeyRepository implements SigningKeyRepository {
   async getActiveKey(tx: TransactionClient): Promise<SigningKey | null> {
@@ -34,21 +33,10 @@ export class PostgresSigningKeyRepository implements SigningKeyRepository {
   }
 
   async createKey(tx: TransactionClient, key: SigningKey, privateKeyRef: string): Promise<void> {
+    const activatedAt = key.activatedAt ? key.activatedAt.toISOString() : null;
     await tx.$executeRaw`
       INSERT INTO identity.signing_keys (id, algorithm, public_key, private_key_ref, status, activated_at, created_at)
-      VALUES (${key.id}, ${key.algorithm}, ${key.publicKey}, ${privateKeyRef}, ${key.status}, ${key.activatedAt?.toISOString() ?? null}, ${key.createdAt.toISOString()})
-    `;
-  }
-
-  async rotateKey(tx: TransactionClient, keyId: string): Promise<void> {
-    await tx.$executeRaw`
-      UPDATE identity.signing_keys SET status = 'ROTATED', rotated_at = NOW() WHERE id = ${keyId}
-    `;
-  }
-
-  async revokeKey(tx: TransactionClient, keyId: string): Promise<void> {
-    await tx.$executeRaw`
-      UPDATE identity.signing_keys SET status = 'REVOKED' WHERE id = ${keyId}
+      VALUES (${key.id}, ${key.algorithm}, ${key.publicKey}, ${privateKeyRef}, ${key.status}, ${activatedAt}, ${key.createdAt.toISOString()})
     `;
   }
 }
