@@ -363,6 +363,15 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
       // Table owner is superuser (test_user), not app role
       expect(result.rows[0]?.tableowner).not.toBe('carecareer_app');
     });
+
+    it('should confirm RLS is enabled and forced on probe_resources', async () => {
+      const result = await rawClient.query(
+        `SELECT relrowsecurity, relforcerowsecurity
+         FROM pg_class
+         WHERE oid = 'identity.tenant_isolation_probe_resources'::regclass`,
+      );
+      expect(result.rows[0]).toEqual({ relrowsecurity: true, relforcerowsecurity: true });
+    });
   });
 
   // ─── RLS row filtering through HTTP ──────────────────────────────────────────
