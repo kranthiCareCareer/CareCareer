@@ -7,7 +7,7 @@
 | Field | Value |
 |-------|-------|
 | Branch | master |
-| HEAD | 7e7053d |
+| HEAD | f9ecd1d |
 | Working tree | clean |
 | Current milestone | GP-05 (Facilities and Departments) |
 | Current objective | Begin GP-05 vertical slice |
@@ -83,18 +83,19 @@ None.
 
 ## Next Exact Task
 
-Create the GP-05 staffing-service facility schema migration with
-tenant-scoped RLS for facilities, departments, and credential requirements.
+Add the staffing-service vitest config, eslint config, main.ts entry point,
+NestJS module, and facility controller with CRUD endpoints. Then add
+unit tests for the facility domain model.
 
 ## Next Command
 
 ```bash
-# Create migration file
-# Then: pnpm --filter @carecareer/platform-service typecheck
+pnpm install
+pnpm --filter @carecareer/staffing-service typecheck
 ```
 
 ## Expected Next Commit
 
 ```
-feat(facilities): add facility and department schema with RLS
+feat(facilities): add facility CRUD controller and domain unit tests
 ```
