@@ -12,8 +12,8 @@ CareCareer is a multi-tenant healthcare workforce SaaS platform being built from
 
 - Platform control plane: COMPLETE (tenants, organizations, entitlements, features, audit)
 - Identity/authorization: COMPLETE (sessions, RS256, refresh rotation, authorization decisions)
-- Staffing service: IN PROGRESS (GP-05 — facilities and departments)
-- Workforce product (workers, shifts, timecards): NOT STARTED
+- Staffing service: GP-05 COMPLETE (facilities, departments, credential requirements)
+- Workforce product (workers, shifts, timecards): NOT STARTED (GP-06 next)
 
 ## Repository Structure
 
