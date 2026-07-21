@@ -1,7 +1,7 @@
 import type { TransactionClient } from '@carecareer/database';
 
-import type { AuthorizationDecision } from '../domain/authorization-decision.js';
 import type { AuthorizationRepository } from '../application/commands/authorization-decision.command.js';
+import type { AuthorizationDecision } from '../domain/authorization-decision.js';
 
 /**
  * PostgreSQL implementation of the authorization repository.

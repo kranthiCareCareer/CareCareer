@@ -26,6 +26,7 @@ import { PostgresIdentityRepository } from '../../infrastructure/postgres-identi
 import { PostgresSessionRepository } from '../../infrastructure/postgres-session-repository.js';
 import { PostgresSigningKeyRepository } from '../../infrastructure/postgres-signing-key-repository.js';
 import { SessionStateValidator } from '../../infrastructure/session-state-validator.js';
+
 import { AuthorizationController } from './authorization.controller.js';
 import { HealthController } from './health.controller.js';
 

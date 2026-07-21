@@ -15,9 +15,9 @@ import { createPgPrismaClient } from './infrastructure/database-factory.js';
 import { DemoTokenValidator } from './infrastructure/demo-token-validator.js';
 import { IdentityAuthGuard } from './infrastructure/identity-auth.guard.js';
 import { PlatformTokenValidator } from './infrastructure/platform-token-validator.js';
+import { PostgresAuthorizationRepository } from './infrastructure/postgres-authorization-repository.js';
 import { PostgresIdentityRepository } from './infrastructure/postgres-identity-repository.js';
 import { PostgresMembershipRepository } from './infrastructure/postgres-membership-repository.js';
-import { PostgresAuthorizationRepository } from './infrastructure/postgres-authorization-repository.js';
 import {
   PostgresSessionRepository } from './infrastructure/postgres-session-repository.js';
 import { PostgresSigningKeyRepository } from './infrastructure/postgres-signing-key-repository.js';
