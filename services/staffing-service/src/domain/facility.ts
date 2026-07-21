@@ -14,16 +14,16 @@ export interface Facility {
   readonly clientId: string;
   readonly name: string;
   readonly status: FacilityStatus;
-  readonly addressLine1?: string;
-  readonly addressLine2?: string;
-  readonly city?: string;
-  readonly state?: string;
-  readonly zip?: string;
+  readonly addressLine1?: string | undefined;
+  readonly addressLine2?: string | undefined;
+  readonly city?: string | undefined;
+  readonly state?: string | undefined;
+  readonly zip?: string | undefined;
   readonly country: string;
   readonly timezone: string;
-  readonly latitude?: number;
-  readonly longitude?: number;
-  readonly geofenceRadiusMeters?: number;
+  readonly latitude?: number | undefined;
+  readonly longitude?: number | undefined;
+  readonly geofenceRadiusMeters?: number | undefined;
   readonly geofenceVersion: number;
   readonly createdAt: Date;
   readonly updatedAt: Date;
@@ -37,13 +37,13 @@ export interface CreateFacilityInput {
   readonly clientId: string;
   readonly name: string;
   readonly timezone: string;
-  readonly addressLine1?: string;
-  readonly city?: string;
-  readonly state?: string;
-  readonly zip?: string;
-  readonly latitude?: number;
-  readonly longitude?: number;
-  readonly geofenceRadiusMeters?: number;
+  readonly addressLine1?: string | undefined;
+  readonly city?: string | undefined;
+  readonly state?: string | undefined;
+  readonly zip?: string | undefined;
+  readonly latitude?: number | undefined;
+  readonly longitude?: number | undefined;
+  readonly geofenceRadiusMeters?: number | undefined;
 }
 
 /**

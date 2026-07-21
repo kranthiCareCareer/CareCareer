@@ -544,6 +544,88 @@ importers:
         specifier: 3.2.3
         version: 3.2.3(@types/node@22.15.21)(jiti@2.4.2)(jsdom@29.1.1(@noble/hashes@1.8.0))(tsx@4.19.4)(yaml@2.9.0)
 
+  services/staffing-service:
+    dependencies:
+      '@carecareer/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@carecareer/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@carecareer/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@carecareer/events':
+        specifier: workspace:*
+        version: link:../../packages/events
+      '@carecareer/idempotency':
+        specifier: workspace:*
+        version: link:../../packages/idempotency
+      '@carecareer/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
+      '@carecareer/request-context':
+        specifier: workspace:*
+        version: link:../../packages/request-context
+      '@carecareer/service-core':
+        specifier: workspace:*
+        version: link:../../packages/service-core
+      '@nestjs/common':
+        specifier: 11.1.3
+        version: 11.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core':
+        specifier: 11.1.3
+        version: 11.1.3(@nestjs/common@11.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/platform-express':
+        specifier: 11.1.3
+        version: 11.1.3(@nestjs/common@11.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.3)
+      pg:
+        specifier: 8.13.3
+        version: 8.13.3
+      reflect-metadata:
+        specifier: 0.2.2
+        version: 0.2.2
+      rxjs:
+        specifier: 7.8.2
+        version: 7.8.2
+      uuid:
+        specifier: 11.1.0
+        version: 11.1.0
+      zod:
+        specifier: 3.25.36
+        version: 3.25.36
+    devDependencies:
+      '@carecareer/testing':
+        specifier: workspace:*
+        version: link:../../packages/testing
+      '@nestjs/testing':
+        specifier: 11.1.3
+        version: 11.1.3(@nestjs/common@11.1.3(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.3)(@nestjs/platform-express@11.1.3)
+      '@testcontainers/postgresql':
+        specifier: 10.18.0
+        version: 10.18.0
+      '@types/node':
+        specifier: 22.15.21
+        version: 22.15.21
+      '@types/pg':
+        specifier: 8.11.11
+        version: 8.11.11
+      '@types/supertest':
+        specifier: 6.0.2
+        version: 6.0.2
+      supertest:
+        specifier: 7.1.0
+        version: 7.1.0
+      testcontainers:
+        specifier: 10.18.0
+        version: 10.18.0
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+      vitest:
+        specifier: 3.2.3
+        version: 3.2.3(@types/node@22.15.21)(jiti@2.4.2)(jsdom@29.1.1(@noble/hashes@1.8.0))(tsx@4.19.4)(yaml@2.9.0)
+
 packages:
 
   '@adobe/css-tools@4.5.0':
