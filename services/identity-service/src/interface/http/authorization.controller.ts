@@ -101,6 +101,8 @@ export class AuthorizationController {
         userId,
         tenantId,
         sessionId,
+        tokenUserAuthVersion: principal.userAuthorizationVersion,
+        tokenMembershipAuthVersion: principal.membershipAuthorizationVersion,
         action: parsed.data.action,
         resourceType: parsed.data.resourceType,
         resourceId: parsed.data.resourceId,

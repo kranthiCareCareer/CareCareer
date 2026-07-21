@@ -27,6 +27,10 @@ export interface AuthorizationDecisionInput {
   readonly tenantId: string;
   /** From validated session ID — not from request */
   readonly sessionId: string;
+  /** From validated token — user authorization version at token issuance */
+  readonly tokenUserAuthVersion: number;
+  /** From validated token — membership authorization version at token issuance */
+  readonly tokenMembershipAuthVersion?: number | undefined;
   /** From request body — the action to evaluate */
   readonly action: string;
   /** From request body — the resource type */
@@ -94,13 +98,32 @@ export async function evaluateAuthorizationDecision(
   // Load authoritative user state (not from JWT)
   const userState = await repo.getUserState(tx, input.userId);
   if (!userState) {
-    return failClosed(decisionId, input, 'USER_DEACTIVATED');
+    const denied = failClosed(decisionId, input, 'USER_DEACTIVATED');
+    await repo.recordDecision(tx, denied, input.sessionId, 0, input.correlationId);
+    return denied;
   }
 
   // Load authoritative membership state (not from JWT)
   const membership = await repo.getMembershipState(tx, input.userId, input.tenantId);
   if (!membership) {
-    return failClosed(decisionId, input, 'MEMBERSHIP_INVALID');
+    const denied = failClosed(decisionId, input, 'MEMBERSHIP_INVALID');
+    await repo.recordDecision(tx, denied, input.sessionId, 0, input.correlationId);
+    return denied;
+  }
+
+  // Version enforcement: reject stale tokens where authorization changed since issuance
+  if (userState.authorizationVersion !== input.tokenUserAuthVersion) {
+    const denied = failClosed(decisionId, input, 'VERSION_STALE');
+    await repo.recordDecision(tx, denied, input.sessionId, membership.authorizationVersion, input.correlationId);
+    return denied;
+  }
+  if (
+    input.tokenMembershipAuthVersion !== undefined &&
+    membership.authorizationVersion !== input.tokenMembershipAuthVersion
+  ) {
+    const denied = failClosed(decisionId, input, 'VERSION_STALE');
+    await repo.recordDecision(tx, denied, input.sessionId, membership.authorizationVersion, input.correlationId);
+    return denied;
   }
 
   // Load current permissions from role assignments
