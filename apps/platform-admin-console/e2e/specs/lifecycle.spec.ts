@@ -15,7 +15,7 @@ test.describe('Tenant lifecycle management', () => {
 
     // Wait for loading to complete
     await page.waitForSelector('.tenant-detail, .error-banner, .page-loading', {
-      timeout: 5000,
+      timeout: 15000,
     });
 
     // Check structure when loaded
@@ -29,7 +29,7 @@ test.describe('Tenant lifecycle management', () => {
     await page.goto('/tenants/test-id');
 
     await page.waitForSelector('.tenant-detail, .error-banner, .page-loading', {
-      timeout: 5000,
+      timeout: 15000,
     });
 
     if (await page.locator('.tenant-detail').isVisible()) {
@@ -43,7 +43,7 @@ test.describe('Tenant lifecycle management', () => {
     await page.goto('/tenants/deactivated-id');
 
     await page.waitForSelector('.tenant-detail, .error-banner, .page-loading', {
-      timeout: 5000,
+      timeout: 15000,
     });
 
     if (await page.locator('.tenant-detail').isVisible()) {

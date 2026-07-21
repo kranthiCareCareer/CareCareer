@@ -53,9 +53,11 @@ test.beforeEach(async ({ page }) => {
 
 test.describe('Route accessibility @accessibility', () => {
   test('/ (persona selector) should pass Axe', async ({ page }) => {
-    // Go to unauthenticated state
-    await page.evaluate(() => sessionStorage.clear());
+    // This test needs unauthenticated state — don't use the beforeEach auth
     await page.goto('/');
+    // Clear any residual auth state and reload
+    await page.evaluate(() => sessionStorage.clear());
+    await page.reload();
     await page.waitForLoadState('networkidle');
     await checkAccessibility(page);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
