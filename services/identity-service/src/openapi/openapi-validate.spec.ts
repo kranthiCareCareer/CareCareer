@@ -46,6 +46,7 @@ describe('OpenAPI Validation', () => {
     { method: 'delete', path: '/v1/auth/sessions/{sessionId}' },
     { method: 'get', path: '/v1/auth/me' },
     { method: 'get', path: '/.well-known/jwks.json' },
+    { method: 'post', path: '/v1/authorization/decisions' },
   ];
 
   it('should have valid OpenAPI document', () => {

@@ -1051,3 +1051,115 @@ paths:
                           type: string
                         e:
                           type: string
+
+  /v1/authorization/decisions:
+    post:
+      summary: Evaluate an authorization decision
+      description: |
+        Evaluates whether the authenticated principal is authorized to perform
+        the specified action on a resource within their active tenant context.
+
+        The principal, tenant, roles, permissions and authorization versions are
+        derived exclusively from the validated session and server-side state.
+        The request body may contain only the action and resource identification.
+
+        Default behavior is DENY. Explicit denials override all grants.
+      operationId: evaluateAuthorizationDecision
+      tags: [Authorization]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action, resourceType]
+              additionalProperties: false
+              properties:
+                action:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                  description: The action identifier (e.g. facility.read, shift.create)
+                  example: tenant.members.read
+                resourceType:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  description: The resource type
+                  example: member
+                resourceId:
+                  type: string
+                  format: uuid
+                  description: Optional specific resource ID
+                  example: 019f8580-aaac-736b-bd0b-f822d257826d
+      responses:
+        '200':
+          description: Authorization decision result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [decisionId, allowed, reasonCode, evaluatedAt, policyVersion]
+                properties:
+                  decisionId:
+                    type: string
+                    format: uuid
+                  allowed:
+                    type: boolean
+                  reasonCode:
+                    type: string
+                    enum:
+                      - GRANTED
+                      - USER_SUSPENDED
+                      - USER_DEACTIVATED
+                      - MEMBERSHIP_INVALID
+                      - VERSION_STALE
+                      - EXPLICIT_DENY
+                      - NO_MATCHING_GRANT
+                  evaluatedAt:
+                    type: string
+                    format: date-time
+                  policyVersion:
+                    type: integer
+              examples:
+                allowed:
+                  value:
+                    decisionId: 019f8580-aaac-736b-bd0b-f822d257826d
+                    allowed: true
+                    reasonCode: GRANTED
+                    evaluatedAt: '2026-07-21T15:00:00.000Z'
+                    policyVersion: 1
+                denied:
+                  value:
+                    decisionId: 019f8580-aaac-736b-bd0b-fdab8bb88e89
+                    allowed: false
+                    reasonCode: EXPLICIT_DENY
+                    evaluatedAt: '2026-07-21T15:00:00.000Z'
+                    policyVersion: 1
+        '400':
+          description: Invalid request (malformed body, unknown properties)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                    example: INVALID_REQUEST
+                  message:
+                    type: string
+                  details:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        path:
+                          type: string
+                        message:
+                          type: string
+        '401':
+          description: Authentication required
+        '403':
+          description: No active tenant context
