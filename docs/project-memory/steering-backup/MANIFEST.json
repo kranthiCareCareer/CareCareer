@@ -1,0 +1,79 @@
+{
+  "generatedAt": "2026-07-21T23:08:07.215Z",
+  "sourceDir": ".kiro/steering/",
+  "backupDir": "docs/project-memory/steering-backup/",
+  "files": [
+    {
+      "source": ".kiro/steering/agent-roles.md",
+      "backup": "docs/project-memory/steering-backup/agent-roles.md",
+      "sha256": "95ad1ba1ca1d0f22a1bc96cacfdb48c8e6884cd28bfe17661de0de99cdbfa8e1",
+      "bytes": 4548
+    },
+    {
+      "source": ".kiro/steering/autonomous-execution.md",
+      "backup": "docs/project-memory/steering-backup/autonomous-execution.md",
+      "sha256": "e535cc3acbb53995d0246947392fb0a6ad732528abb827d8f10180056b89ac3a",
+      "bytes": 2174
+    },
+    {
+      "source": ".kiro/steering/coding-standards.md",
+      "backup": "docs/project-memory/steering-backup/coding-standards.md",
+      "sha256": "3cf309072a3cd6780222c5f4564eae35126857f9ebc945094cf0fbeac21ce2e9",
+      "bytes": 2574
+    },
+    {
+      "source": ".kiro/steering/commit-and-ci-standards.md",
+      "backup": "docs/project-memory/steering-backup/commit-and-ci-standards.md",
+      "sha256": "b9187f5980d73cae77593d7732e19e5f9605c5c27318441a755f56826a9bdfaa",
+      "bytes": 3717
+    },
+    {
+      "source": ".kiro/steering/development-workflow.md",
+      "backup": "docs/project-memory/steering-backup/development-workflow.md",
+      "sha256": "fa1ac103a5f12d4d39af96bbf559d52841f436fc234e3c179b1c67d4a7496bf0",
+      "bytes": 4475
+    },
+    {
+      "source": ".kiro/steering/documentation-standards.md",
+      "backup": "docs/project-memory/steering-backup/documentation-standards.md",
+      "sha256": "f24ebd8752f28902d70a13a1de725eecc11d3da60843c8101e35c306eff9a238",
+      "bytes": 3984
+    },
+    {
+      "source": ".kiro/steering/linting-and-formatting.md",
+      "backup": "docs/project-memory/steering-backup/linting-and-formatting.md",
+      "sha256": "1d1d1e00172a3fd57aa80ca5f98a62070c28a577c1527cde66df0bcac76ab44b",
+      "bytes": 4021
+    },
+    {
+      "source": ".kiro/steering/logging-and-observability.md",
+      "backup": "docs/project-memory/steering-backup/logging-and-observability.md",
+      "sha256": "bf5a8573caa36245449987ec6599363ac99a704fdd62778d60e44741ac813359",
+      "bytes": 4960
+    },
+    {
+      "source": ".kiro/steering/multi-tenancy-and-security.md",
+      "backup": "docs/project-memory/steering-backup/multi-tenancy-and-security.md",
+      "sha256": "93ab4c64df9e03668abb4f7dc691db689abc643baa35d84f7ae2b841d371f770",
+      "bytes": 4733
+    },
+    {
+      "source": ".kiro/steering/project-context.md",
+      "backup": "docs/project-memory/steering-backup/project-context.md",
+      "sha256": "2a16259c3e76538bc5b5c4b5105569d8460169ace68283e06656ad094ffafead",
+      "bytes": 2862
+    },
+    {
+      "source": ".kiro/steering/testing-standards.md",
+      "backup": "docs/project-memory/steering-backup/testing-standards.md",
+      "sha256": "6069bfedb6d8e6a46e2d31c137ebefaf83e4d0553982519a655ebad59fd1d5f3",
+      "bytes": 4133
+    },
+    {
+      "source": ".kiro/steering/tooling-guidance.md",
+      "backup": "docs/project-memory/steering-backup/tooling-guidance.md",
+      "sha256": "ebb019a75fb4c091a57c7e5cac4f1a914ef3f1f8f7a844d14aa761dcd3efc5b6",
+      "bytes": 1770
+    }
+  ]
+}

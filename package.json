@@ -45,6 +45,8 @@
     "test:e2e:release": "pnpm --filter @carecareer/platform-admin-console e2e:release",
     "test:e2e:standard": "node scripts/e2e-standard.mjs",
     "test:e2e:investor": "pnpm --filter @carecareer/platform-admin-console e2e -- --grep @investor-demo --project=chromium",
+    "project-memory:sync": "node scripts/project-memory/sync-steering-backup.mjs",
+    "project-memory:verify": "node scripts/project-memory/verify-steering-backup.mjs",
     "prepare": "husky"
   },
   "devDependencies": {
