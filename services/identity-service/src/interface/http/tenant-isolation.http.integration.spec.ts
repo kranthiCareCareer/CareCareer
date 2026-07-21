@@ -71,11 +71,13 @@ class TenantIsolationProbeController {
         database_user: string;
         tenant_id: string;
         is_admin: string | null;
+        backend_pid: number;
       }>`
         SELECT
           current_user AS database_user,
           current_setting('app.tenant_id', true) AS tenant_id,
-          current_setting('app.is_admin', true) AS is_admin`;
+          current_setting('app.is_admin', true) AS is_admin,
+          pg_backend_pid() AS backend_pid`;
 
       return { resources, context };
     });
@@ -86,8 +88,8 @@ class TenantIsolationProbeController {
 
 // ─── Pool-based PrismaLikeClient factory ──────────────────────────────────────
 
-function createPoolPrismaClient(connectionUri: string): PrismaLikeClient {
-  const innerPool = new Pool({ connectionString: connectionUri, max: 5 });
+function createPoolPrismaClient(connectionUri: string, maxConnections = 5): PrismaLikeClient {
+  const innerPool = new Pool({ connectionString: connectionUri, max: maxConnections });
   innerPool.on('error', () => {});
   return {
     async $transaction<T>(fn: (tx: TransactionClient) => Promise<T>): Promise<T> {
@@ -238,8 +240,8 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
       [tenantBId],
     );
 
-    // Create PrismaLikeClient for the app role (RLS-enforced)
-    appPrismaClient = createPoolPrismaClient(appUri);
+    // Create PrismaLikeClient for the app role (RLS-enforced, max=1 to force connection reuse)
+    appPrismaClient = createPoolPrismaClient(appUri, 1);
     // Create PrismaLikeClient for the superuser (admin operations, session validation)
     adminPrismaClient = createPoolPrismaClient(superUri);
 
@@ -434,70 +436,110 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
     });
   });
 
-  // ─── Sequential pool safety ─────────────────────────────────────────────────
+  // ─── Guaranteed connection reuse (pool max=1, pg_backend_pid verified) ──────
 
-  describe('Sequential pool requests do not leak app.tenant_id', () => {
-    it('should isolate tenant context between back-to-back requests', async () => {
+  describe('Guaranteed connection reuse does not leak app.tenant_id', () => {
+    it('should use the same backend PID and still isolate tenant context', async () => {
       const tokenA = await tokenForUser(userAId, sessionAId, tenantAId);
       const tokenB = await tokenForUser(userBId, sessionBId, tenantBId);
 
-      // Request 1: Tenant A context
+      // Request 1: Tenant A context — record backend PID
       const resA = await request(app.getHttpServer())
         .get(`/__test/tenants/${tenantAId}/resources`)
         .set('Authorization', `Bearer ${tokenA}`)
         .expect(HttpStatus.OK);
+      const pidA = resA.body.data.context[0].backend_pid;
       expect(resA.body.data.resources).toHaveLength(2);
       expect(resA.body.data.context[0].tenant_id).toBe(tenantAId);
 
-      // Request 2: Tenant B context (same pool connection may be reused)
+      // Request 2: Tenant B context — pool max=1 forces same connection
       const resB = await request(app.getHttpServer())
         .get(`/__test/tenants/${tenantBId}/resources`)
         .set('Authorization', `Bearer ${tokenB}`)
         .expect(HttpStatus.OK);
+      const pidB = resB.body.data.context[0].backend_pid;
       expect(resB.body.data.resources).toHaveLength(1);
       expect(resB.body.data.context[0].tenant_id).toBe(tenantBId);
 
-      // Request 3: Tenant A again — must not see Tenant B data
+      // Request 3: Tenant A again — same PID, must see only Tenant A
       const resA2 = await request(app.getHttpServer())
         .get(`/__test/tenants/${tenantAId}/resources`)
         .set('Authorization', `Bearer ${tokenA}`)
         .expect(HttpStatus.OK);
+      const pidA2 = resA2.body.data.context[0].backend_pid;
       expect(resA2.body.data.resources).toHaveLength(2);
       expect(resA2.body.data.resources.every(
         (r: { tenant_id: string }) => r.tenant_id === tenantAId,
       )).toBe(true);
+
+      // Prove same backend connection was reused (pool max=1)
+      expect(pidA).toBe(pidB);
+      expect(pidB).toBe(pidA2);
     });
   });
 
-  // ─── Rollback clears context ────────────────────────────────────────────────
+  // ─── Forced rollback clears context ──────────────────────────────────────────
 
   describe('Rollback clears transaction-local context', () => {
-    it('should not retain tenant context after switching between tenants', async () => {
-      const tokenA = await tokenForUser(userAId, sessionAId, tenantAId);
+    it('should clear app.tenant_id and app.is_admin after forced rollback on same connection', async () => {
+      // Step 1: Force an error inside TenantAwareTransaction to trigger rollback.
+      // We do this by calling the appPrismaClient directly (simulating what the
+      // probe controller does under the hood) with an intentional SQL error.
+      try {
+        await appPrismaClient.$transaction(async (tx) => {
+          await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantAId}::text, true)`;
+          // Verify tenant context is set
+          const ctx = await tx.$queryRaw<{ tid: string }>`
+            SELECT current_setting('app.tenant_id', true) AS tid`;
+          expect(ctx[0]!.tid).toBe(tenantAId);
+          // Force an error — this triggers ROLLBACK
+          throw new Error('FORCED_ROLLBACK_FOR_TEST');
+        });
+      } catch (e: unknown) {
+        expect((e as Error).message).toBe('FORCED_ROLLBACK_FOR_TEST');
+      }
 
-      // First, a normal successful request for tenant A
-      const res1 = await request(app.getHttpServer())
+      // Step 2: The same connection (pool max=1) is now back in the pool.
+      // Execute another transaction and verify context is cleared.
+      const result = await appPrismaClient.$transaction(async (tx) => {
+        return tx.$queryRaw<{
+          tenant_id: string | null;
+          is_admin: string | null;
+          backend_pid: number;
+        }>`
+          SELECT
+            current_setting('app.tenant_id', true) AS tenant_id,
+            current_setting('app.is_admin', true) AS is_admin,
+            pg_backend_pid() AS backend_pid`;
+      });
+
+      // app.tenant_id must be cleared (null or empty string)
+      expect(result[0]!.tenant_id === null || result[0]!.tenant_id === '').toBe(true);
+      expect(result[0]!.is_admin === null || result[0]!.is_admin === '').toBe(true);
+    });
+
+    it('should serve correct tenant data on HTTP request after prior rollback', async () => {
+      // Force a rollback on the app pool
+      try {
+        await appPrismaClient.$transaction(async (tx) => {
+          await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantBId}::text, true)`;
+          throw new Error('FORCED_ROLLBACK_FOR_TEST');
+        });
+      } catch { /* expected */ }
+
+      // Now an HTTP request as Tenant A must see only Tenant A data
+      const token = await tokenForUser(userAId, sessionAId, tenantAId);
+      const res = await request(app.getHttpServer())
         .get(`/__test/tenants/${tenantAId}/resources`)
-        .set('Authorization', `Bearer ${tokenA}`)
+        .set('Authorization', `Bearer ${token}`)
         .expect(HttpStatus.OK);
-      expect(res1.body.data.resources).toHaveLength(2);
 
-      // Now request with tenant B context — proves SET LOCAL was cleared
-      const tokenB = await tokenForUser(userBId, sessionBId, tenantBId);
-      const res2 = await request(app.getHttpServer())
-        .get(`/__test/tenants/${tenantBId}/resources`)
-        .set('Authorization', `Bearer ${tokenB}`)
-        .expect(HttpStatus.OK);
-      expect(res2.body.data.resources).toHaveLength(1);
-      expect(res2.body.data.context[0].tenant_id).toBe(tenantBId);
-
-      // Back to tenant A — must work correctly (no residual tenantB context)
-      const res3 = await request(app.getHttpServer())
-        .get(`/__test/tenants/${tenantAId}/resources`)
-        .set('Authorization', `Bearer ${tokenA}`)
-        .expect(HttpStatus.OK);
-      expect(res3.body.data.resources).toHaveLength(2);
-      expect(res3.body.data.context[0].tenant_id).toBe(tenantAId);
+      expect(res.body.data.resources).toHaveLength(2);
+      expect(res.body.data.context[0].tenant_id).toBe(tenantAId);
+      // No residual tenantB context
+      expect(res.body.data.resources.every(
+        (r: { tenant_id: string }) => r.tenant_id === tenantAId,
+      )).toBe(true);
     });
   });
 
@@ -546,6 +588,58 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
       expect(res.body.data.resources).toHaveLength(2);
       expect(res.body.data.context[0].database_user).toBe('carecareer_app');
       expect(res.body.data.context[0].is_admin).toBeNull();
+    });
+
+    it('should not allow request body tenant_id to override authorized tenant', async () => {
+      const token = await tokenForUser(userAId, sessionAId, tenantAId);
+      // POST with body containing a different tenant_id
+      const res = await request(app.getHttpServer())
+        .get(`/__test/tenants/${tenantAId}/resources`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ tenant_id: tenantBId, tenantId: tenantBId })
+        .expect(HttpStatus.OK);
+
+      // Must still see only Tenant A data (body is ignored for context derivation)
+      expect(res.body.data.resources).toHaveLength(2);
+      expect(res.body.data.context[0].tenant_id).toBe(tenantAId);
+    });
+
+    it('should not allow malicious JWT claim app.is_admin=true to activate admin context', async () => {
+      // Craft a valid RS256 JWT with extra malicious claims injected into the payload.
+      // We import jose directly to build a custom token with arbitrary claims.
+      const { importPKCS8, SignJWT } = await import('jose');
+      const pk = await importPKCS8(privateKeyPem, 'RS256');
+      const maliciousToken = await new SignJWT({
+        active_tenant_id: tenantAId,
+        user_authorization_version: 1,
+        platform_roles: ['PLATFORM_ADMIN'],
+        tenant_roles: [],
+        permissions: [],
+        sid: sessionAId,
+        // Malicious claims attempting admin bypass
+        'app.is_admin': 'true',
+        is_admin: true,
+        admin: true,
+      })
+        .setProtectedHeader({ alg: 'RS256', kid: keyId })
+        .setIssuedAt()
+        .setExpirationTime('900s')
+        .setIssuer('carecareer-identity')
+        .setAudience('carecareer-api')
+        .setSubject(userAId)
+        .setJti(crypto.randomUUID())
+        .sign(pk);
+
+      const res = await request(app.getHttpServer())
+        .get(`/__test/tenants/${tenantAId}/resources`)
+        .set('Authorization', `Bearer ${maliciousToken}`)
+        .expect(HttpStatus.OK);
+
+      // Database context proves is_admin was never activated
+      expect(res.body.data.context[0].is_admin).toBeNull();
+      // Still limited to tenant A resources only
+      expect(res.body.data.resources).toHaveLength(2);
+      expect(res.body.data.context[0].database_user).toBe('carecareer_app');
     });
   });
 
