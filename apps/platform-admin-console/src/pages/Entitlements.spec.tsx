@@ -157,8 +157,8 @@ describe('Entitlements', () => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
       expect(screen.getByText('Network error')).toBeInTheDocument();
     });
-    // Loading indicator also visible since entitlements is still null
-    expect(screen.getByText('Loading entitlements...')).toBeInTheDocument();
+    // Loading indicator should NOT be visible after error settles
+    expect(screen.queryByText('Loading entitlements...')).not.toBeInTheDocument();
     // No stack traces or SQL exposed
     expect(screen.queryByText(/SQLSTATE/)).not.toBeInTheDocument();
     expect(screen.queryByText(/node_modules/)).not.toBeInTheDocument();

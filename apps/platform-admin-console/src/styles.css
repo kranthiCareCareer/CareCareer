@@ -125,12 +125,15 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .dashboard__persona {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .dashboard__stats {
@@ -204,6 +207,8 @@ body {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 }
 
 .page-header__left h1 {
@@ -338,6 +343,7 @@ body {
   gap: 0.75rem;
   align-items: center;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
 }
 
 .tenant-list__toolbar .input {

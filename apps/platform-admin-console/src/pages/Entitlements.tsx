@@ -19,6 +19,7 @@ const MODULE_LABELS: Record<string, string> = {
 export function Entitlements() {
   const { tenantId } = useParams<{ tenantId: string }>();
   const [entitlements, setEntitlements] = useState<EntitlementSet | null>(null);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,11 +28,15 @@ export function Entitlements() {
   }, [tenantId]);
 
   async function loadEntitlements() {
+    setLoading(true);
+    setError(null);
     try {
       const e = await apiClient.getEntitlements(tenantId!);
       setEntitlements(e);
     } catch (err: unknown) {
       setError((err as { message?: string }).message ?? 'Failed to load');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -77,9 +82,11 @@ export function Entitlements() {
         capabilities for this tenant.
       </p>
 
-      {!entitlements ? (
+      {loading && !entitlements && (
         <div className="page-loading">Loading entitlements...</div>
-      ) : (
+      )}
+
+      {entitlements && (
         <>
           <div className="entitlements-grid">
             {Object.entries(entitlements.modules).map(([key, enabled]) => (
