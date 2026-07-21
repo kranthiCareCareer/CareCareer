@@ -505,4 +505,163 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
       expect(res.body.allowed).toBe(true);
     });
   });
+
+  // ─── Table ownership and RLS enforcement ────────────────────────────────────
+
+  describe('Table ownership enforcement', () => {
+    it('should confirm carecareer_app is not owner of explicit_denials', async () => {
+      const r = await rawClient.query(
+        `SELECT tableowner FROM pg_tables WHERE schemaname='identity' AND tablename='explicit_denials'`);
+      expect(r.rows[0]?.tableowner).not.toBe('carecareer_app');
+    });
+
+    it('should confirm carecareer_app is not owner of authorization_decisions', async () => {
+      const r = await rawClient.query(
+        `SELECT tableowner FROM pg_tables WHERE schemaname='identity' AND tablename='authorization_decisions'`);
+      expect(r.rows[0]?.tableowner).not.toBe('carecareer_app');
+    });
+  });
+
+  // ─── Pool reuse and rollback context ────────────────────────────────────────
+
+  describe('Connection pool and rollback context hygiene', () => {
+    it('should isolate tenant context across sequential authorization evaluations', async () => {
+      // Tenant A evaluation
+      const tokenA = await issueToken();
+      const resA = await request(app.getHttpServer())
+        .post('/v1/authorization/decisions')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ action: 'tenant.members.read', resourceType: 'member' })
+        .expect(HttpStatus.OK);
+      expect(resA.body.allowed).toBe(true);
+
+      // Tenant B evaluation (different user)
+      const sessionBId = '00000000-0000-0000-0000-000000000b10';
+      await rawClient.query(
+        `INSERT INTO identity.auth_sessions (id, user_id, status, refresh_token_hash, token_family, selected_tenant_id, membership_id, user_authorization_version, last_used_at, expires_at, created_at)
+         VALUES ($1, $2, 'ACTIVE', 'hash_b', gen_random_uuid(), $3, $4, 1, NOW(), NOW() + INTERVAL '7 days', NOW())
+         ON CONFLICT DO NOTHING`,
+        [sessionBId, userBId, tenantBId, membershipBId]);
+      // Assign TENANT_ADMIN to user B's membership
+      await rawClient.query(
+        `INSERT INTO identity.membership_roles (membership_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [membershipBId, roleAdminId]);
+
+      const tokenB = await signPlatformJwt({
+        sub: userBId, user_authorization_version: 1,
+        platform_roles: [], tenant_roles: ['TENANT_ADMIN'], permissions: [],
+        sid: sessionBId, active_tenant_id: tenantBId,
+      }, privateKeyPem, keyId);
+      const resB = await request(app.getHttpServer())
+        .post('/v1/authorization/decisions')
+        .set('Authorization', `Bearer ${tokenB}`)
+        .send({ action: 'tenant.members.read', resourceType: 'member' })
+        .expect(HttpStatus.OK);
+      expect(resB.body.allowed).toBe(true);
+
+      // Tenant A again — must still work correctly
+      const resA2 = await request(app.getHttpServer())
+        .post('/v1/authorization/decisions')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .send({ action: 'tenant.members.read', resourceType: 'member' })
+        .expect(HttpStatus.OK);
+      expect(resA2.body.allowed).toBe(true);
+    });
+  });
+
+  // ─── Deactivated membership ────────────────────────────────────────────────
+
+  describe('Deactivated membership', () => {
+    it('should deny when membership is deactivated', async () => {
+      await rawClient.query(`UPDATE identity.tenant_memberships SET status = 'DEACTIVATED' WHERE id = $1`, [membershipAId]);
+      const token = await issueToken();
+      const res = await request(app.getHttpServer())
+        .post('/v1/authorization/decisions')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ action: 'tenant.members.read', resourceType: 'member' })
+        .expect(HttpStatus.OK);
+      expect(res.body.allowed).toBe(false);
+      expect(res.body.reasonCode).toBe('MEMBERSHIP_INVALID');
+      await rawClient.query(`UPDATE identity.tenant_memberships SET status = 'ACTIVE' WHERE id = $1`, [membershipAId]);
+    });
+  });
+
+  // ─── Stale membership authorization version ────────────────────────────────
+
+  describe('Stale membership authorization version', () => {
+    it('should deny when membership authorization version is stale', async () => {
+      await rawClient.query(`UPDATE identity.tenant_memberships SET authorization_version = 2 WHERE id = $1`, [membershipAId]);
+      // Token has membership_authorization_version = 1 (default from issueToken not setting it)
+      const token = await signPlatformJwt({
+        sub: userAId, user_authorization_version: 1,
+        platform_roles: [], tenant_roles: ['TENANT_ADMIN'], permissions: [],
+        sid: sessionAId, active_tenant_id: tenantAId,
+        membership_authorization_version: 1,
+      }, privateKeyPem, keyId);
+      const res = await request(app.getHttpServer())
+        .post('/v1/authorization/decisions')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ action: 'tenant.members.read', resourceType: 'member' })
+        .expect(HttpStatus.OK);
+      expect(res.body.allowed).toBe(false);
+      expect(res.body.reasonCode).toBe('VERSION_STALE');
+      await rawClient.query(`UPDATE identity.tenant_memberships SET authorization_version = 1 WHERE id = $1`, [membershipAId]);
+    });
+  });
+
+  // ─── Role removal after token issuance ─────────────────────────────────────
+
+  describe('Role and permission removal after token issuance', () => {
+    it('should deny after role is removed even with valid token', async () => {
+      // Remove the TENANT_ADMIN role from membership
+      await rawClient.query(`DELETE FROM identity.membership_roles WHERE membership_id = $1`, [membershipAId]);
+      // Increment authorization version to reflect the change
+      await rawClient.query(`UPDATE identity.users SET authorization_version = 2 WHERE id = $1`, [userAId]);
+
+      const token = await issueToken({ user_authorization_version: 1 });
+      const res = await request(app.getHttpServer())
+        .post('/v1/authorization/decisions')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ action: 'tenant.members.read', resourceType: 'member' })
+        .expect(HttpStatus.OK);
+      expect(res.body.allowed).toBe(false);
+      // Denied because version is stale (role change bumped version)
+      expect(res.body.reasonCode).toBe('VERSION_STALE');
+
+      // Restore
+      await rawClient.query(`INSERT INTO identity.membership_roles (membership_id, role_id) VALUES ($1, $2)`, [membershipAId, roleAdminId]);
+      await rawClient.query(`UPDATE identity.users SET authorization_version = 1 WHERE id = $1`, [userAId]);
+    });
+  });
+
+  // ─── Validation ───────────────────────────────────────────────────────────
+
+  describe('Request validation', () => {
+    it('should reject empty action', async () => {
+      const token = await issueToken();
+      await request(app.getHttpServer())
+        .post('/v1/authorization/decisions')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ action: '', resourceType: 'member' })
+        .expect(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should reject missing resourceType', async () => {
+      const token = await issueToken();
+      await request(app.getHttpServer())
+        .post('/v1/authorization/decisions')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ action: 'tenant.members.read' })
+        .expect(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should reject malformed resourceId', async () => {
+      const token = await issueToken();
+      await request(app.getHttpServer())
+        .post('/v1/authorization/decisions')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ action: 'tenant.members.read', resourceType: 'member', resourceId: 'not-a-uuid' })
+        .expect(HttpStatus.BAD_REQUEST);
+    });
+  });
 });
