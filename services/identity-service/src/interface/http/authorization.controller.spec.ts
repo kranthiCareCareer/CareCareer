@@ -37,7 +37,7 @@ describe('AuthorizationController', () => {
     await expect(
       controller.evaluate(
         { action: 'facility.read', resourceType: 'facility' },
-        { principal: undefined },
+        { principal: undefined as never },
         'corr-1',
       ),
     ).rejects.toThrow(ForbiddenException);
