@@ -1,6 +1,7 @@
 import type { TransactionClient } from '@carecareer/database';
 
 import type { StaffingRepository } from '../application/ports/staffing-repository.js';
+import type { CredentialRequirement } from '../domain/credential-requirement.js';
 import type { Department } from '../domain/department.js';
 import type { Facility } from '../domain/facility.js';
 
@@ -75,6 +76,62 @@ export class PostgresStaffingRepository implements StaffingRepository {
       SELECT * FROM staffing.departments WHERE facility_id = ${facilityId}::uuid ORDER BY name`;
     return rows.map(mapDepartment);
   }
+
+  async createCredentialRequirement(
+    tx: TransactionClient,
+    r: CredentialRequirement,
+  ): Promise<void> {
+    await tx.$executeRaw`
+      INSERT INTO staffing.credential_requirements (
+        id, tenant_id, facility_id, department_id, role, credential_type,
+        required, effective_from, created_at, updated_at
+      ) VALUES (
+        ${r.id}::uuid, ${r.tenantId}::uuid, ${r.facilityId}::uuid,
+        ${r.departmentId ?? null}::uuid, ${r.role}, ${r.credentialType},
+        ${r.required}, ${r.effectiveFrom.toISOString()}::timestamptz,
+        ${r.createdAt.toISOString()}::timestamptz, ${r.updatedAt.toISOString()}::timestamptz
+      )`;
+  }
+
+  async listCredentialRequirements(
+    tx: TransactionClient,
+    facilityId: string,
+    filters?: { role?: string | undefined; departmentId?: string | undefined },
+  ): Promise<CredentialRequirement[]> {
+    let rows: CredentialRequirementRow[];
+
+    if (filters?.role && filters.departmentId) {
+      rows = await tx.$queryRaw<CredentialRequirementRow>`
+        SELECT * FROM staffing.credential_requirements
+        WHERE facility_id = ${facilityId}::uuid
+          AND role = ${filters.role}
+          AND (department_id = ${filters.departmentId}::uuid OR department_id IS NULL)
+          AND effective_from <= NOW()
+        ORDER BY credential_type`;
+    } else if (filters?.role) {
+      rows = await tx.$queryRaw<CredentialRequirementRow>`
+        SELECT * FROM staffing.credential_requirements
+        WHERE facility_id = ${facilityId}::uuid
+          AND role = ${filters.role}
+          AND effective_from <= NOW()
+        ORDER BY credential_type`;
+    } else if (filters?.departmentId) {
+      rows = await tx.$queryRaw<CredentialRequirementRow>`
+        SELECT * FROM staffing.credential_requirements
+        WHERE facility_id = ${facilityId}::uuid
+          AND (department_id = ${filters.departmentId}::uuid OR department_id IS NULL)
+          AND effective_from <= NOW()
+        ORDER BY credential_type`;
+    } else {
+      rows = await tx.$queryRaw<CredentialRequirementRow>`
+        SELECT * FROM staffing.credential_requirements
+        WHERE facility_id = ${facilityId}::uuid
+          AND effective_from <= NOW()
+        ORDER BY credential_type`;
+    }
+
+    return rows.map(mapCredentialRequirement);
+  }
 }
 
 interface FacilityRow {
@@ -110,5 +167,26 @@ function mapDepartment(r: DepartmentRow): Department {
     id: r.id, tenantId: r.tenant_id, facilityId: r.facility_id, name: r.name,
     status: r.status as Department['status'],
     createdAt: new Date(r.created_at), updatedAt: new Date(r.updated_at), version: r.version,
+  };
+}
+
+interface CredentialRequirementRow {
+  id: string; tenant_id: string; facility_id: string; department_id: string | null;
+  role: string; credential_type: string; required: boolean;
+  effective_from: string; created_at: string; updated_at: string;
+}
+
+function mapCredentialRequirement(r: CredentialRequirementRow): CredentialRequirement {
+  return {
+    id: r.id,
+    tenantId: r.tenant_id,
+    facilityId: r.facility_id,
+    departmentId: r.department_id ?? undefined,
+    role: r.role as CredentialRequirement['role'],
+    credentialType: r.credential_type,
+    required: r.required,
+    effectiveFrom: new Date(r.effective_from),
+    createdAt: new Date(r.created_at),
+    updatedAt: new Date(r.updated_at),
   };
 }

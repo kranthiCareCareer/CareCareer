@@ -10,6 +10,7 @@ import {
   NotFoundException,
   Param,
   Post,
+  Query,
   Req,
 } from '@nestjs/common';
 import { z } from 'zod';
@@ -17,6 +18,11 @@ import { z } from 'zod';
 import type { TenantAwareTransaction, TransactionClient } from '@carecareer/database';
 
 import type { StaffingRepository } from '../../application/ports/staffing-repository.js';
+import {
+  createCredentialRequirement,
+  VALID_WORKER_ROLES,
+  type CredentialRequirement,
+} from '../../domain/credential-requirement.js';
 import { createDepartment, type Department } from '../../domain/department.js';
 import { createFacility, type Facility } from '../../domain/facility.js';
 
@@ -42,6 +48,14 @@ const CreateFacilitySchema = z.object({
 
 const CreateDepartmentSchema = z.object({
   name: z.string().min(1).max(200),
+}).strict();
+
+const CreateCredentialRequirementSchema = z.object({
+  departmentId: z.string().uuid().optional(),
+  role: z.enum(['RN', 'LPN', 'CNA', 'RT', 'ALLIED']),
+  credentialType: z.string().min(1).max(100),
+  required: z.boolean().optional(),
+  effectiveFrom: z.string().datetime().optional(),
 }).strict();
 
 /**
@@ -193,6 +207,88 @@ export class FacilityController {
       return this.repo.listDepartmentsByFacility(tx, facilityId);
     });
     return { data: departments };
+  }
+
+  @Post('v1/facilities/:facilityId/credential-requirements')
+  @HttpCode(HttpStatus.CREATED)
+  async createCredentialRequirement(
+    @Param('facilityId') facilityId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+    @Headers('x-correlation-id') correlationId?: string,
+  ): Promise<{ data: { requirementId: string } }> {
+    const tenantId = this.requireTenant(req);
+    const actorId = req.principal?.subject ?? 'unknown';
+    const corrId = correlationId ?? crypto.randomUUID();
+
+    const parsed = CreateCredentialRequirementSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        code: 'INVALID_REQUEST',
+        message: 'Invalid credential requirement request',
+        details: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      });
+    }
+
+    const requirement = createCredentialRequirement({
+      tenantId,
+      facilityId,
+      departmentId: parsed.data.departmentId,
+      role: parsed.data.role,
+      credentialType: parsed.data.credentialType,
+      required: parsed.data.required,
+      effectiveFrom: parsed.data.effectiveFrom
+        ? new Date(parsed.data.effectiveFrom)
+        : undefined,
+    });
+
+    await this.tenantDb.execute(tenantId, async (tx) => {
+      const facility = await this.repo.getFacilityById(tx, facilityId);
+      if (!facility) {
+        throw new NotFoundException({ code: 'NOT_FOUND', message: 'Facility not found' });
+      }
+      await this.repo.createCredentialRequirement(tx, requirement);
+      await this.emitAudit(tx, {
+        tenantId,
+        actorId,
+        action: 'credential_requirement.created',
+        aggregateType: 'credential_requirement',
+        aggregateId: requirement.id,
+        afterSummary: {
+          facilityId,
+          role: requirement.role,
+          credentialType: requirement.credentialType,
+          required: requirement.required,
+          effectiveFrom: requirement.effectiveFrom.toISOString(),
+        },
+        correlationId: corrId,
+      });
+    });
+
+    return { data: { requirementId: requirement.id } };
+  }
+
+  @Get('v1/facilities/:facilityId/credential-requirements')
+  async listCredentialRequirements(
+    @Param('facilityId') facilityId: string,
+    @Req() req: AuthenticatedRequest,
+    @Query('role') role?: string,
+    @Query('departmentId') departmentId?: string,
+  ): Promise<{ data: CredentialRequirement[] }> {
+    const tenantId = this.requireTenant(req);
+
+    // Validate role filter if provided
+    if (role && !VALID_WORKER_ROLES.includes(role as never)) {
+      throw new BadRequestException({
+        code: 'INVALID_REQUEST',
+        message: `Invalid role filter. Valid values: ${VALID_WORKER_ROLES.join(', ')}`,
+      });
+    }
+
+    const requirements = await this.tenantDb.execute(tenantId, async (tx) => {
+      return this.repo.listCredentialRequirements(tx, facilityId, { role, departmentId });
+    });
+    return { data: requirements };
   }
 
   private requireTenant(req: AuthenticatedRequest): string {

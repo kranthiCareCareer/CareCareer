@@ -600,4 +600,175 @@ describe('Facility HTTP Integration (GP-05)', () => {
       expect(res.status).toBe(HttpStatus.BAD_REQUEST);
     });
   });
+
+  describe('POST /v1/facilities/:facilityId/credential-requirements', () => {
+    it('should create a credential requirement for a facility', async () => {
+      const token = await signTestJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'Cred Req Facility', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/credential-requirements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ role: 'RN', credentialType: 'RN_LICENSE' });
+
+      expect(res.status).toBe(HttpStatus.CREATED);
+      expect(res.body.data.requirementId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+      );
+    });
+
+    it('should reject invalid worker role', async () => {
+      const token = await signTestJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'Invalid Role Fac', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/credential-requirements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ role: 'INVALID_ROLE', credentialType: 'BLS' });
+
+      expect(res.status).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should reject empty credential type', async () => {
+      const token = await signTestJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'Empty Cred Fac', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/credential-requirements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ role: 'RN', credentialType: '' });
+
+      expect(res.status).toBe(HttpStatus.BAD_REQUEST);
+    });
+  });
+
+  describe('GET /v1/facilities/:facilityId/credential-requirements', () => {
+    it('should list credential requirements queryable by role', async () => {
+      const token = await signTestJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'Query Cred Fac', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      // Add requirements for different roles
+      await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/credential-requirements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ role: 'RN', credentialType: 'RN_LICENSE' });
+      await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/credential-requirements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ role: 'RN', credentialType: 'BLS' });
+      await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/credential-requirements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ role: 'CNA', credentialType: 'CNA_CERT' });
+
+      // Query by role=RN
+      const res = await request(app.getHttpServer())
+        .get(`/v1/facilities/${facilityId}/credential-requirements?role=RN`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(HttpStatus.OK);
+      expect(res.body.data).toHaveLength(2);
+      const types = res.body.data.map((r: { credentialType: string }) => r.credentialType);
+      expect(types).toContain('RN_LICENSE');
+      expect(types).toContain('BLS');
+      expect(types).not.toContain('CNA_CERT');
+    });
+
+    it('should list all requirements when no filter', async () => {
+      const token = await signTestJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'All Cred Fac', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/credential-requirements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ role: 'LPN', credentialType: 'LPN_LICENSE' });
+      await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/credential-requirements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ role: 'RT', credentialType: 'RT_LICENSE' });
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/facilities/${facilityId}/credential-requirements`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(HttpStatus.OK);
+      expect(res.body.data).toHaveLength(2);
+    });
+
+    it('should reject invalid role filter', async () => {
+      const token = await signTestJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'Bad Filter Fac', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/facilities/${facilityId}/credential-requirements?role=FAKE`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should filter by department when department-scoped', async () => {
+      const token = await signTestJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'Dept Cred Fac', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      // Create department
+      const deptRes = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/departments`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'ICU' });
+      const deptId = deptRes.body.data.departmentId;
+
+      // Facility-wide requirement
+      await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/credential-requirements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ role: 'RN', credentialType: 'BLS' });
+
+      // Department-specific requirement
+      await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/credential-requirements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ role: 'RN', credentialType: 'ACLS', departmentId: deptId });
+
+      // Query by department — should include both facility-wide and department-specific
+      const res = await request(app.getHttpServer())
+        .get(
+          `/v1/facilities/${facilityId}/credential-requirements?role=RN&departmentId=${deptId}`,
+        )
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(HttpStatus.OK);
+      expect(res.body.data).toHaveLength(2);
+      const types = res.body.data.map((r: { credentialType: string }) => r.credentialType);
+      expect(types).toContain('BLS');
+      expect(types).toContain('ACLS');
+    });
+  });
 });
