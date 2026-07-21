@@ -1,17 +1,39 @@
 # Autonomous Execution State
 
-## Last Updated: 2026-07-21T19:30:00Z
+## Last Updated: 2026-07-21T19:45:00Z
 
 ## Repository State
 
 | Field | Value |
 |-------|-------|
-| Branch | master |
-| HEAD | 3f77b0b |
+| Branch | agent/gp-05-completion |
+| HEAD | 813039f |
 | Working tree | clean |
 | Current milestone | GP-05 (Facilities and Departments) |
-| Current objective | GP-05 acceptance gate — remaining: auth boundary docs |
+| Current objective | Fix authentication boundary — replace decode-only JWT test path |
 | Authoritative source | docs/decisions/golden-path-backlog.md |
+
+## GP-05 Status: IN PROGRESS
+
+### Evidence Missing (from prior closure attempt)
+
+| Item | Status |
+|------|--------|
+| RS256 token validation in integration tests | NOT PROVEN — test middleware only decodes, no signature verification |
+| Real IdentityAuthGuard in staffing-service | NOT WIRED — controller trusts raw decoded claims |
+| Authorization model (permissions beyond RLS) | NOT PROVEN — RLS only proves tenant isolation |
+| Application commands (business logic extraction) | NOT IMPLEMENTED — mutation logic in controller |
+| Department lifecycle (activate/deactivate) | NOT IMPLEMENTED |
+| Facility update/status change API | NOT IMPLEMENTED |
+| Geofence version increment behavior | NOT TESTED beyond initial creation |
+| OpenAPI validation | NOT RUN |
+| Security coverage thresholds | NOT RUN for staffing-service |
+| Admin UI routes | NOT IMPLEMENTED |
+| Playwright workflows | NOT IMPLEMENTED |
+| Accessibility testing | NOT IMPLEMENTED |
+| Docker verification | NOT RUN |
+| Three consecutive final integration runs | NOT RUN with final suite |
+| GP-05 demo scenario | NOT IMPLEMENTED |
 
 ## Completed Milestones
 
@@ -28,69 +50,27 @@
 | Investor Platform Demo | e74d76a | COMPLETE |
 | Standard Chromium (64/64) | c113b5a | COMPLETE |
 
-## Milestones In Progress
-
-| Milestone | Status | Blocker |
-|-----------|--------|---------|
-| GP-05 Facilities | NEAR COMPLETE | Closure doc needed |
-
-## GP-05 Acceptance Criteria
-
-- [x] Facility timezone is mandatory (reject if missing)
-- [x] Geofence config is stored with version (changes audited)
-- [x] Requirement changes affect future evaluations only (effective_from)
-- [x] Client users see only their authorized facilities (RLS proven)
-- [x] Facility creation emits versioned event (outbox)
-- [x] Credential requirements queryable by role + department
-
 ## Milestones Not Started
 
-- GP-03.5 Break-glass (deferred, not blocking GP-05)
-- GP-03.6 Invitations (deferred, not blocking GP-05)
-- GP-04 Admin Portal (partial — UI exists, formal acceptance not run)
+- GP-03.5 Break-glass (deferred)
+- GP-03.6 Invitations (deferred)
 - GP-06 Workers
-- GP-07 Credentials
-- GP-08 Shifts
-- GP-09 Marketplace
-- GP-10 Assignments
-- GP-11 Timecards
-- GP-12 Payroll
-- GP-13 Billing
-- GP-14 Mobile
-- GP-15 Production Deployment
-
-## Latest Gate Results (staffing-service)
-
-- Lint: 0 errors, 0 warnings
-- Typecheck: pass
-- Unit tests: 21 (facility: 6, department: 4, credential-requirement: 10, module: 1)
-- Integration tests: 34 (24 HTTP + 10 RLS schema)
-- Determinism: 34/34 × 2 consecutive runs
-
-## Known Issues
-
-- Mobile Safari: 1 non-blocking timing failure (tracked)
-- demo:up: transient PostgreSQL startup timing (passes on retry)
-
-## External Blockers
-
-None.
+- GP-07–GP-15
 
 ## Next Exact Task
 
-Write GP-05 closure document. Run full monorepo build.
-Push final GP-05 commit to GitHub.
+Replace decode-only JWT test middleware with real RS256 signature validation
+using PlatformTokenValidator + IdentityAuthGuard from @carecareer/auth.
 
 ## Next Command
 
 ```bash
-pnpm build
-pnpm lint
-pnpm typecheck
+pnpm --filter @carecareer/staffing-service typecheck
+pnpm --filter @carecareer/staffing-service test:integration
 ```
 
 ## Expected Next Commit
 
 ```
-docs(execution): add GP-05 closure document
+fix(staffing): enforce validated RS256 identity boundary
 ```
