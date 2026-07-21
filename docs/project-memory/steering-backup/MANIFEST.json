@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-21T23:08:07.215Z",
+  "generatedAt": "2026-07-21T23:29:28.617Z",
   "sourceDir": ".kiro/steering/",
   "backupDir": "docs/project-memory/steering-backup/",
   "files": [
@@ -60,8 +60,8 @@
     {
       "source": ".kiro/steering/project-context.md",
       "backup": "docs/project-memory/steering-backup/project-context.md",
-      "sha256": "2a16259c3e76538bc5b5c4b5105569d8460169ace68283e06656ad094ffafead",
-      "bytes": 2862
+      "sha256": "0afc17f3a74a7a172e0fafc1d2ca6af341f90b8f5e9dae94beb916a0c367e7e9",
+      "bytes": 2890
     },
     {
       "source": ".kiro/steering/testing-standards.md",
