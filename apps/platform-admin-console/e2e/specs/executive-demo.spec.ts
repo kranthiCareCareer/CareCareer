@@ -96,8 +96,8 @@ test.describe('Executive demo', () => {
 
     // === Step 7: Demonstrate tenant isolation ===
     // Switch to MAS Tenant Admin — go to root first to ensure clean state
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.waitForLoadState('domcontentloaded');
     await page
       .getByRole('button', { name: 'Switch Persona' })
       .click();
@@ -118,8 +118,8 @@ test.describe('Executive demo', () => {
     });
 
     // === Step 8: Switch back and show suspended state ===
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.waitForLoadState('domcontentloaded');
     await page
       .getByRole('button', { name: 'Switch Persona' })
       .click();

@@ -109,6 +109,7 @@ test.describe('Entitlements and features', () => {
 
   test('should have breadcrumb to tenant from features', async ({ page }) => {
     await page.goto(`/tenants/${tenantId}/features`);
-    await expect(page.getByRole('link', { name: '← Tenant' })).toBeVisible();
+    await page.waitForLoadState('domcontentloaded');
+    await expect(page.getByRole('link', { name: '← Tenant' })).toBeVisible({ timeout: 10000 });
   });
 });

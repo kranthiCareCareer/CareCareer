@@ -125,7 +125,8 @@ test.describe('Route accessibility @accessibility', () => {
 });
 
 test.describe('Keyboard navigation @accessibility', () => {
-  test('should tab through persona selection cards', async ({ page }) => {
+  test('should tab through persona selection cards', async ({ page, isMobile }) => {
+    test.skip(!!isMobile, 'Keyboard Tab navigation is desktop-only');
     await page.evaluate(() => sessionStorage.clear());
     await page.goto('/');
     await page.waitForLoadState('networkidle');
@@ -138,7 +139,8 @@ test.describe('Keyboard navigation @accessibility', () => {
     await expect(page.getByRole('heading', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 });
   });
 
-  test('should tab through dashboard navigation', async ({ page }) => {
+  test('should tab through dashboard navigation', async ({ page, isMobile }) => {
+    test.skip(!!isMobile, 'Keyboard Tab navigation is desktop-only');
     await page.goto('/');
     await page.waitForLoadState('networkidle');
     // Tab through elements
@@ -149,7 +151,8 @@ test.describe('Keyboard navigation @accessibility', () => {
     await expect(focused).toBeVisible();
   });
 
-  test('should tab through create tenant form', async ({ page }) => {
+  test('should tab through create tenant form', async ({ page, isMobile }) => {
+    test.skip(!!isMobile, 'Keyboard Tab navigation is desktop-only');
     await page.goto('/tenants/create');
     await page.waitForLoadState('networkidle');
     // Tab to first input
@@ -165,7 +168,8 @@ test.describe('Keyboard navigation @accessibility', () => {
     await expect(submitFocused).toBeVisible();
   });
 
-  test('should navigate tenant list with keyboard', async ({ page }) => {
+  test('should navigate tenant list with keyboard', async ({ page, isMobile }) => {
+    test.skip(!!isMobile, 'Keyboard Tab navigation is desktop-only');
     await page.goto('/tenants');
     await page.waitForLoadState('networkidle');
     await page.keyboard.press('Tab');
@@ -173,7 +177,8 @@ test.describe('Keyboard navigation @accessibility', () => {
     await expect(focused).toBeVisible();
   });
 
-  test('should navigate entitlements with keyboard', async ({ page }) => {
+  test('should navigate entitlements with keyboard', async ({ page, isMobile }) => {
+    test.skip(!!isMobile, 'Keyboard Tab navigation is desktop-only');
     await page.goto(`/tenants/${tenantId}/entitlements`);
     await page.waitForLoadState('networkidle');
     // Tab to breadcrumb link

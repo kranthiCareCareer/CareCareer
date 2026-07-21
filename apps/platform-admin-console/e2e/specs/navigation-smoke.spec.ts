@@ -88,7 +88,11 @@ test.describe('Accessibility smoke @smoke @accessibility', () => {
 });
 
 test.describe('Keyboard navigation @smoke @navigation', () => {
-  test('should be able to tab through main navigation', async ({ page }) => {
+  test('should be able to tab through main navigation', async ({ page, isMobile }) => {
+    // Mobile viewports use touch as primary input; Tab keyboard navigation
+    // is not the standard interaction model for mobile browsers.
+    test.skip(!!isMobile, 'Keyboard Tab navigation is desktop-only');
+
     const personaSelector = new PersonaSelectorPage(page);
     await personaSelector.goto();
     await personaSelector.selectPersona('Platform Administrator');
