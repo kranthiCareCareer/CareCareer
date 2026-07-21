@@ -217,6 +217,23 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
       expect(res.body.allowed).toBe(false);
       expect(res.body.reasonCode).toBe('NO_MATCHING_GRANT');
     });
+
+    it('should deny when membership has no roles assigned', async () => {
+      // Remove all roles (exercises getPermissionsForRoles with empty roleIds)
+      await rawClient.query(`DELETE FROM identity.membership_roles WHERE membership_id = $1`, [membershipAId]);
+      const token = await issueToken();
+      const res = await request(app.getHttpServer())
+        .post('/v1/authorization/decisions')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ action: 'tenant.members.read', resourceType: 'member' })
+        .expect(HttpStatus.OK);
+
+      expect(res.body.allowed).toBe(false);
+      expect(res.body.reasonCode).toBe('NO_MATCHING_GRANT');
+
+      // Restore roles
+      await rawClient.query(`INSERT INTO identity.membership_roles (membership_id, role_id) VALUES ($1, $2)`, [membershipAId, roleAdminId]);
+    });
   });
 
   // ─── Explicit deny precedence ─────────────────────────────────────────────
