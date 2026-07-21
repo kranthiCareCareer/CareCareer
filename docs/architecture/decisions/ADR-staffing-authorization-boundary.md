@@ -10,29 +10,74 @@ The staffing-service manages facilities, departments, credential requirements,
 and (future) workers, shifts, and assignments. It needs an authentication and
 authorization boundary that:
 
-1. Validates incoming JWT tokens
+1. Validates incoming JWT tokens (cryptographic RS256 verification)
 2. Extracts the tenant context from the validated principal
 3. Enforces permission-based access to endpoints
 4. Never derives tenant identity from URL, headers, body, or query parameters
 
-The identity-service already owns session validation and token issuance.
-The staffing-service must consume tokens but NOT perform session-state validation
-(that's identity-service's responsibility for its own endpoints).
-
 ## Decision
 
-The staffing-service uses a **lightweight token validation guard** that:
+### Authentication
 
-1. Extracts the Bearer token from the Authorization header
-2. Verifies the RS256 signature against the JWKS published by identity-service
-3. Validates standard claims (iss, aud, exp, iat)
-4. Extracts `active_tenant_id` from the validated token payload
-5. Attaches the validated principal to the request
-6. Does NOT perform live session-state lookups (bounded by 15-minute token TTL)
+The staffing-service uses `StaffingAuthGuard` backed by `LocalJwksTokenValidator`:
 
-The `FacilityController` derives `tenantId` exclusively from
-`request.principal.selectedTenantId` — which is set only after cryptographic
-token validation. This satisfies the "tenant from validated session only" rule.
+1. Extracts Bearer token from Authorization header
+2. Decodes protected header → requires RS256 algorithm (rejects HS256, alg=none)
+3. Requires kid header claim
+4. Resolves public key from JWKS key set
+5. Verifies JWT signature + issuer + audience + expiration via jose library
+6. Validates required claims (sub, jti, sid, user_authorization_version)
+7. Constructs ValidatedTokenContext and attaches to request
+
+Rejection scenarios (all return 401):
+- Missing token
+- Malformed token
+- Unsigned/fabricated signature
+- HS256 or other non-RS256 algorithm
+- Wrong issuer
+- Wrong audience
+- Expired token
+- Unknown kid
+- Token signed with different private key
+
+### Authorization Model (GP-05 Scope)
+
+For GP-05, authorization is **tenant-wide by explicit product decision**:
+
+- Any authenticated user with a valid tenant membership can perform
+  facility/department operations within their own tenant
+- Cross-tenant access is prevented by RLS (returns 404, not 403)
+- Fine-grained facility-level permissions (e.g., "user X can only access
+  facility Y within tenant Z") are deferred to GP-10+ when assignment scopes
+  are defined
+
+This is a conscious choice, not an oversight:
+- Healthcare staffing agencies typically have centralized schedulers who
+  manage ALL facilities for their tenant
+- Facility-level access restrictions add complexity before the worker/shift
+  model exists to define meaningful boundaries
+- The authorization decision service (GP-03.4) is available and can be
+  integrated when GP-10 defines assignment-based scopes
+
+### Supported Permission Actions (future, not enforced in GP-05)
+
+```
+facility.create
+facility.read
+facility.update
+facility.activate
+facility.deactivate
+department.create
+department.read
+department.update
+department.activate
+department.deactivate
+credential-requirement.read
+credential-requirement.manage
+```
+
+These will be enforced via permission guards when the RBAC integration
+between staffing-service and identity-service is completed (post-GP-05).
 
 ## Alternatives Considered
 
@@ -40,32 +85,29 @@ token validation. This satisfies the "tenant from validated session only" rule.
 
 Rejected — adds latency and couples staffing-service to identity-service
 availability. The 15-minute access token lifetime provides acceptable
-revocation bounds for staffing operations.
+revocation bounds.
 
-### B. Shared middleware package with session state check
+### B. Facility-scoped permissions from day one
 
-Deferred — can be added later if business rules require immediate revocation
-for staffing operations. Current risk is acceptable: a revoked user could
-access facilities for up to 15 minutes until token expires.
+Deferred — no business model yet defines which users should access which
+facilities. Adding it prematurely creates configuration burden without
+value until GP-10 (assignments) introduces meaningful scope boundaries.
 
 ### C. API gateway handling authentication
 
-Future state — not implemented yet. When deployed, the gateway will validate
-tokens and forward the validated principal. Services will trust the gateway
-header only when deployed behind the gateway (env-gated).
+Future state — when deployed, gateway validates tokens and forwards the
+principal. Services trust the gateway in production (env-gated).
 
 ## Consequences
 
-- Staffing-service is independently deployable (no dependency on identity-service for auth)
-- Revocation latency is bounded by access token lifetime (15 minutes max)
-- Permission checks happen at the controller level (declarative guards)
-- Tenant isolation is enforced at both application and database (RLS) layers
-- If identity-service is down, staffing-service continues to serve requests
-  using already-issued tokens
+- Staffing-service independently validates tokens (no dependency on identity-service at runtime)
+- Revocation bounded by 15-minute token lifetime
+- Tenant isolation enforced at both application and database (RLS) layers
+- Authorization within a tenant is currently tenant-wide (all-or-nothing)
+- Fine-grained permission enforcement will be added when business scopes are defined
 
 ## Migration Path
 
-When API gateway is implemented (GP-15):
-1. Gateway validates token and sets X-Validated-Principal header
-2. Services trust the header when `TRUST_GATEWAY_AUTH=true`
-3. Services still validate in non-gateway environments (local dev, tests)
+1. GP-05: Tenant-wide access (current)
+2. GP-10: Permission guard integration (facility.create, etc.)
+3. GP-15: API gateway authentication offload

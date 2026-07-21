@@ -1,9 +1,13 @@
 import { Controller, Get, HttpCode, HttpStatus } from '@nestjs/common';
 
+import { Public } from '../../infrastructure/public.decorator.js';
+
 /**
  * Health and readiness endpoints for the staffing service.
+ * These are public (no authentication required).
  */
 @Controller()
+@Public()
 export class HealthController {
   @Get('health')
   @HttpCode(HttpStatus.OK)
@@ -14,7 +18,6 @@ export class HealthController {
   @Get('ready')
   @HttpCode(HttpStatus.OK)
   readiness(): { status: string; checks: Record<string, string> } {
-    // TODO: Add database readiness check when DB is wired
     return { status: 'healthy', checks: {} };
   }
 }
