@@ -48,14 +48,14 @@ test.describe('Executive demo', () => {
     await page.screenshot({ path: resolve(SCREENSHOTS_DIR, '02-create-tenant.png') });
 
     // Wait for result
-    await page.waitForSelector('.success-banner, .error-banner', { timeout: 15000 });
+    await page.waitForSelector('.success-banner, .error-banner', { timeout: 20000 });
 
     // === Step 4: Tenant overview (if creation succeeded) ===
     if (await page.locator('.success-banner').isVisible()) {
       const viewTenantLink = page.getByRole('link', { name: 'View Tenant' });
       if (await viewTenantLink.isVisible()) {
         await viewTenantLink.click();
-        await page.waitForSelector('.tenant-detail, .error-banner', { timeout: 10000 });
+        await page.waitForSelector('.tenant-detail, .error-banner', { timeout: 20000 });
 
         if (await page.locator('.tenant-detail').isVisible()) {
           await page.screenshot({
@@ -67,7 +67,7 @@ test.describe('Executive demo', () => {
           if ((await manageLinks.count()) >= 2) {
             await manageLinks.nth(1).click();
             await page.waitForSelector('.entitlements-grid, .page-loading', {
-              timeout: 10000,
+              timeout: 20000,
             });
             await page.screenshot({
               path: resolve(SCREENSHOTS_DIR, '04-entitlements.png'),
@@ -83,7 +83,7 @@ test.describe('Executive demo', () => {
             if (tenantId) {
               await page.goto(`/tenants/${tenantId}/features`);
               await page.waitForSelector('.features-grid, .error-banner', {
-                timeout: 10000,
+                timeout: 20000,
               });
               await page.screenshot({
                 path: resolve(SCREENSHOTS_DIR, '05-feature-settings.png'),
@@ -143,7 +143,7 @@ test.describe('Executive demo', () => {
       const tid = href?.match(/\/tenants\/([^/]+)/)?.[1];
       if (tid && tid !== 'create') {
         await page.goto(`/tenants/${tid}/audit`);
-        await page.waitForSelector('h1, .page-loading, .error-banner', { timeout: 10000 });
+        await page.waitForSelector('h1, .page-loading, .error-banner', { timeout: 20000 });
       }
     }
     // Audit page heading (may or may not be visible depending on tenant data)

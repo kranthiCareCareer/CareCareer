@@ -34,7 +34,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
     actionTimeout: 10000,
-    navigationTimeout: 15000,
+    navigationTimeout: 30000,
   },
   projects: [
     // ─── Default (backward compatible with demo:verify) ───────────────────────

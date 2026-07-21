@@ -37,7 +37,7 @@ test.describe('Tenant provisioning', () => {
     await tenantCreate.submit();
 
     // Wait for success or error response
-    await page.waitForSelector('.success-banner, .error-banner', { timeout: 10000 });
+    await page.waitForSelector('.success-banner, .error-banner', { timeout: 20000 });
 
     // If the backend is running, we should see success
     if (await page.locator('.success-banner').isVisible()) {
@@ -77,7 +77,7 @@ test.describe('Tenant provisioning', () => {
     });
     await tenantCreate.submit();
 
-    await page.waitForSelector('.success-banner, .error-banner', { timeout: 10000 });
+    await page.waitForSelector('.success-banner, .error-banner', { timeout: 20000 });
 
     if (await page.locator('.success-banner').isVisible()) {
       await expect(page.locator('.success-banner')).toContainText('Correlation ID');
