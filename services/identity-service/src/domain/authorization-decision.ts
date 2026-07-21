@@ -23,7 +23,7 @@ export interface AuthorizationRequest {
   /** Resource type (e.g. 'facility', 'shift') */
   readonly resourceType: string;
   /** Resource ID (UUID) */
-  readonly resourceId?: string;
+  readonly resourceId?: string | undefined;
 }
 
 export interface AuthorizationPrincipal {
@@ -54,7 +54,7 @@ export interface AuthorizationDecision {
   readonly reasonCode: DenialReason | 'GRANTED';
   readonly action: string;
   readonly resourceType: string;
-  readonly resourceId?: string;
+  readonly resourceId?: string | undefined;
   readonly tenantId: string;
   readonly userId: string;
   readonly evaluatedAt: Date;
