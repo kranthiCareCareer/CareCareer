@@ -17,14 +17,16 @@ import { z } from 'zod';
 
 import type { TenantAwareTransaction, TransactionClient } from '@carecareer/database';
 
+import { CreateDepartmentHandler } from '../../application/commands/create-department.command.js';
+import { CreateFacilityHandler } from '../../application/commands/create-facility.command.js';
 import type { StaffingRepository } from '../../application/ports/staffing-repository.js';
 import {
   createCredentialRequirement,
   VALID_WORKER_ROLES,
   type CredentialRequirement,
 } from '../../domain/credential-requirement.js';
-import { createDepartment, type Department } from '../../domain/department.js';
-import { createFacility, type Facility } from '../../domain/facility.js';
+import type { Department } from '../../domain/department.js';
+import type { Facility } from '../../domain/facility.js';
 
 const TENANT_DB = 'STAFFING_TENANT_DB';
 const STAFFING_REPO = 'STAFFING_REPOSITORY';
@@ -65,10 +67,16 @@ const CreateCredentialRequirementSchema = z.object({
  */
 @Controller()
 export class FacilityController {
+  private readonly createFacilityHandler: CreateFacilityHandler;
+  private readonly createDepartmentHandler: CreateDepartmentHandler;
+
   constructor(
     @Inject(TENANT_DB) private readonly tenantDb: TenantAwareTransaction,
     @Inject(STAFFING_REPO) private readonly repo: StaffingRepository,
-  ) {}
+  ) {
+    this.createFacilityHandler = new CreateFacilityHandler(this.tenantDb, this.repo);
+    this.createDepartmentHandler = new CreateDepartmentHandler(this.tenantDb, this.repo);
+  }
 
   @Post('v1/facilities')
   @HttpCode(HttpStatus.CREATED)
@@ -90,8 +98,10 @@ export class FacilityController {
       });
     }
 
-    const facility = createFacility({
+    const result = await this.createFacilityHandler.execute({
       tenantId,
+      actorId,
+      correlationId: corrId,
       clientId: parsed.data.clientId,
       name: parsed.data.name,
       timezone: parsed.data.timezone,
@@ -104,41 +114,7 @@ export class FacilityController {
       geofenceRadiusMeters: parsed.data.geofenceRadiusMeters,
     });
 
-    await this.tenantDb.execute(tenantId, async (tx) => {
-      await this.repo.createFacility(tx, facility);
-      await this.emitAudit(tx, {
-        tenantId,
-        actorId,
-        action: 'facility.created',
-        aggregateType: 'facility',
-        aggregateId: facility.id,
-        afterSummary: {
-          name: facility.name,
-          timezone: facility.timezone,
-          clientId: facility.clientId,
-          status: facility.status,
-        },
-        correlationId: corrId,
-      });
-      await this.emitOutboxEvent(tx, {
-        tenantId,
-        eventType: 'carecareer.facility.created.v1',
-        aggregateType: 'facility',
-        aggregateId: facility.id,
-        payload: {
-          facilityId: facility.id,
-          tenantId: facility.tenantId,
-          clientId: facility.clientId,
-          name: facility.name,
-          timezone: facility.timezone,
-          status: facility.status,
-          geofenceVersion: facility.geofenceVersion,
-        },
-        correlationId: corrId,
-      });
-    });
-
-    return { data: { facilityId: facility.id } };
+    return { data: { facilityId: result.facilityId } };
   }
 
   @Get('v1/facilities')
@@ -169,8 +145,11 @@ export class FacilityController {
     @Param('facilityId') facilityId: string,
     @Body() body: unknown,
     @Req() req: AuthenticatedRequest,
+    @Headers('x-correlation-id') correlationId?: string,
   ): Promise<{ data: { departmentId: string } }> {
     const tenantId = this.requireTenant(req);
+    const actorId = req.principal?.subject ?? 'unknown';
+    const corrId = correlationId ?? crypto.randomUUID();
 
     const parsed = CreateDepartmentSchema.safeParse(body);
     if (!parsed.success) {
@@ -181,20 +160,21 @@ export class FacilityController {
       });
     }
 
-    const department = createDepartment({
-      tenantId,
-      facilityId,
-      name: parsed.data.name,
-    });
-
-    await this.tenantDb.execute(tenantId, async (tx) => {
-      // Verify facility exists in this tenant
-      const facility = await this.repo.getFacilityById(tx, facilityId);
-      if (!facility) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Facility not found' });
-      await this.repo.createDepartment(tx, department);
-    });
-
-    return { data: { departmentId: department.id } };
+    try {
+      const result = await this.createDepartmentHandler.execute({
+        tenantId,
+        actorId,
+        correlationId: corrId,
+        facilityId,
+        name: parsed.data.name,
+      });
+      return { data: { departmentId: result.departmentId } };
+    } catch (e: unknown) {
+      if (e instanceof Error && e.message === 'FACILITY_NOT_FOUND') {
+        throw new NotFoundException({ code: 'NOT_FOUND', message: 'Facility not found' });
+      }
+      throw e;
+    }
   }
 
   @Get('v1/facilities/:facilityId/departments')
@@ -323,29 +303,6 @@ export class FacilityController {
         ${params.beforeSummary ? JSON.stringify(params.beforeSummary) : null}::jsonb,
         ${params.afterSummary ? JSON.stringify(params.afterSummary) : null}::jsonb,
         ${params.correlationId}
-      )`;
-  }
-
-  /** Emit an outbox event atomically within the current transaction */
-  private async emitOutboxEvent(
-    tx: TransactionClient,
-    params: {
-      tenantId: string;
-      eventType: string;
-      aggregateType: string;
-      aggregateId: string;
-      payload: Record<string, unknown>;
-      correlationId: string;
-    },
-  ): Promise<void> {
-    await tx.$executeRaw`
-      INSERT INTO staffing.event_outbox (
-        tenant_id, event_type, aggregate_type, aggregate_id,
-        payload, correlation_id
-      ) VALUES (
-        ${params.tenantId}::uuid, ${params.eventType},
-        ${params.aggregateType}, ${params.aggregateId}::uuid,
-        ${JSON.stringify(params.payload)}::jsonb, ${params.correlationId}
       )`;
   }
 }
