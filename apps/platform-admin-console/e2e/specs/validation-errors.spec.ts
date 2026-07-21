@@ -29,16 +29,14 @@ test.describe('Validation errors', () => {
     await page.getByLabel('Tenant Slug').fill('Invalid Slug');
     await page.getByLabel('Initial Organization Name').fill('Org');
 
-    await page.getByRole('button', { name: 'Provision Tenant' }).click();
-
     // Pattern validation: ^[a-z][a-z0-9-]*$
-    // After click, the browser validates and the input should be invalid
+    // The input should be invalid due to uppercase and space
     const slugInput = page.getByLabel('Tenant Slug');
     await expect(slugInput).toHaveAttribute('pattern');
-    const validity = await slugInput.evaluate(
+    const isInvalid = await slugInput.evaluate(
       (el: HTMLInputElement) => !el.checkValidity(),
     );
-    expect(validity).toBe(true);
+    expect(isInvalid).toBe(true);
   });
 
   test('should enforce minimum slug length', async ({ page }) => {

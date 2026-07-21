@@ -129,7 +129,26 @@ test.describe('Executive demo', () => {
     });
 
     // === Step 9: Show audit page ===
-    await page.goto('/tenants/test-id/audit');
+    // Use the tenant created earlier in the demo flow (or fallback to a known route)
+    const currentUrl = page.url();
+    const currentTenantId = currentUrl.match(/\/tenants\/([^/]+)/)?.[1];
+    if (currentTenantId && currentTenantId !== 'non-existent-cross-tenant-id') {
+      await page.goto(`/tenants/${currentTenantId}/audit`);
+    } else {
+      // Navigate to tenant list and pick the first one
+      await page.goto('/tenants');
+      const firstTenantLink = page.locator('a[href*="/tenants/"]').first();
+      if (await firstTenantLink.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await firstTenantLink.click();
+        await page.waitForSelector('.tenant-detail, .error-banner', { timeout: 5000 });
+        const detailUrl = page.url();
+        const tid = detailUrl.match(/\/tenants\/([^/]+)/)?.[1];
+        if (tid) {
+          await page.goto(`/tenants/${tid}/audit`);
+        }
+      }
+    }
+    // Audit page should show even if no audit entries exist yet
     await expect(page.getByRole('heading', { name: 'Audit Timeline' })).toBeVisible();
     await page.screenshot({
       path: resolve(SCREENSHOTS_DIR, '08-audit-history.png'),

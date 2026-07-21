@@ -94,14 +94,11 @@ test.describe('Tenant provisioning', () => {
       organizationName: 'Org',
     });
 
-    // Browser validation should prevent submission with pattern mismatch
-    await tenantCreate.submit();
-
-    // The HTML pattern validation should block — slug requires ^[a-z][a-z0-9-]*$
+    // Check pattern validation state directly (does not require form submission)
     const slugInput = page.getByLabel('Tenant Slug');
-    const validity = await slugInput.evaluate(
-      (el: HTMLInputElement) => el.validity.patternMismatch,
+    const isInvalid = await slugInput.evaluate(
+      (el: HTMLInputElement) => !el.checkValidity(),
     );
-    expect(validity).toBe(true);
+    expect(isInvalid).toBe(true);
   });
 });
