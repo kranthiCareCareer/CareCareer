@@ -17,11 +17,13 @@ import { IdentityAuthGuard } from './infrastructure/identity-auth.guard.js';
 import { PlatformTokenValidator } from './infrastructure/platform-token-validator.js';
 import { PostgresIdentityRepository } from './infrastructure/postgres-identity-repository.js';
 import { PostgresMembershipRepository } from './infrastructure/postgres-membership-repository.js';
+import { PostgresAuthorizationRepository } from './infrastructure/postgres-authorization-repository.js';
 import {
   PostgresSessionRepository } from './infrastructure/postgres-session-repository.js';
 import { PostgresSigningKeyRepository } from './infrastructure/postgres-signing-key-repository.js';
 import { SessionStateValidator } from './infrastructure/session-state-validator.js';
 import { AuthController } from './interface/http/auth.controller.js';
+import { AuthorizationController } from './interface/http/authorization.controller.js';
 import { HealthController } from './interface/http/health.controller.js';
 import { MembershipController } from './interface/http/membership.controller.js';
 import { UserController } from './interface/http/user.controller.js';
@@ -100,7 +102,7 @@ function resolveTokenValidator(): TokenValidator {
 }
 
 @Module({
-  controllers: [HealthController, UserController, MembershipController, AuthController],
+  controllers: [HealthController, UserController, MembershipController, AuthController, AuthorizationController],
   providers: [
     {
       provide: TOKEN_VALIDATOR,
@@ -156,6 +158,20 @@ function resolveTokenValidator(): TokenValidator {
         }
         return new TenantAwareTransaction(createPgPrismaClient(dbUrl));
       },
+    },
+    {
+      provide: 'AUTHORIZATION_PRISMA',
+      useFactory: () => {
+        const dbUrl = process.env['DATABASE_URL'];
+        if (!dbUrl) {
+          return { $transaction: async () => { throw new Error('No database configured'); } };
+        }
+        return createPgPrismaClient(dbUrl);
+      },
+    },
+    {
+      provide: 'AUTHORIZATION_REPOSITORY',
+      useClass: PostgresAuthorizationRepository,
     },
   ],
 })
