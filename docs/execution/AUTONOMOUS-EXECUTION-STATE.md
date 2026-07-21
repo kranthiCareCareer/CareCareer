@@ -7,7 +7,7 @@
 | Field | Value |
 |-------|-------|
 | Branch | master |
-| HEAD | f9ecd1d |
+| HEAD | 31f17e7 |
 | Working tree | clean |
 | Current milestone | GP-05 (Facilities and Departments) |
 | Current objective | Begin GP-05 vertical slice |
@@ -85,17 +85,16 @@ None.
 
 Add the staffing-service vitest config, eslint config, main.ts entry point,
 NestJS module, and facility controller with CRUD endpoints. Then add
-unit tests for the facility domain model.
+real PostgreSQL and prove schema/RLS/role properties.
 
 ## Next Command
 
 ```bash
-pnpm install
-pnpm --filter @carecareer/staffing-service typecheck
+pnpm --filter @carecareer/staffing-service test:integration
 ```
 
 ## Expected Next Commit
 
 ```
-feat(facilities): add facility CRUD controller and domain unit tests
+test(facilities): prove schema ownership and tenant isolation
 ```
