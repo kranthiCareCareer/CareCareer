@@ -82,6 +82,7 @@ export function Features() {
                   type="checkbox"
                   checked={Boolean(current?.value)}
                   onChange={(e) => updateFeature(key as FeatureKey, e.target.checked)}
+                  aria-label={meta.label}
                 />
               ) : (
                 <input
@@ -91,6 +92,7 @@ export function Features() {
                   className="input input--small"
                   min={0}
                   max={120}
+                  aria-label={meta.label}
                 />
               )}
             </div>

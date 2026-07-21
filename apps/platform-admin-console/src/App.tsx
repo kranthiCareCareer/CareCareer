@@ -18,16 +18,18 @@ function AppRoutes() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/tenants" element={<TenantList />} />
-      <Route path="/tenants/create" element={<CreateTenant />} />
-      <Route path="/tenants/:tenantId" element={<TenantDetail />} />
-      <Route path="/tenants/:tenantId/entitlements" element={<Entitlements />} />
-      <Route path="/tenants/:tenantId/organizations" element={<Organizations />} />
-      <Route path="/tenants/:tenantId/features" element={<Features />} />
-      <Route path="/tenants/:tenantId/audit" element={<AuditTimeline />} />
-    </Routes>
+    <main>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/tenants" element={<TenantList />} />
+        <Route path="/tenants/create" element={<CreateTenant />} />
+        <Route path="/tenants/:tenantId" element={<TenantDetail />} />
+        <Route path="/tenants/:tenantId/entitlements" element={<Entitlements />} />
+        <Route path="/tenants/:tenantId/organizations" element={<Organizations />} />
+        <Route path="/tenants/:tenantId/features" element={<Features />} />
+        <Route path="/tenants/:tenantId/audit" element={<AuditTimeline />} />
+      </Routes>
+    </main>
   );
 }
 

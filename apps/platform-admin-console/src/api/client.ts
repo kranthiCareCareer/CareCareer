@@ -27,12 +27,16 @@ class PlatformApiClient {
     };
     if (this.token) h['Authorization'] = `Bearer ${this.token}`;
     if (this.actorId) h['X-Actor-Id'] = this.actorId;
-    h['X-Correlation-Id'] = crypto.randomUUID();
+    h['X-Correlation-Id'] = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
     return h;
   }
 
   private idempotencyKey(): string {
-    return crypto.randomUUID();
+    return typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
   }
 
   private async request<T>(
