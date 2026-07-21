@@ -1,8 +1,8 @@
 import type { TransactionClient } from '@carecareer/database';
 
+import type { StaffingRepository } from '../application/ports/staffing-repository.js';
 import type { Department } from '../domain/department.js';
 import type { Facility } from '../domain/facility.js';
-import type { StaffingRepository } from '../application/ports/staffing-repository.js';
 
 /**
  * PostgreSQL implementation of the staffing repository.

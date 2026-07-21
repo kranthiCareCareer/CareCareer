@@ -1,7 +1,7 @@
 import type { TransactionClient } from '@carecareer/database';
 
-import type { Facility } from '../../domain/facility.js';
 import type { Department } from '../../domain/department.js';
+import type { Facility } from '../../domain/facility.js';
 
 /**
  * Staffing repository port.

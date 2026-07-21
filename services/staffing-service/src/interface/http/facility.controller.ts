@@ -14,11 +14,11 @@ import {
 } from '@nestjs/common';
 import { z } from 'zod';
 
-import type { TenantAwareTransaction } from '@carecareer/database';
+import type { TenantAwareTransaction, TransactionClient } from '@carecareer/database';
 
-import { createFacility, type Facility } from '../../domain/facility.js';
-import { createDepartment, type Department } from '../../domain/department.js';
 import type { StaffingRepository } from '../../application/ports/staffing-repository.js';
+import { createDepartment, type Department } from '../../domain/department.js';
+import { createFacility, type Facility } from '../../domain/facility.js';
 
 const TENANT_DB = 'STAFFING_TENANT_DB';
 const STAFFING_REPO = 'STAFFING_REPOSITORY';
@@ -61,9 +61,11 @@ export class FacilityController {
   async create(
     @Body() body: unknown,
     @Req() req: AuthenticatedRequest,
-    @Headers('x-correlation-id') _correlationId?: string,
+    @Headers('x-correlation-id') correlationId?: string,
   ): Promise<{ data: { facilityId: string } }> {
     const tenantId = this.requireTenant(req);
+    const actorId = req.principal?.subject ?? 'unknown';
+    const corrId = correlationId ?? crypto.randomUUID();
 
     const parsed = CreateFacilitySchema.safeParse(body);
     if (!parsed.success) {
@@ -90,6 +92,36 @@ export class FacilityController {
 
     await this.tenantDb.execute(tenantId, async (tx) => {
       await this.repo.createFacility(tx, facility);
+      await this.emitAudit(tx, {
+        tenantId,
+        actorId,
+        action: 'facility.created',
+        aggregateType: 'facility',
+        aggregateId: facility.id,
+        afterSummary: {
+          name: facility.name,
+          timezone: facility.timezone,
+          clientId: facility.clientId,
+          status: facility.status,
+        },
+        correlationId: corrId,
+      });
+      await this.emitOutboxEvent(tx, {
+        tenantId,
+        eventType: 'carecareer.facility.created.v1',
+        aggregateType: 'facility',
+        aggregateId: facility.id,
+        payload: {
+          facilityId: facility.id,
+          tenantId: facility.tenantId,
+          clientId: facility.clientId,
+          name: facility.name,
+          timezone: facility.timezone,
+          status: facility.status,
+          geofenceVersion: facility.geofenceVersion,
+        },
+        correlationId: corrId,
+      });
     });
 
     return { data: { facilityId: facility.id } };
@@ -169,5 +201,55 @@ export class FacilityController {
       throw new BadRequestException({ code: 'NO_TENANT', message: 'No active tenant' });
     }
     return tenantId;
+  }
+
+  /** Emit an audit record atomically within the current transaction */
+  private async emitAudit(
+    tx: TransactionClient,
+    params: {
+      tenantId: string;
+      actorId: string;
+      action: string;
+      aggregateType: string;
+      aggregateId: string;
+      beforeSummary?: Record<string, unknown>;
+      afterSummary?: Record<string, unknown>;
+      correlationId: string;
+    },
+  ): Promise<void> {
+    await tx.$executeRaw`
+      INSERT INTO staffing.audit_records (
+        tenant_id, actor_id, action, aggregate_type, aggregate_id,
+        before_summary, after_summary, correlation_id
+      ) VALUES (
+        ${params.tenantId}::uuid, ${params.actorId}, ${params.action},
+        ${params.aggregateType}, ${params.aggregateId}::uuid,
+        ${params.beforeSummary ? JSON.stringify(params.beforeSummary) : null}::jsonb,
+        ${params.afterSummary ? JSON.stringify(params.afterSummary) : null}::jsonb,
+        ${params.correlationId}
+      )`;
+  }
+
+  /** Emit an outbox event atomically within the current transaction */
+  private async emitOutboxEvent(
+    tx: TransactionClient,
+    params: {
+      tenantId: string;
+      eventType: string;
+      aggregateType: string;
+      aggregateId: string;
+      payload: Record<string, unknown>;
+      correlationId: string;
+    },
+  ): Promise<void> {
+    await tx.$executeRaw`
+      INSERT INTO staffing.event_outbox (
+        tenant_id, event_type, aggregate_type, aggregate_id,
+        payload, correlation_id
+      ) VALUES (
+        ${params.tenantId}::uuid, ${params.eventType},
+        ${params.aggregateType}, ${params.aggregateId}::uuid,
+        ${JSON.stringify(params.payload)}::jsonb, ${params.correlationId}
+      )`;
   }
 }

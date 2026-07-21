@@ -59,9 +59,9 @@ describe('Facilities Schema and RLS (GP-05)', () => {
   }, 120000);
 
   afterAll(async () => {
-    await superClient?.end();
-    await appPool?.end();
-    await container?.stop();
+    await superClient.end();
+    await appPool.end();
+    await container.stop();
   });
 
   describe('Migration and RLS enforcement', () => {
