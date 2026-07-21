@@ -7,7 +7,7 @@
 | Field | Value |
 |-------|-------|
 | Branch | master |
-| HEAD | 31f17e7 |
+| HEAD | d78477a |
 | Working tree | clean |
 | Current milestone | GP-05 (Facilities and Departments) |
 | Current objective | Begin GP-05 vertical slice |
@@ -83,18 +83,19 @@ None.
 
 ## Next Exact Task
 
-Add the staffing-service vitest config, eslint config, main.ts entry point,
-NestJS module, and facility controller with CRUD endpoints. Then add
-real PostgreSQL and prove schema/RLS/role properties.
+Create the facility HTTP controller (POST/GET /v1/facilities, GET /v1/facilities/:id)
+with strict Zod validation, TenantAwareTransaction integration, and
+audit/outbox event emission for facility creation.
 
 ## Next Command
 
 ```bash
-pnpm --filter @carecareer/staffing-service test:integration
+pnpm --filter @carecareer/staffing-service typecheck
+pnpm --filter @carecareer/staffing-service test
 ```
 
 ## Expected Next Commit
 
 ```
-test(facilities): prove schema ownership and tenant isolation
+feat(facilities): expose facility CRUD API with strict validation
 ```
