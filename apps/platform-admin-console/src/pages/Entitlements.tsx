@@ -55,8 +55,6 @@ export function Entitlements() {
     }
   }
 
-  if (!entitlements) return <div className="page-loading">Loading entitlements...</div>;
-
   return (
     <div className="entitlements-page">
       <header className="page-header">
@@ -79,25 +77,30 @@ export function Entitlements() {
         capabilities for this tenant.
       </p>
 
-      <div className="entitlements-grid">
-        {Object.entries(entitlements.modules).map(([key, enabled]) => (
-          <label
-            key={key}
-            className={`entitlement-card ${enabled ? 'entitlement-card--enabled' : ''}`}
-          >
-            <input
-              type="checkbox"
-              checked={enabled}
-              onChange={() => toggleModule(key as ModuleKey)}
-              disabled={saving || key === 'core'}
-            />
-            <span className="entitlement-card__label">{MODULE_LABELS[key] ?? key}</span>
-            {key === 'core' && <small>(always enabled)</small>}
-          </label>
-        ))}
-      </div>
-
-      <p className="meta">Version: {entitlements.version}</p>
+      {!entitlements ? (
+        <div className="page-loading">Loading entitlements...</div>
+      ) : (
+        <>
+          <div className="entitlements-grid">
+            {Object.entries(entitlements.modules).map(([key, enabled]) => (
+              <label
+                key={key}
+                className={`entitlement-card ${enabled ? 'entitlement-card--enabled' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={enabled}
+                  onChange={() => toggleModule(key as ModuleKey)}
+                  disabled={saving || key === 'core'}
+                />
+                <span className="entitlement-card__label">{MODULE_LABELS[key] ?? key}</span>
+                {key === 'core' && <small>(always enabled)</small>}
+              </label>
+            ))}
+          </div>
+          <p className="meta">Version: {entitlements.version}</p>
+        </>
+      )}
     </div>
   );
 }
