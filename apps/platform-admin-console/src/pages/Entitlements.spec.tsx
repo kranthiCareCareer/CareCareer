@@ -138,24 +138,29 @@ describe('Entitlements', () => {
     });
   });
 
-  it('should show loading state initially', () => {
+  it('should show heading and loading state initially', () => {
     mockGetEntitlements.mockReturnValue(new Promise(() => {}));
     renderEntitlements();
+    // Heading renders immediately regardless of data state
+    expect(screen.getByRole('heading', { name: 'Entitlements' })).toBeInTheDocument();
     expect(screen.getByText('Loading entitlements...')).toBeInTheDocument();
   });
 
-  it('should show error on load failure', async () => {
+  it('should show accessible error banner on API failure', async () => {
     mockGetEntitlements.mockRejectedValue({ message: 'Network error' });
     renderEntitlements();
 
-    // Component stays in loading state since it only sets error if it gets past
-    // the try/catch but doesn't re-render with error-banner when entitlements is null
-    // The component catches the error and sets the error state but still shows
-    // loading state since entitlements is null. This is a valid behavior test.
     await waitFor(() => {
-      // The component sets error state but still renders loading when
-      // entitlements is null. Validate it doesn't crash.
-      expect(screen.getByText('Loading entitlements...')).toBeInTheDocument();
+      // Heading is always visible
+      expect(screen.getByRole('heading', { name: 'Entitlements' })).toBeInTheDocument();
+      // Error banner appears with the error message
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      expect(screen.getByText('Network error')).toBeInTheDocument();
     });
+    // Loading indicator also visible since entitlements is still null
+    expect(screen.getByText('Loading entitlements...')).toBeInTheDocument();
+    // No stack traces or SQL exposed
+    expect(screen.queryByText(/SQLSTATE/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/node_modules/)).not.toBeInTheDocument();
   });
 });
