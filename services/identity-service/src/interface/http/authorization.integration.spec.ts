@@ -381,7 +381,6 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
   describe('Tenant isolation', () => {
     it('should deny when user has no membership in the selected tenant', async () => {
       // User A authenticated but tries to evaluate for Tenant B
-      // This requires a session selecting Tenant B, which User A doesn't have
       const token = await signPlatformJwt({
         sub: userAId,
         user_authorization_version: 1,
@@ -389,7 +388,7 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
         tenant_roles: [],
         permissions: [],
         sid: sessionAId,
-        active_tenant_id: tenantBId, // User A's session doesn't select tenant B
+        active_tenant_id: tenantBId,
       }, privateKeyPem, keyId);
 
       const res = await request(app.getHttpServer())
@@ -398,9 +397,112 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
         .send({ action: 'tenant.members.read', resourceType: 'member' })
         .expect(HttpStatus.OK);
 
-      // Denied because User A has no membership in Tenant B
       expect(res.body.allowed).toBe(false);
       expect(res.body.reasonCode).toBe('MEMBERSHIP_INVALID');
+    });
+
+    it('should not reveal cross-tenant denial existence', async () => {
+      await rawClient.query(
+        `INSERT INTO identity.explicit_denials (tenant_id, principal_type, principal_id, action, active, reason, created_by)
+         VALUES ($1, 'USER', $2, 'secret.action', true, 'b-only', 'test')`,
+        [tenantBId, userBId]);
+      const token = await issueToken();
+      const res = await request(app.getHttpServer())
+        .post('/v1/authorization/decisions')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ action: 'secret.action', resourceType: 'secret' })
+        .expect(HttpStatus.OK);
+      expect(res.body.allowed).toBe(false);
+      expect(res.body.reasonCode).toBe('NO_MATCHING_GRANT');
+      await rawClient.query(`DELETE FROM identity.explicit_denials WHERE tenant_id = $1`, [tenantBId]);
+    });
+  });
+
+  describe('Database role security', () => {
+    it('should confirm RLS enabled and forced on explicit_denials', async () => {
+      const r = await rawClient.query(`SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = 'identity.explicit_denials'::regclass`);
+      expect(r.rows[0]).toEqual({ relrowsecurity: true, relforcerowsecurity: true });
+    });
+    it('should confirm RLS enabled and forced on authorization_decisions', async () => {
+      const r = await rawClient.query(`SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = 'identity.authorization_decisions'::regclass`);
+      expect(r.rows[0]).toEqual({ relrowsecurity: true, relforcerowsecurity: true });
+    });
+    it('should confirm carecareer_app has no superuser or bypassrls', async () => {
+      const r = await rawClient.query(`SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = 'carecareer_app'`);
+      expect(r.rows[0]).toEqual({ rolsuper: false, rolbypassrls: false });
+    });
+  });
+
+  describe('Deactivated user', () => {
+    it('should deny deactivated user', async () => {
+      await rawClient.query(`UPDATE identity.users SET status = 'DEACTIVATED' WHERE id = $1`, [userAId]);
+      const token = await issueToken();
+      const res = await request(app.getHttpServer())
+        .post('/v1/authorization/decisions')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ action: 'tenant.members.read', resourceType: 'member' })
+        .expect(HttpStatus.OK);
+      expect(res.body.allowed).toBe(false);
+      expect(res.body.reasonCode).toBe('USER_DEACTIVATED');
+      await rawClient.query(`UPDATE identity.users SET status = 'ACTIVE' WHERE id = $1`, [userAId]);
+    });
+  });
+
+  describe('Membership-scoped denial and revocation', () => {
+    it('should deny when denial targets the membership', async () => {
+      await rawClient.query(
+        `INSERT INTO identity.explicit_denials (tenant_id, principal_type, principal_id, action, active, reason, created_by)
+         VALUES ($1, 'MEMBERSHIP', $2, 'tenant.members.invite', true, 'membership-scoped', 'test')`,
+        [tenantAId, membershipAId]);
+      const token = await issueToken();
+      const res = await request(app.getHttpServer())
+        .post('/v1/authorization/decisions')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ action: 'tenant.members.invite', resourceType: 'member' })
+        .expect(HttpStatus.OK);
+      expect(res.body.allowed).toBe(false);
+      expect(res.body.reasonCode).toBe('EXPLICIT_DENY');
+      await rawClient.query(`DELETE FROM identity.explicit_denials WHERE tenant_id = $1`, [tenantAId]);
+    });
+
+    it('should allow after denial is revoked', async () => {
+      await rawClient.query(
+        `INSERT INTO identity.explicit_denials (tenant_id, principal_type, principal_id, action, active, reason, created_by)
+         VALUES ($1, 'USER', $2, 'tenant.members.read', false, 'revoked', 'test')`,
+        [tenantAId, userAId]);
+      const token = await issueToken();
+      const res = await request(app.getHttpServer())
+        .post('/v1/authorization/decisions')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ action: 'tenant.members.read', resourceType: 'member' })
+        .expect(HttpStatus.OK);
+      expect(res.body.allowed).toBe(true);
+      expect(res.body.reasonCode).toBe('GRANTED');
+      await rawClient.query(`DELETE FROM identity.explicit_denials WHERE tenant_id = $1`, [tenantAId]);
+    });
+  });
+
+  describe('Header and query override resistance', () => {
+    it('should ignore X-Tenant-Id header override', async () => {
+      const token = await issueToken();
+      const res = await request(app.getHttpServer())
+        .post('/v1/authorization/decisions')
+        .set('Authorization', `Bearer ${token}`)
+        .set('X-Tenant-Id', tenantBId)
+        .send({ action: 'tenant.members.read', resourceType: 'member' })
+        .expect(HttpStatus.OK);
+      expect(res.body.allowed).toBe(true);
+    });
+
+    it('should ignore query parameter overrides', async () => {
+      const token = await issueToken();
+      const res = await request(app.getHttpServer())
+        .post('/v1/authorization/decisions')
+        .set('Authorization', `Bearer ${token}`)
+        .query({ tenantId: tenantBId, userId: userBId })
+        .send({ action: 'tenant.members.read', resourceType: 'member' })
+        .expect(HttpStatus.OK);
+      expect(res.body.allowed).toBe(true);
     });
   });
 });
