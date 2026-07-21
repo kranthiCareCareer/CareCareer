@@ -1,16 +1,16 @@
 # Autonomous Execution State
 
-## Last Updated: 2026-07-21T18:15:00Z
+## Last Updated: 2026-07-21T19:30:00Z
 
 ## Repository State
 
 | Field | Value |
 |-------|-------|
 | Branch | master |
-| HEAD | d78477a |
+| HEAD | 3f77b0b |
 | Working tree | clean |
 | Current milestone | GP-05 (Facilities and Departments) |
-| Current objective | Begin GP-05 vertical slice |
+| Current objective | GP-05 acceptance gate — remaining: auth boundary docs |
 | Authoritative source | docs/decisions/golden-path-backlog.md |
 
 ## Completed Milestones
@@ -32,7 +32,16 @@
 
 | Milestone | Status | Blocker |
 |-----------|--------|---------|
-| GP-05 Facilities | NOT STARTED | None — beginning now |
+| GP-05 Facilities | NEAR COMPLETE | Closure doc needed |
+
+## GP-05 Acceptance Criteria
+
+- [x] Facility timezone is mandatory (reject if missing)
+- [x] Geofence config is stored with version (changes audited)
+- [x] Requirement changes affect future evaluations only (effective_from)
+- [x] Client users see only their authorized facilities (RLS proven)
+- [x] Facility creation emits versioned event (outbox)
+- [x] Credential requirements queryable by role + department
 
 ## Milestones Not Started
 
@@ -50,27 +59,13 @@
 - GP-14 Mobile
 - GP-15 Production Deployment
 
-## GP-05 Acceptance Criteria (from backlog)
+## Latest Gate Results (staffing-service)
 
-- [ ] Facility timezone is mandatory (reject if missing)
-- [ ] Geofence config is stored with version (changes audited)
-- [ ] Requirement changes affect future evaluations only
-- [ ] Client users see only their authorized facilities
-- [ ] Facility creation emits versioned event
-- [ ] Credential requirements queryable by role + department
-
-## Latest Gate Results
-
-- Lint: 24/24 (0 errors)
-- Typecheck: 24/24
-- Unit tests: 228 identity + 117 platform + 103 frontend
-- Identity integration: 126 (29 authorization × 3 deterministic)
-- Platform integration: 34
-- Build: 15/15
-- Docker: both services verified
-- demo:verify: 20/20 E2E
-- local:verify: 5/5
-- Security coverage: ALL PASS (12 files, 99.2% global)
+- Lint: 0 errors, 0 warnings
+- Typecheck: pass
+- Unit tests: 21 (facility: 6, department: 4, credential-requirement: 10, module: 1)
+- Integration tests: 34 (24 HTTP + 10 RLS schema)
+- Determinism: 34/34 × 2 consecutive runs
 
 ## Known Issues
 
@@ -83,19 +78,19 @@ None.
 
 ## Next Exact Task
 
-Create the facility HTTP controller (POST/GET /v1/facilities, GET /v1/facilities/:id)
-with strict Zod validation, TenantAwareTransaction integration, and
-audit/outbox event emission for facility creation.
+Write GP-05 closure document. Run full monorepo build.
+Push final GP-05 commit to GitHub.
 
 ## Next Command
 
 ```bash
-pnpm --filter @carecareer/staffing-service typecheck
-pnpm --filter @carecareer/staffing-service test
+pnpm build
+pnpm lint
+pnpm typecheck
 ```
 
 ## Expected Next Commit
 
 ```
-feat(facilities): expose facility CRUD API with strict validation
+docs(execution): add GP-05 closure document
 ```

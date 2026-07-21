@@ -23,6 +23,12 @@ The platform control plane is functional with:
 
 **Workforce product: IN PROGRESS (GP-05 Facilities)**
 
+- Facility CRUD with timezone enforcement and geofence versioning
+- Department management (per-facility)
+- Credential requirements queryable by role + department
+- Audit + outbox event emission (atomic, within transaction)
+- 34 integration tests against real PostgreSQL with RLS
+
 ## Architecture
 
 ```
