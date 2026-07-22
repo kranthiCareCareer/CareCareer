@@ -1,5 +1,6 @@
 ---
 inclusion: always
+description: Test pyramid, coverage requirements, naming conventions, and regression testing
 ---
 
 # CareCareer Testing Standards

@@ -1,5 +1,6 @@
 ---
 inclusion: always
+description: TypeScript coding standards including naming, structure, and function rules
 ---
 
 # CareCareer Coding Standards

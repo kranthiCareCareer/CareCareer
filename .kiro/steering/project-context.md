@@ -1,5 +1,6 @@
 ---
 inclusion: auto
+description: CareCareer project overview, current state, repository structure, and architecture rules
 ---
 
 # CareCareer Project Context

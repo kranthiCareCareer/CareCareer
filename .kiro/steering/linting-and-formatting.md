@@ -1,5 +1,6 @@
 ---
 inclusion: always
+description: ESLint, Prettier, EditorConfig, and restricted pattern rules
 ---
 
 # CareCareer Linting & Formatting Standards

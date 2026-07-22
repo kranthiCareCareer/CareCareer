@@ -1,5 +1,6 @@
 ---
 inclusion: always
+description: Conventional commit format, CI pipeline requirements, and branch strategy
 ---
 
 # CareCareer Commit & CI/CD Standards

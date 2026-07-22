@@ -1,5 +1,6 @@
 ---
 inclusion: auto
+description: Build tools, test runners, and development environment configuration
 ---
 
 # Tooling Guidance

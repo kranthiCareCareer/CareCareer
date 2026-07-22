@@ -1,5 +1,6 @@
 ---
 inclusion: auto
+description: Rules for autonomous agent execution, resumption, checkpointing and stopping conditions
 ---
 
 # Autonomous Execution Rules

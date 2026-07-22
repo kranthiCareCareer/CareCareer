@@ -1,5 +1,6 @@
 ---
 inclusion: always
+description: Tenant isolation, RLS, authentication, authorization, and secrets management
 ---
 
 # CareCareer Multi-Tenancy & Security Standards

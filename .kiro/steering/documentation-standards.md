@@ -1,5 +1,6 @@
 ---
 inclusion: always
+description: Code commenting, API docs, README, and ADR standards
 ---
 
 # CareCareer Documentation & Commenting Standards

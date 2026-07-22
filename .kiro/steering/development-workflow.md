@@ -1,5 +1,6 @@
 ---
 inclusion: always
+description: Development cycle, code review checklist, and definition of done
 ---
 
 # CareCareer Development Workflow

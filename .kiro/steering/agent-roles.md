@@ -1,5 +1,6 @@
 ---
 inclusion: always
+description: Defines development agent roles and responsibilities for CareCareer platform
 ---
 
 # CareCareer Agent Roles & Responsibilities

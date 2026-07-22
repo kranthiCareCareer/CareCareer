@@ -1,5 +1,6 @@
 ---
 inclusion: always
+description: Structured JSON logging, correlation IDs, metrics, and health checks
 ---
 
 # CareCareer Logging & Observability Standards
