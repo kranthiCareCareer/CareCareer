@@ -52,7 +52,8 @@
 
 - Playwright E2E (requires live server orchestration)
 - Cumulative demo scenario
-- PR creation + CI verification
+- PR creation: visit https://github.com/kranthiCareCareer/CareCareer/pull/new/agent/gp-05-gp-06-enterprise-closure
+- CI verification (will trigger when PR is opened against master)
 - Final milestone documents
 
 ## GP-07: NOT STARTED — BLOCKED
