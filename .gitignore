@@ -39,3 +39,9 @@ playwright-report/
 test-results/
 blob-report/
 traces/
+
+# Never commit tokens or secrets
+PAT-*.txt
+*.pat
+*.secret
+
