@@ -13,6 +13,7 @@ import { z } from 'zod';
 import type { PrismaLikeClient, TransactionClient } from '@carecareer/database';
 
 import { RequireServiceScope, ServiceIdentityGuard } from '../../infrastructure/service-identity.guard.js';
+import { InternalService } from '../../infrastructure/internal-service.decorator.js';
 import type { SessionRepository } from '../../infrastructure/postgres-session-repository.js';
 
 /**
@@ -30,14 +31,15 @@ import type { SessionRepository } from '../../infrastructure/postgres-session-re
 const StateValidationSchema = z.object({
   subject: z.string().uuid(),
   sessionId: z.string().uuid(),
-  selectedTenantId: z.string().uuid().optional(),
-  membershipId: z.string().uuid().optional(),
+  selectedTenantId: z.string().uuid(),
+  membershipId: z.string().uuid(),
   userAuthorizationVersion: z.number().int(),
-  membershipAuthorizationVersion: z.number().int().optional(),
+  membershipAuthorizationVersion: z.number().int(),
 }).strict();
 
 @Controller('internal/v1/identity')
 @UseGuards(ServiceIdentityGuard)
+@InternalService()
 export class InternalIdentityController {
   constructor(
     @Inject('IDENTITY_PRISMA') private readonly prisma: PrismaLikeClient,
@@ -102,37 +104,37 @@ export class InternalIdentityController {
         return { valid: false, code: 'USER_AUTHORIZATION_VERSION_STALE' };
       }
 
-      // 4. Check membership if tenant context provided
-      if (selectedTenantId && membershipId) {
-        const memberRows = await tx.$queryRaw<{
-          status: string; tenant_id: string; authorization_version: number;
-        }>`
-          SELECT status, tenant_id, authorization_version
-          FROM identity.tenant_memberships
-          WHERE id = ${membershipId}::uuid AND user_id = ${subject}::uuid`;
+      // 4. Check membership is active and matches
+      const memberRows = await tx.$queryRaw<{
+        status: string; tenant_id: string; authorization_version: number;
+      }>`
+        SELECT status, tenant_id, authorization_version
+        FROM identity.tenant_memberships
+        WHERE id = ${membershipId}::uuid AND user_id = ${subject}::uuid`;
 
-        if (memberRows.length === 0) {
-          return { valid: false, code: 'MEMBERSHIP_NOT_FOUND' };
-        }
-        const membership = memberRows[0]!;
-        if (membership.status !== 'ACTIVE') {
-          return { valid: false, code: 'MEMBERSHIP_INACTIVE' };
-        }
-        if (membership.tenant_id !== selectedTenantId) {
-          return { valid: false, code: 'MEMBERSHIP_TENANT_MISMATCH' };
-        }
-        if (
-          membershipAuthorizationVersion !== undefined &&
-          membership.authorization_version !== membershipAuthorizationVersion
-        ) {
-          return { valid: false, code: 'MEMBERSHIP_AUTHORIZATION_VERSION_STALE' };
-        }
+      if (memberRows.length === 0) {
+        return { valid: false, code: 'MEMBERSHIP_NOT_FOUND' };
+      }
+      const membership = memberRows[0]!;
+      if (membership.status !== 'ACTIVE') {
+        return { valid: false, code: 'MEMBERSHIP_INACTIVE' };
+      }
+      if (membership.tenant_id !== selectedTenantId) {
+        return { valid: false, code: 'MEMBERSHIP_TENANT_MISMATCH' };
+      }
+      if (membership.authorization_version !== membershipAuthorizationVersion) {
+        return { valid: false, code: 'MEMBERSHIP_AUTHORIZATION_VERSION_STALE' };
       }
 
       return {
         valid: true,
         user: { status: user.status, authorizationVersion: user.authorization_version },
         session: { status: session.status, expiresAt: session.expiresAt.toISOString() },
+        membership: {
+          status: membership.status,
+          tenantId: membership.tenant_id,
+          authorizationVersion: membership.authorization_version,
+        },
       };
     });
   }

@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { z } from 'zod';
 import { SignJWT, importPKCS8 } from 'jose';
+import * as crypto_module from 'node:crypto';
 
 import type { PrismaLikeClient, TransactionClient } from '@carecareer/database';
 
@@ -133,10 +134,9 @@ export class InternalOAuthController {
   }
 
   private verifySecret(provided: string, storedHash: string): boolean {
-    // Timing-safe comparison using Node.js crypto
-    const { createHash, timingSafeEqual } = require('node:crypto') as typeof import('node:crypto');
+    // Timing-safe comparison using Node.js crypto (ESM-compatible top-level import)
+    const { createHash, timingSafeEqual } = crypto_module;
     const providedHash = createHash('sha256').update(provided).digest('hex');
-    // Both must be the same length for timingSafeEqual
     if (providedHash.length !== storedHash.length) return false;
     return timingSafeEqual(Buffer.from(providedHash), Buffer.from(storedHash));
   }

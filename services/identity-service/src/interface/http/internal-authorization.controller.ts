@@ -18,6 +18,7 @@ import {
   type AuthorizationRepository,
 } from '../../application/commands/authorization-decision.command.js';
 import { RequireServiceScope, ServiceIdentityGuard } from '../../infrastructure/service-identity.guard.js';
+import { InternalService } from '../../infrastructure/internal-service.decorator.js';
 
 /**
  * Internal Authorization Decision Endpoint
@@ -56,6 +57,7 @@ const InternalDecisionSchema = z.object({
 
 @Controller('internal/v1/authorization')
 @UseGuards(ServiceIdentityGuard)
+@InternalService()
 export class InternalAuthorizationController {
   constructor(
     @Inject('AUTHORIZATION_PRISMA') private readonly prisma: PrismaLikeClient,

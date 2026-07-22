@@ -21,6 +21,7 @@ import { PostgresMembershipRepository } from './infrastructure/postgres-membersh
 import {
   PostgresSessionRepository } from './infrastructure/postgres-session-repository.js';
 import { PostgresSigningKeyRepository } from './infrastructure/postgres-signing-key-repository.js';
+import { ServiceIdentityGuard } from './infrastructure/service-identity.guard.js';
 import { SessionStateValidator } from './infrastructure/session-state-validator.js';
 import { AuthController } from './interface/http/auth.controller.js';
 import { AuthorizationController } from './interface/http/authorization.controller.js';
@@ -198,6 +199,7 @@ function resolveTokenValidator(): TokenValidator {
       provide: 'SESSION_REPOSITORY',
       useClass: PostgresSessionRepository,
     },
+    ServiceIdentityGuard,
   ],
 })
 export class IdentityModule {}
