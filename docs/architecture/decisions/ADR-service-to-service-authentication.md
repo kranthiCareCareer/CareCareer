@@ -15,11 +15,22 @@ not just forward a user token.
 
 ## Decision
 
-### Service Identity JWT (Option A)
+### Service Identity via Token Exchange (Current Implementation)
 
-The staffing-service authenticates to internal endpoints using a short-lived
-service JWT with these properties:
+The staffing-service authenticates to the identity-service token endpoint:
 
+```
+POST /internal/v1/oauth/token
+grant_type=client_credentials
+client_id=staffing-service
+client_secret=<from-secrets-manager>
+scope=identity.state.validate authorization.decide
+```
+
+The identity-service validates the registered client and issues a short-lived
+service JWT. The staffing-service NEVER holds the identity issuer's signing key.
+
+Service token properties:
 ```json
 {
   "iss": "carecareer-identity",
@@ -34,10 +45,19 @@ service JWT with these properties:
 }
 ```
 
-- Lifetime: 5 minutes maximum
-- Cached until shortly before expiry, then renewed
-- Credentials for token acquisition stored in AWS Secrets Manager
-- Client-credentials-style flow for token issuance
+### ServiceCredentialProvider Abstraction
+
+The credential acquisition is behind an interface:
+```typescript
+interface ServiceCredentialProvider {
+  getCredential(): Promise<ServiceCredential>;
+  invalidate(): void;
+}
+```
+
+Implementations:
+- Current: `LocalClientCredentialsProvider` (client secret from env/Secrets Manager)
+- Future: `AwsSigV4WorkloadCredentialProvider` (ECS task role, no app credentials)
 
 ### User Context Propagation
 
@@ -116,6 +136,15 @@ Rejected because:
 
 ## Migration Path
 
-1. Current: Client-credentials JWT via Secrets Manager
-2. Future: ECS task role / EKS workload identity (no application credentials)
-3. Long-term: mTLS or SPIFFE/SPIRE for zero-trust service mesh
+1. Current: Client-credentials token exchange (identity-service issues tokens)
+2. Production: Client secret stored in AWS Secrets Manager with rotation
+3. AWS target: ECS task role + SigV4 via VPC Lattice (no application credentials)
+4. Identity signing key: KMS-backed asymmetric key (identity-service has kms:Sign)
+
+### Key Security Properties
+
+- The staffing-service NEVER possesses the identity issuer's private key
+- A compromised staffing container cannot mint arbitrary service tokens
+- The identity-service is the ONLY RS256 token issuer in the platform
+- Token exchange credentials (client_secret) are rotatable via Secrets Manager
+- SigV4/workload identity eliminates all stored credentials in the final state
