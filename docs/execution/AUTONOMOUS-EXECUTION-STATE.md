@@ -1,71 +1,89 @@
 # Autonomous Execution State
 
-## Last Updated: 2026-07-22T09:42:00Z
+## Last Updated: 2026-07-22T09:55:00Z
 
 ## Repository State
 
 | Field | Value |
 |-------|-------|
 | Branch | agent/gp-05-gp-06-completion |
-| HEAD | 735b639 |
+| HEAD | 9f1f279 |
 | Working tree | clean |
-| Current milestone | GP-05 + GP-06 security hardening |
+| Current milestone | GP-05 + GP-06 backend hardening |
 | Authoritative source | docs/decisions/golden-path-backlog.md |
 
-## Progress This Session (2026-07-22)
+## Session Progress (2026-07-22)
 
-| Commit | Description |
-|--------|-------------|
-| 78d367e | Correct execution docs to IN PROGRESS |
-| 1a2dc89 | Enforce current identity/session state validation |
-| 55ac5a5 | Enforce action permissions on all endpoints |
-| 509224f | Worker self-service + same-tenant privacy |
-| 735b639 | Worker outbox events via application commands |
+| # | Commit | Description |
+|---|--------|-------------|
+| 1 | 78d367e | Correct execution docs to IN PROGRESS |
+| 2 | 1a2dc89 | Enforce current identity/session state |
+| 3 | 55ac5a5 | Enforce action permissions |
+| 4 | 509224f | Worker self-service + same-tenant privacy |
+| 5 | 735b639 | Worker outbox events via application commands |
+| 6 | 6f8ebf9 | Execution state update |
+| 7 | 1ba1589 | External reference reconciliation rules |
+| 8 | 36440b0 | PII redaction proven |
+| 9 | 9f1f279 | OpenAPI specification published |
 
-## GP-05 Status: IN PROGRESS
+## Test Summary
+
+| Layer | Count | Status |
+|-------|-------|--------|
+| Unit (domain + infrastructure) | 62 | PASS |
+| OpenAPI validation | 15 | PASS |
+| Integration (HTTP + RLS) | 66 | PASS |
+| Total | 143 | ALL PASS |
+
+## GP-05 Status
 
 | Component | Status |
 |-----------|--------|
 | Backend API | ✅ Complete |
-| RS256 + identity state validation | ✅ Complete |
+| RS256 + identity state | ✅ Complete |
 | Action permissions | ✅ Enforced |
 | Audit/outbox atomicity | ✅ Proven |
-| Tenant isolation | ✅ Proven |
 | Geofence versioning | ✅ Tested |
-| OpenAPI | ❌ Not run |
-| Security coverage | ❌ Not run |
+| OpenAPI specification | ✅ Published + validated |
+| Tenant isolation | ✅ Proven |
+| Security coverage | ❌ Manifest not created yet |
 | Admin UI | ❌ Not implemented |
 | Playwright | ❌ Not implemented |
-| Demo | ❌ Not implemented |
 | Docker verification | ❌ Dockerfile exists, not verified |
+| Demo | ❌ Not implemented |
 
-## GP-06 Status: IN PROGRESS
+## GP-06 Status
 
 | Component | Status |
 |-----------|--------|
 | Worker CRUD + lifecycle | ✅ Complete |
 | Self-service (own profile) | ✅ Implemented + tested |
-| Same-tenant privacy | ✅ Proven (my-profile only returns own) |
-| Outbox events | ✅ Implemented + tested |
+| Same-tenant privacy | ✅ Proven |
+| Outbox events | ✅ Worker.created + status-changed |
 | Application commands | ✅ CreateWorker, ChangeWorkerStatus |
-| PII in outbox/audit | ✅ Proven absent |
-| External references | ✅ Implemented |
+| PII redaction | ✅ Proven (9 scenarios) |
+| External reference hardening | ✅ Supported systems, uniqueness |
 | Action permissions | ✅ Enforced |
 | Identity state validation | ✅ Enforced |
-| OpenAPI | ❌ Not run |
-| Security coverage | ❌ Not run |
+| OpenAPI specification | ✅ Published + validated |
+| Security coverage | ❌ Manifest not created yet |
 | Admin UI | ❌ Not implemented |
 | Playwright | ❌ Not implemented |
 
-## Test Totals
+## Remaining Backend Items
 
-| Layer | Count |
-|-------|-------|
-| Unit | 53 |
-| Integration | 66 |
-| Total | 119 |
+1. Security coverage manifest + 2 clean runs
+2. Docker image build verification
+3. Full monorepo build gate
 
-## Next Task
+## Remaining UI/E2E Items (larger effort)
 
-External reference hardening (supported systems, uniqueness enforcement).
-Then PII redaction across logs.
+4. Facility/department admin UI pages
+5. Worker admin + self-service UI
+6. Playwright workflows
+7. Accessibility (Axe)
+8. Responsive validation
+9. Cumulative demo
+10. PR + CI pipeline
+
+## GP-07 Status: NOT STARTED — MUST NOT BEGIN
