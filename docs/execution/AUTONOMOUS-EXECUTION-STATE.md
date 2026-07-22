@@ -1,64 +1,71 @@
 # Autonomous Execution State
 
-## Last Updated: 2026-07-22T00:00:00Z
+## Last Updated: 2026-07-22T09:42:00Z
 
 ## Repository State
 
 | Field | Value |
 |-------|-------|
 | Branch | agent/gp-05-gp-06-completion |
-| HEAD | e2f6ec6 |
+| HEAD | 735b639 |
 | Working tree | clean |
-| Current milestone | GP-05 + GP-06 completion |
-| Current objective | Enforce current identity/session state in staffing auth guard |
+| Current milestone | GP-05 + GP-06 security hardening |
 | Authoritative source | docs/decisions/golden-path-backlog.md |
+
+## Progress This Session (2026-07-22)
+
+| Commit | Description |
+|--------|-------------|
+| 78d367e | Correct execution docs to IN PROGRESS |
+| 1a2dc89 | Enforce current identity/session state validation |
+| 55ac5a5 | Enforce action permissions on all endpoints |
+| 509224f | Worker self-service + same-tenant privacy |
+| 735b639 | Worker outbox events via application commands |
 
 ## GP-05 Status: IN PROGRESS
 
 | Component | Status |
 |-----------|--------|
-| Backend API (facilities, departments, credential requirements) | Substantially implemented |
-| RS256 token validation | Implemented |
-| Current session/user/membership state validation | NOT IMPLEMENTED |
-| Action permissions (facility.create, etc.) | NOT ENFORCED |
-| Geofence version increment behavior | Tested (unit + integration) |
-| Audit/outbox atomicity | Proven |
-| Tenant isolation (RLS) | Proven |
-| OpenAPI validation | NOT RUN |
-| Security coverage | NOT PROVEN |
-| Admin UI | NOT IMPLEMENTED |
-| Playwright | NOT IMPLEMENTED |
-| Demo | NOT IMPLEMENTED |
-| Docker verification | NOT RUN |
-| CI/GitHub Actions | NOT RUN |
+| Backend API | ✅ Complete |
+| RS256 + identity state validation | ✅ Complete |
+| Action permissions | ✅ Enforced |
+| Audit/outbox atomicity | ✅ Proven |
+| Tenant isolation | ✅ Proven |
+| Geofence versioning | ✅ Tested |
+| OpenAPI | ❌ Not run |
+| Security coverage | ❌ Not run |
+| Admin UI | ❌ Not implemented |
+| Playwright | ❌ Not implemented |
+| Demo | ❌ Not implemented |
+| Docker verification | ❌ Dockerfile exists, not verified |
 
 ## GP-06 Status: IN PROGRESS
 
 | Component | Status |
 |-----------|--------|
-| Worker CRUD API | Implemented |
-| Status lifecycle state machine | Implemented + tested |
-| External references | Implemented |
-| Worker self-service (own profile only) | NOT IMPLEMENTED |
-| Same-tenant worker-to-worker privacy | NOT PROVEN |
-| Worker outbox events | NOT IMPLEMENTED |
-| Application commands (atomic handlers) | NOT IMPLEMENTED |
-| PII redaction across logs | NOT PROVEN (only audit summary) |
-| Action permissions (worker.create, etc.) | NOT ENFORCED |
-| Admin UI | NOT IMPLEMENTED |
-| Playwright | NOT IMPLEMENTED |
+| Worker CRUD + lifecycle | ✅ Complete |
+| Self-service (own profile) | ✅ Implemented + tested |
+| Same-tenant privacy | ✅ Proven (my-profile only returns own) |
+| Outbox events | ✅ Implemented + tested |
+| Application commands | ✅ CreateWorker, ChangeWorkerStatus |
+| PII in outbox/audit | ✅ Proven absent |
+| External references | ✅ Implemented |
+| Action permissions | ✅ Enforced |
+| Identity state validation | ✅ Enforced |
+| OpenAPI | ❌ Not run |
+| Security coverage | ❌ Not run |
+| Admin UI | ❌ Not implemented |
+| Playwright | ❌ Not implemented |
 
-## GP-07 Status: NOT STARTED — MUST NOT BEGIN
+## Test Totals
 
-## Completed Milestones
+| Layer | Count |
+|-------|-------|
+| Unit | 53 |
+| Integration | 66 |
+| Total | 119 |
 
-| Milestone | Status |
-|-----------|--------|
-| GP-00–GP-03.4 | COMPLETE |
-| Investor Demo | COMPLETE |
-| Chromium 64/64 | COMPLETE |
+## Next Task
 
-## Next Exact Task
-
-Add current session/user/membership state validation to StaffingAuthGuard.
-Fail closed when identity state cannot be loaded.
+External reference hardening (supported systems, uniqueness enforcement).
+Then PII redaction across logs.
