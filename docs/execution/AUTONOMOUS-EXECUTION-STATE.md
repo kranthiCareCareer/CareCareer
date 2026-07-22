@@ -1,57 +1,69 @@
 # Autonomous Execution State
 
-## Last Updated: 2026-07-22T13:00:00Z
+## Last Updated: 2026-07-22T14:30:00Z
 
 ## Repository State
 
 | Field | Value |
 |-------|-------|
-| Branch | agent/gp-05-gp-06-enterprise-closure |
-| HEAD | eb5afa1 |
+| Branch | agent/gp-05-gp-06-v2 |
+| HEAD | a0523df |
 | Origin master | e2f6ec6 |
-| Commits ahead | 30 |
+| Commits ahead | 1 (single squash commit) |
+| Old branch | agent/gp-05-gp-06-enterprise-closure (TO BE CLOSED) |
 
-## Critical Architecture Corrections Completed
+## Why v2 Branch
 
-| # | Correction | Status |
-|---|-----------|--------|
-| 1 | Token exchange — identity-service is sole token issuer | ✅ DONE |
-| 2 | Internal endpoints implemented (oauth/token, state-validations, authorization/decisions) | ✅ DONE |
-| 3 | All composite tenant FKs repaired (departments, confirmation_policies) | ✅ DONE |
-| 4 | Security coverage 95/90 (global 93.58% — still needs improvement) | ⏳ IN PROGRESS |
-| 5 | Command/audit/outbox for every mutation | ⏳ PARTIAL |
-| 6 | GitHub/AWS deployment gate | ⏳ NOT STARTED |
+Branch `agent/gp-05-gp-06-enterprise-closure` contained a SHA-256 hash of a
+test credential in commit `f5db6f8`. This triggered Gitleaks CI failure.
+Per explicit user decision (Option B), all changes were squash-merged into
+a clean branch `agent/gp-05-gp-06-v2` with no credential in history.
 
-## Service Architecture
-
-```
-staffing-service
-    → POST /internal/v1/oauth/token (client_id + client_secret)
-    ← service JWT (5 min, signed by identity-service)
-    
-    → POST /internal/v1/identity/state-validations (service JWT + principal)
-    ← { valid: true/false, code }
-    
-    → POST /internal/v1/authorization/decisions (service JWT + principal + action)
-    ← { decision: ALLOW/DENY, decisionId, policyVersion }
-```
-
-Key property: staffing-service NEVER holds the identity issuer's signing key.
-
-## Tests
-
-| Layer | Count |
-|-------|-------|
-| Staffing unit | 129 |
-| Staffing integration | 86 |
-| Total | 215 |
+The original test credential was LOCAL DEV ONLY and never used in production.
+It must still be treated as compromised and rotated per the decision.
 
 ## PR Status
 
-Branch is pushed but PR title should be:
-`wip(gp-05-gp-06): enterprise security hardening checkpoint`
+- PR #1: SUPERSEDED (old branch, to be closed)
+- PR #2: Create at https://github.com/kranthiCareCareer/CareCareer/pull/new/agent/gp-05-gp-06-v2
+- PR #2 title: wip(gp-05-gp-06): enterprise security hardening checkpoint
 
-NOT "enterprise closure" — this is a checkpoint, not closure.
+## 6 P0 Items Status in v2 Branch
 
-## GP-05 / GP-06: IN PROGRESS
+| # | Finding | Status |
+|---|---------|--------|
+| 1 | @InternalService fail-open risk | FIXED: route-security.spec.ts proves guard chain at test time |
+| 2 | Session-to-membership binding | FIXED: verifies session.selectedTenantId + session.membershipId |
+| 3 | Authorization ignores resource/membership | FIXED: cross-tenant resource check + membershipId forwarded |
+| 4 | SHA-256 secret verification | FIXED: scrypt (N=16384, r=8, p=1) with per-credential salt |
+| 5 | Credential in git history | FIXED: new clean branch, no credential in any commit |
+| 6 | No end-to-end integration test | PARTIAL: route-security test proves compile-time invariants |
+
+## Test Counts (local, pre-CI)
+
+| Service | Unit | Integration | Total |
+|---------|------|-------------|-------|
+| Identity | 237 | (not run this session) | 237+ |
+| Staffing | 129 | 86 | 215 |
+| Admin Console | 103 | — | 103 |
+
+## NOT YET VERIFIED (CI Required)
+
+- [ ] Gitleaks scan on clean history
+- [ ] Full CI pipeline (lint, typecheck, tests, build)
+- [ ] GitHub Actions green
+- [ ] End-to-end service auth integration test (identity → staffing)
+- [ ] Coverage at 95/90 for ALL security-critical files
+- [ ] Node 24 compatibility verified
+
+## PR Must NOT Be Submitted for Re-review Until
+
+- [ ] All CI workflows green
+- [ ] Gitleaks passes without suppression
+- [ ] Full end-to-end service auth test passes
+- [ ] Coverage 95/90 without exclusions
+- [ ] GP-05/GP-06 IN PROGRESS markers correct
+
+## GP-05: IN PROGRESS
+## GP-06: IN PROGRESS
 ## GP-07: NOT STARTED — BLOCKED
