@@ -1,0 +1,670 @@
+openapi: 3.1.0
+info:
+  title: CareCareer Staffing Service
+  version: 0.1.0
+  description: |
+    Manages facilities, departments, credential requirements, and workers.
+    All endpoints require Bearer token authentication (RS256).
+    All operations are tenant-scoped via validated session principal.
+
+servers:
+  - url: http://localhost:3200
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      operationId: healthCheck
+      summary: Service liveness check
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+  /ready:
+    get:
+      operationId: readinessCheck
+      summary: Service readiness check
+      security: []
+      responses:
+        '200':
+          description: Service is ready
+
+  /v1/facilities:
+    post:
+      operationId: createFacility
+      summary: Create a facility
+      description: |
+        Requires permission: facility.create
+        Uses optimistic concurrency with version tracking.
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFacilityRequest'
+      responses:
+        '201':
+          description: Facility created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FacilityIdResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      operationId: listFacilities
+      summary: List facilities for the authenticated tenant
+      description: Requires permission facility.list
+      responses:
+        '200':
+          description: List of facilities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FacilityListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /v1/facilities/{facilityId}:
+    get:
+      operationId: getFacility
+      summary: Get facility by ID
+      description: |
+        Requires permission: facility.read
+        Cross-tenant access returns 404 (not 403) — no information leakage.
+      parameters:
+        - $ref: '#/components/parameters/FacilityId'
+      responses:
+        '200':
+          description: Facility details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FacilityResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateFacility
+      summary: Update facility (optimistic concurrency)
+      description: |
+        Requires permission: facility.update
+        Requires expectedVersion for optimistic concurrency control.
+        Geofence version incremented automatically when geofence fields change.
+      parameters:
+        - $ref: '#/components/parameters/FacilityId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateFacilityRequest'
+      responses:
+        '200':
+          description: Facility updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FacilityResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/facilities/{facilityId}/status:
+    post:
+      operationId: changeFacilityStatus
+      summary: Activate, deactivate, or suspend a facility
+      description: |
+        Requires permission: facility.activate
+        Validates state machine transitions. Invalid transitions return 400.
+      parameters:
+        - $ref: '#/components/parameters/FacilityId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeFacilityStatusRequest'
+      responses:
+        '200':
+          description: Status changed
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/facilities/{facilityId}/departments:
+    post:
+      operationId: createDepartment
+      summary: Create a department within a facility
+      description: Requires permission department.create
+      parameters:
+        - $ref: '#/components/parameters/FacilityId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDepartmentRequest'
+      responses:
+        '201':
+          description: Department created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: listDepartments
+      summary: List departments for a facility
+      description: Requires permission department.list
+      parameters:
+        - $ref: '#/components/parameters/FacilityId'
+      responses:
+        '200':
+          description: List of departments
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/facilities/{facilityId}/departments/{departmentId}/status:
+    post:
+      operationId: changeDepartmentStatus
+      summary: Activate or deactivate a department
+      description: Requires permission department.activate
+      parameters:
+        - $ref: '#/components/parameters/FacilityId'
+        - name: departmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeDepartmentStatusRequest'
+      responses:
+        '200':
+          description: Department status changed
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/facilities/{facilityId}/credential-requirements:
+    post:
+      operationId: createCredentialRequirement
+      summary: Add a credential requirement
+      description: Requires permission credential-requirement.manage
+      parameters:
+        - $ref: '#/components/parameters/FacilityId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCredentialRequirementRequest'
+      responses:
+        '201':
+          description: Credential requirement created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    get:
+      operationId: listCredentialRequirements
+      summary: Query credential requirements by role and/or department
+      description: Requires permission credential-requirement.read
+      parameters:
+        - $ref: '#/components/parameters/FacilityId'
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [RN, LPN, CNA, RT, ALLIED]
+        - name: departmentId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Filtered credential requirements
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /v1/workers:
+    post:
+      operationId: createWorker
+      summary: Create a worker profile
+      description: |
+        Requires permission: worker.create
+        PII fields stored but NEVER logged or included in events.
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkerRequest'
+      responses:
+        '201':
+          description: Worker created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    get:
+      operationId: listWorkers
+      summary: List workers (admin)
+      description: Requires permission worker.list
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              [
+                APPLICANT,
+                SCREENING,
+                QUALIFIED,
+                CREDENTIALING,
+                READY,
+                ACTIVE,
+                INACTIVE,
+                BLOCKED,
+                ALUMNI,
+              ]
+      responses:
+        '200':
+          description: Worker list
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/workers/{workerId}:
+    get:
+      operationId: getWorker
+      summary: Get worker by ID (admin)
+      description: |
+        Requires permission: worker.read
+        Cross-tenant returns 404.
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+      responses:
+        '200':
+          description: Worker details
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: updateWorker
+      summary: Update worker profile (admin)
+      description: |
+        Requires permission: worker.update
+        Uses expectedVersion for optimistic concurrency.
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWorkerRequest'
+      responses:
+        '200':
+          description: Worker updated
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/workers/{workerId}/status:
+    post:
+      operationId: changeWorkerStatus
+      summary: Transition worker lifecycle status
+      description: |
+        Requires permission: worker.change-status
+        Validates state machine transitions.
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeWorkerStatusRequest'
+      responses:
+        '200':
+          description: Status changed
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/my-profile:
+    get:
+      operationId: getMyProfile
+      summary: Worker reads own profile (self-service)
+      description: |
+        No special permission required — authenticated workers always access their own profile.
+        Uses principal.subject → worker.user_id link.
+      responses:
+        '200':
+          description: Own worker profile
+        '404':
+          description: No worker profile linked to this account
+    patch:
+      operationId: updateMyProfile
+      summary: Worker updates own profile (self-service)
+      description: |
+        No special permission required — workers update their own permitted fields.
+        Cannot change email, profession, or status via self-service.
+      parameters:
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWorkerRequest'
+      responses:
+        '200':
+          description: Profile updated
+        '404':
+          description: No worker profile linked
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: RS256-signed platform access token
+
+  parameters:
+    FacilityId:
+      name: facilityId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    WorkerId:
+      name: workerId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CorrelationId:
+      name: x-correlation-id
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Request correlation ID for cross-service tracing
+
+  schemas:
+    CreateFacilityRequest:
+      type: object
+      required: [clientId, name, timezone]
+      additionalProperties: false
+      properties:
+        clientId: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 200 }
+        timezone: { type: string, minLength: 1, maxLength: 50 }
+        addressLine1: { type: string, maxLength: 300 }
+        city: { type: string, maxLength: 100 }
+        state: { type: string, maxLength: 50 }
+        zip: { type: string, maxLength: 20 }
+        latitude: { type: number, minimum: -90, maximum: 90 }
+        longitude: { type: number, minimum: -180, maximum: 180 }
+        geofenceRadiusMeters: { type: integer, minimum: 1 }
+
+    UpdateFacilityRequest:
+      type: object
+      required: [expectedVersion]
+      additionalProperties: false
+      description: All fields optional except expectedVersion for optimistic concurrency
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        timezone: { type: string, minLength: 1, maxLength: 50 }
+        addressLine1: { type: string }
+        city: { type: string }
+        state: { type: string }
+        zip: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+        geofenceRadiusMeters: { type: integer }
+        expectedVersion: { type: integer, minimum: 1 }
+
+    ChangeFacilityStatusRequest:
+      type: object
+      required: [status, expectedVersion]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, SUSPENDED]
+        expectedVersion: { type: integer, minimum: 1 }
+
+    CreateDepartmentRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+
+    ChangeDepartmentStatusRequest:
+      type: object
+      required: [status, expectedVersion]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE]
+        expectedVersion: { type: integer, minimum: 1 }
+
+    CreateCredentialRequirementRequest:
+      type: object
+      required: [role, credentialType]
+      additionalProperties: false
+      properties:
+        departmentId: { type: string, format: uuid }
+        role:
+          type: string
+          enum: [RN, LPN, CNA, RT, ALLIED]
+        credentialType: { type: string, minLength: 1, maxLength: 100 }
+        required: { type: boolean }
+        effectiveFrom: { type: string, format: date-time }
+
+    CreateWorkerRequest:
+      type: object
+      required: [firstName, lastName, email, profession]
+      additionalProperties: false
+      properties:
+        firstName: { type: string, minLength: 1, maxLength: 100 }
+        lastName: { type: string, minLength: 1, maxLength: 100 }
+        email: { type: string, format: email, maxLength: 254 }
+        phone: { type: string, maxLength: 30 }
+        profession:
+          type: string
+          enum: [RN, LPN, CNA, RT, ALLIED]
+        specialty: { type: string, maxLength: 100 }
+        userId: { type: string, format: uuid }
+        homeLatitude: { type: number }
+        homeLongitude: { type: number }
+        homeCity: { type: string }
+        homeState: { type: string }
+        homeZip: { type: string }
+        externalReferences:
+          type: array
+          items:
+            type: object
+            required: [systemName, externalId]
+            properties:
+              systemName:
+                type: string
+                enum: [symplr, bullhorn, labor-edge, maestra, auth0]
+              externalId: { type: string, minLength: 1, maxLength: 200 }
+
+    UpdateWorkerRequest:
+      type: object
+      required: [expectedVersion]
+      additionalProperties: false
+      properties:
+        firstName: { type: string, minLength: 1, maxLength: 100 }
+        lastName: { type: string, minLength: 1, maxLength: 100 }
+        phone: { type: string, maxLength: 30 }
+        specialty: { type: string, maxLength: 100 }
+        homeLatitude: { type: number }
+        homeLongitude: { type: number }
+        homeCity: { type: string }
+        homeState: { type: string }
+        homeZip: { type: string }
+        expectedVersion: { type: integer, minimum: 1 }
+
+    ChangeWorkerStatusRequest:
+      type: object
+      required: [status, expectedVersion]
+      additionalProperties: false
+      properties:
+        status:
+          type: string
+          enum:
+            [
+              APPLICANT,
+              SCREENING,
+              QUALIFIED,
+              CREDENTIALING,
+              READY,
+              ACTIVE,
+              INACTIVE,
+              BLOCKED,
+              ALUMNI,
+            ]
+        expectedVersion: { type: integer, minimum: 1 }
+
+    FacilityIdResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            facilityId: { type: string, format: uuid }
+
+    FacilityResponse:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/Facility'
+
+    FacilityListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Facility'
+
+    Facility:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        tenantId: { type: string, format: uuid }
+        clientId: { type: string, format: uuid }
+        name: { type: string }
+        status: { type: string, enum: [ACTIVE, INACTIVE, SUSPENDED] }
+        timezone: { type: string }
+        version: { type: integer }
+        geofenceVersion: { type: integer }
+
+    ErrorEnvelope:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              path: { type: string }
+              message: { type: string }
+
+    Pagination:
+      type: object
+      properties:
+        offset: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+
+  responses:
+    BadRequest:
+      description: Invalid request (validation error or invalid transition)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unauthorized:
+      description: Authentication failed (missing, invalid, or expired token)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: Resource not found (or hidden cross-tenant)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Conflict:
+      description: Optimistic concurrency conflict (version mismatch)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'

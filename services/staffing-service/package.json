@@ -10,6 +10,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:coverage": "vitest run --coverage --config vitest.coverage.config.ts",
+    "coverage:security-check": "node scripts/coverage-security-check.mjs",
+    "openapi:validate": "vitest run src/openapi/openapi-validate.spec.ts",
     "db:migrate": "node scripts/migrate.mjs",
     "clean": "rimraf dist"
   },

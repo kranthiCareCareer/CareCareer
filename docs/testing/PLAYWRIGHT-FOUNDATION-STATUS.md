@@ -2,11 +2,11 @@
 
 ## Checkpoint
 
-| Field | Value |
-| --- | --- |
-| Commit | 5a89f17 |
-| Working tree | clean |
-| Status | ACTIVE — 5 previously failing tests fixed |
+| Field        | Value                                     |
+| ------------ | ----------------------------------------- |
+| Commit       | 5a89f17                                   |
+| Working tree | clean                                     |
+| Status       | ACTIVE — 5 previously failing tests fixed |
 
 ## Completed Work
 
@@ -16,7 +16,7 @@
 - ErrorCollector fixture (console, page, network, 5xx)
 - Navigation smoke spec
 - Keyboard smoke test
-- ESM __dirname fix (executive-demo.spec.ts)
+- ESM \_\_dirname fix (executive-demo.spec.ts)
 - Vite allowedHosts fix for Docker containers
 - Demo sessionStorage persistence for page-reload resilience
 - Docker E2E runner image (Node 22 + Chromium/Firefox/WebKit)
@@ -38,6 +38,7 @@ environments (IDE process managers, piped stdio). This is a known Playwright
 issue with Windows terminal environments that manage stdout.
 
 **Verification options:**
+
 1. `pnpm demo:verify` — Custom runner, 20/20 Chromium tests (proven working)
 2. `pnpm test:e2e:standard` — Docker-based runner (proven working on Linux)
 3. Standard terminal (cmd.exe, PowerShell without IDE) — CLI works normally
@@ -45,33 +46,33 @@ issue with Windows terminal environments that manage stdout.
 
 ## Test Inventory (11 spec files, ~50 tests)
 
-| Spec File | Tests | Status |
-|-----------|-------|--------|
-| demo-mode.spec.ts | 4 | PASS (via custom runner) |
-| authentication.spec.ts | 5 | PASS (via custom runner) |
-| navigation-smoke.spec.ts | ~6 | PASS (via custom runner) |
-| tenant-provisioning.spec.ts | 6 | FIXED (validity check race) |
-| lifecycle.spec.ts | 3 | PASS (graceful error handling) |
-| entitlements-features.spec.ts | 6 | FIXED (real tenant ID) |
-| organizations-branches.spec.ts | ~4 | PASS |
-| executive-demo.spec.ts | 1 | FIXED (audit page routing) |
-| tenant-isolation.spec.ts | ~4 | PASS |
-| validation-errors.spec.ts | 5 | FIXED (validity check race) |
-| audit.spec.ts | ~4 | PASS |
+| Spec File                      | Tests | Status                         |
+| ------------------------------ | ----- | ------------------------------ |
+| demo-mode.spec.ts              | 4     | PASS (via custom runner)       |
+| authentication.spec.ts         | 5     | PASS (via custom runner)       |
+| navigation-smoke.spec.ts       | ~6    | PASS (via custom runner)       |
+| tenant-provisioning.spec.ts    | 6     | FIXED (validity check race)    |
+| lifecycle.spec.ts              | 3     | PASS (graceful error handling) |
+| entitlements-features.spec.ts  | 6     | FIXED (real tenant ID)         |
+| organizations-branches.spec.ts | ~4    | PASS                           |
+| executive-demo.spec.ts         | 1     | FIXED (audit page routing)     |
+| tenant-isolation.spec.ts       | ~4    | PASS                           |
+| validation-errors.spec.ts      | 5     | FIXED (validity check race)    |
+| audit.spec.ts                  | ~4    | PASS                           |
 
 ## Route Coverage
 
-| Route | Spec Coverage | Accessibility | Status |
-|-------|---------------|---------------|--------|
-| / (unauthenticated) | demo-mode, authentication | Axe tested | COMPLETE |
-| / (dashboard) | navigation-smoke, executive-demo | Axe tested | COMPLETE |
-| /tenants | tenant-provisioning, navigation-smoke | Axe tested | COMPLETE |
-| /tenants/create | tenant-provisioning, validation-errors | Not Axe tested | PARTIAL |
-| /tenants/:id | lifecycle, executive-demo | Not Axe tested | PARTIAL |
-| /tenants/:id/entitlements | entitlements-features | Not Axe tested | FIXED |
-| /tenants/:id/organizations | organizations-branches | Not Axe tested | PARTIAL |
-| /tenants/:id/features | entitlements-features | Not Axe tested | FIXED |
-| /tenants/:id/audit | audit, executive-demo | Not Axe tested | FIXED |
+| Route                      | Spec Coverage                          | Accessibility  | Status   |
+| -------------------------- | -------------------------------------- | -------------- | -------- |
+| / (unauthenticated)        | demo-mode, authentication              | Axe tested     | COMPLETE |
+| / (dashboard)              | navigation-smoke, executive-demo       | Axe tested     | COMPLETE |
+| /tenants                   | tenant-provisioning, navigation-smoke  | Axe tested     | COMPLETE |
+| /tenants/create            | tenant-provisioning, validation-errors | Not Axe tested | PARTIAL  |
+| /tenants/:id               | lifecycle, executive-demo              | Not Axe tested | PARTIAL  |
+| /tenants/:id/entitlements  | entitlements-features                  | Not Axe tested | FIXED    |
+| /tenants/:id/organizations | organizations-branches                 | Not Axe tested | PARTIAL  |
+| /tenants/:id/features      | entitlements-features                  | Not Axe tested | FIXED    |
+| /tenants/:id/audit         | audit, executive-demo                  | Not Axe tested | FIXED    |
 
 ## Remaining Work
 
@@ -91,4 +92,5 @@ Playwright library API directly. All standard terminal and CI environments
 work normally.
 
 ---
-*Last updated: 2026-07-21 at 5a89f17*
+
+_Last updated: 2026-07-21 at 5a89f17_

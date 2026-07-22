@@ -41,8 +41,14 @@ describe('Department Domain', () => {
 
 describe('changeDepartmentStatus', () => {
   const active: Department = {
-    id: 'd-1', tenantId: 't-1', facilityId: 'f-1', name: 'ER',
-    status: 'ACTIVE', createdAt: new Date(), updatedAt: new Date(), version: 1,
+    id: 'd-1',
+    tenantId: 't-1',
+    facilityId: 'f-1',
+    name: 'ER',
+    status: 'ACTIVE',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    version: 1,
   };
 
   it('should allow ACTIVE → INACTIVE', () => {

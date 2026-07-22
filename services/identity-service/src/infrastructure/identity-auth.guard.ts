@@ -13,6 +13,7 @@ import {
   type ValidatedTokenContext,
 } from '@carecareer/auth';
 
+import { IS_INTERNAL_SERVICE_KEY } from './internal-service.decorator.js';
 import { IS_PUBLIC_KEY } from './public.decorator.js';
 import type { SessionStateValidator } from './session-state-validator.js';
 
@@ -61,6 +62,13 @@ export class IdentityAuthGuard implements CanActivate {
       context.getClass(),
     ]);
     if (isPublic) return true;
+
+    // Step 1b: Internal service route bypass — authenticated by ServiceIdentityGuard
+    const isInternalService = this.reflector.getAllAndOverride<boolean>(IS_INTERNAL_SERVICE_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isInternalService) return true;
 
     const request = context.switchToHttp().getRequest<{
       headers: Record<string, string | undefined>;

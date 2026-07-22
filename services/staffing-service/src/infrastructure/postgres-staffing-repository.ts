@@ -72,7 +72,10 @@ export class PostgresStaffingRepository implements StaffingRepository {
     return mapDepartment(rows[0]!);
   }
 
-  async listDepartmentsByFacility(tx: TransactionClient, facilityId: string): Promise<Department[]> {
+  async listDepartmentsByFacility(
+    tx: TransactionClient,
+    facilityId: string,
+  ): Promise<Department[]> {
     const rows = await tx.$queryRaw<DepartmentRow>`
       SELECT * FROM staffing.departments WHERE facility_id = ${facilityId}::uuid ORDER BY name`;
     return rows.map(mapDepartment);
@@ -150,11 +153,12 @@ export class PostgresStaffingRepository implements StaffingRepository {
   async createWorker(tx: TransactionClient, w: Worker): Promise<void> {
     await tx.$executeRaw`
       INSERT INTO staffing.workers (
-        id, tenant_id, first_name, last_name, email, phone, status, profession,
+        id, tenant_id, user_id, first_name, last_name, email, phone, status, profession,
         specialty, home_latitude, home_longitude, home_city, home_state, home_zip,
         version, created_at, updated_at
       ) VALUES (
-        ${w.id}::uuid, ${w.tenantId}::uuid, ${w.firstName}, ${w.lastName},
+        ${w.id}::uuid, ${w.tenantId}::uuid, ${w.userId ?? null}::uuid,
+        ${w.firstName}, ${w.lastName},
         ${w.email}, ${w.phone ?? null}, ${w.status}, ${w.profession},
         ${w.specialty ?? null}, ${w.homeLatitude ?? null}::decimal,
         ${w.homeLongitude ?? null}::decimal, ${w.homeCity ?? null},
@@ -167,6 +171,13 @@ export class PostgresStaffingRepository implements StaffingRepository {
   async getWorkerById(tx: TransactionClient, workerId: string): Promise<Worker | null> {
     const rows = await tx.$queryRaw<WorkerRow>`
       SELECT * FROM staffing.workers WHERE id = ${workerId}::uuid`;
+    if (rows.length === 0) return null;
+    return mapWorker(rows[0]!);
+  }
+
+  async getWorkerByUserId(tx: TransactionClient, userId: string): Promise<Worker | null> {
+    const rows = await tx.$queryRaw<WorkerRow>`
+      SELECT * FROM staffing.workers WHERE user_id = ${userId}::uuid`;
     if (rows.length === 0) return null;
     return mapWorker(rows[0]!);
   }
@@ -212,7 +223,10 @@ export class PostgresStaffingRepository implements StaffingRepository {
         ${ref.systemName}, ${ref.externalId}, ${ref.createdAt.toISOString()}::timestamptz)`;
   }
 
-  async getExternalReferences(tx: TransactionClient, workerId: string): Promise<ExternalReference[]> {
+  async getExternalReferences(
+    tx: TransactionClient,
+    workerId: string,
+  ): Promise<ExternalReference[]> {
     const rows = await tx.$queryRaw<ExternalReferenceRow>`
       SELECT * FROM staffing.external_references WHERE worker_id = ${workerId}::uuid`;
     return rows.map(mapExternalReference);
@@ -220,45 +234,86 @@ export class PostgresStaffingRepository implements StaffingRepository {
 }
 
 interface FacilityRow {
-  id: string; tenant_id: string; client_id: string; name: string; status: string;
-  address_line1: string | null; address_line2: string | null;
-  city: string | null; state: string | null; zip: string | null; country: string;
-  timezone: string; latitude: number | null; longitude: number | null;
-  geofence_radius_meters: number | null; geofence_version: number;
-  created_at: string; updated_at: string; version: number;
+  id: string;
+  tenant_id: string;
+  client_id: string;
+  name: string;
+  status: string;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  country: string;
+  timezone: string;
+  latitude: number | null;
+  longitude: number | null;
+  geofence_radius_meters: number | null;
+  geofence_version: number;
+  created_at: string;
+  updated_at: string;
+  version: number;
 }
 
 interface DepartmentRow {
-  id: string; tenant_id: string; facility_id: string; name: string;
-  status: string; created_at: string; updated_at: string; version: number;
+  id: string;
+  tenant_id: string;
+  facility_id: string;
+  name: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  version: number;
 }
 
 function mapFacility(r: FacilityRow): Facility {
   return {
-    id: r.id, tenantId: r.tenant_id, clientId: r.client_id, name: r.name,
+    id: r.id,
+    tenantId: r.tenant_id,
+    clientId: r.client_id,
+    name: r.name,
     status: r.status as Facility['status'],
-    addressLine1: r.address_line1 ?? undefined, addressLine2: r.address_line2 ?? undefined,
-    city: r.city ?? undefined, state: r.state ?? undefined, zip: r.zip ?? undefined,
-    country: r.country, timezone: r.timezone,
-    latitude: r.latitude ?? undefined, longitude: r.longitude ?? undefined,
+    addressLine1: r.address_line1 ?? undefined,
+    addressLine2: r.address_line2 ?? undefined,
+    city: r.city ?? undefined,
+    state: r.state ?? undefined,
+    zip: r.zip ?? undefined,
+    country: r.country,
+    timezone: r.timezone,
+    latitude: r.latitude ?? undefined,
+    longitude: r.longitude ?? undefined,
     geofenceRadiusMeters: r.geofence_radius_meters ?? undefined,
     geofenceVersion: r.geofence_version,
-    createdAt: new Date(r.created_at), updatedAt: new Date(r.updated_at), version: r.version,
+    createdAt: new Date(r.created_at),
+    updatedAt: new Date(r.updated_at),
+    version: r.version,
   };
 }
 
 function mapDepartment(r: DepartmentRow): Department {
   return {
-    id: r.id, tenantId: r.tenant_id, facilityId: r.facility_id, name: r.name,
+    id: r.id,
+    tenantId: r.tenant_id,
+    facilityId: r.facility_id,
+    name: r.name,
     status: r.status as Department['status'],
-    createdAt: new Date(r.created_at), updatedAt: new Date(r.updated_at), version: r.version,
+    createdAt: new Date(r.created_at),
+    updatedAt: new Date(r.updated_at),
+    version: r.version,
   };
 }
 
 interface CredentialRequirementRow {
-  id: string; tenant_id: string; facility_id: string; department_id: string | null;
-  role: string; credential_type: string; required: boolean;
-  effective_from: string; created_at: string; updated_at: string;
+  id: string;
+  tenant_id: string;
+  facility_id: string;
+  department_id: string | null;
+  role: string;
+  credential_type: string;
+  required: boolean;
+  effective_from: string;
+  created_at: string;
+  updated_at: string;
 }
 
 function mapCredentialRequirement(r: CredentialRequirementRow): CredentialRequirement {
@@ -277,35 +332,65 @@ function mapCredentialRequirement(r: CredentialRequirementRow): CredentialRequir
 }
 
 interface WorkerRow {
-  id: string; tenant_id: string; first_name: string; last_name: string;
-  email: string; phone: string | null; status: string; profession: string;
-  specialty: string | null; home_latitude: number | null; home_longitude: number | null;
-  home_city: string | null; home_state: string | null; home_zip: string | null;
-  created_at: string; updated_at: string; version: number;
+  id: string;
+  tenant_id: string;
+  user_id: string | null;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string | null;
+  status: string;
+  profession: string;
+  specialty: string | null;
+  home_latitude: number | null;
+  home_longitude: number | null;
+  home_city: string | null;
+  home_state: string | null;
+  home_zip: string | null;
+  created_at: string;
+  updated_at: string;
+  version: number;
 }
 
 interface ExternalReferenceRow {
-  id: string; tenant_id: string; worker_id: string;
-  system_name: string; external_id: string; created_at: string;
+  id: string;
+  tenant_id: string;
+  worker_id: string;
+  system_name: string;
+  external_id: string;
+  created_at: string;
 }
 
 function mapWorker(r: WorkerRow): Worker {
   return {
-    id: r.id, tenantId: r.tenant_id, firstName: r.first_name, lastName: r.last_name,
-    email: r.email, phone: r.phone ?? undefined, status: r.status as Worker['status'],
+    id: r.id,
+    tenantId: r.tenant_id,
+    userId: r.user_id ?? undefined,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    email: r.email,
+    phone: r.phone ?? undefined,
+    status: r.status as Worker['status'],
     profession: r.profession as Worker['profession'],
     specialty: r.specialty ?? undefined,
-    homeLatitude: r.home_latitude ?? undefined, homeLongitude: r.home_longitude ?? undefined,
-    homeCity: r.home_city ?? undefined, homeState: r.home_state ?? undefined,
+    homeLatitude: r.home_latitude ?? undefined,
+    homeLongitude: r.home_longitude ?? undefined,
+    homeCity: r.home_city ?? undefined,
+    homeState: r.home_state ?? undefined,
     homeZip: r.home_zip ?? undefined,
-    createdAt: new Date(r.created_at), updatedAt: new Date(r.updated_at), version: r.version,
+    createdAt: new Date(r.created_at),
+    updatedAt: new Date(r.updated_at),
+    version: r.version,
   };
 }
 
 function mapExternalReference(r: ExternalReferenceRow): ExternalReference {
   return {
-    id: r.id, tenantId: r.tenant_id, workerId: r.worker_id,
-    systemName: r.system_name, externalId: r.external_id,
+    id: r.id,
+    tenantId: r.tenant_id,
+    workerId: r.worker_id,
+    systemName: r.system_name as ExternalReference['systemName'],
+    externalId: r.external_id,
     createdAt: new Date(r.created_at),
   };
 }

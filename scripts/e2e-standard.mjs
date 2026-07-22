@@ -16,7 +16,8 @@ const COMPOSE_FILE = 'docker-compose.e2e.yml';
 
 // Forward all arguments after '--' to the Playwright runner
 const dashIdx = process.argv.indexOf('--');
-const playwrightArgs = dashIdx >= 0 ? process.argv.slice(dashIdx + 1).join(' ') : '--project=chromium --reporter=line';
+const playwrightArgs =
+  dashIdx >= 0 ? process.argv.slice(dashIdx + 1).join(' ') : '--project=chromium --reporter=line';
 
 function run(cmd, opts = {}) {
   console.log(`  → ${cmd}`);
@@ -61,9 +62,7 @@ try {
   // Step 5: Run Playwright
   console.log(`\n▶ Running Playwright: ${playwrightArgs}`);
   try {
-    run(
-      `docker compose -f ${COMPOSE_FILE} run --rm playwright-runner ${playwrightArgs}`,
-    );
+    run(`docker compose -f ${COMPOSE_FILE} run --rm playwright-runner ${playwrightArgs}`);
   } catch (err) {
     exitCode = err.status ?? 1;
     console.error(`\n✗ Playwright exited with code ${exitCode}`);

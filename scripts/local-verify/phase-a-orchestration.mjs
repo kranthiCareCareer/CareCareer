@@ -30,10 +30,10 @@ export async function startPostgres() {
 
   execSync(
     `docker run -d --name ${containerName} ` +
-    `-e POSTGRES_PASSWORD=${password} ` +
-    `-e POSTGRES_DB=${database} ` +
-    `-p ${port}:5432 ` +
-    `postgres:16-alpine`,
+      `-e POSTGRES_PASSWORD=${password} ` +
+      `-e POSTGRES_DB=${database} ` +
+      `-p ${port}:5432 ` +
+      `postgres:16-alpine`,
     { stdio: 'pipe', encoding: 'utf-8' },
   );
 
@@ -49,7 +49,9 @@ export async function startPostgres() {
     stop: () => {
       try {
         execSync(`docker rm -f ${containerName}`, { stdio: 'pipe' });
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     },
   };
 }
@@ -150,7 +152,9 @@ async function waitForHealth(baseUrl, maxRetries = 30) {
     try {
       const res = await fetch(`${baseUrl}/health`);
       if (res.ok) return;
-    } catch { /* not ready yet */ }
+    } catch {
+      /* not ready yet */
+    }
     await new Promise((r) => setTimeout(r, 1000));
   }
   throw new Error('Identity service did not become healthy');

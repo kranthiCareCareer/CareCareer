@@ -26,7 +26,10 @@ describe('AuthorizationController', () => {
     controller = new AuthorizationController(mockPrisma as never, mockRepo as never);
     mockRepo.getUserState.mockResolvedValue({ status: 'ACTIVE', authorizationVersion: 1 });
     mockRepo.getMembershipState.mockResolvedValue({
-      id: 'mem-1', status: 'ACTIVE', authorizationVersion: 1, roleIds: ['role-1'],
+      id: 'mem-1',
+      status: 'ACTIVE',
+      authorizationVersion: 1,
+      roleIds: ['role-1'],
     });
     mockRepo.getPermissionsForRoles.mockResolvedValue(['facility.read']);
     mockRepo.getExplicitDenials.mockResolvedValue([]);
@@ -67,10 +70,16 @@ describe('AuthorizationController', () => {
 
   it('should throw BadRequestException for missing action', async () => {
     const principal = {
-      subject: 'user-1', sessionId: 'session-1', selectedTenantId: 'tenant-1',
-      userAuthorizationVersion: 1, membershipAuthorizationVersion: 1,
-      actorType: 'user' as const, tenantMemberships: [], issuedAt: new Date(),
-      expiresAt: new Date(), tokenId: 'token-1',
+      subject: 'user-1',
+      sessionId: 'session-1',
+      selectedTenantId: 'tenant-1',
+      userAuthorizationVersion: 1,
+      membershipAuthorizationVersion: 1,
+      actorType: 'user' as const,
+      tenantMemberships: [],
+      issuedAt: new Date(),
+      expiresAt: new Date(),
+      tokenId: 'token-1',
     };
     await expect(
       controller.evaluate({ resourceType: 'facility' }, { principal }, 'corr-3'),
@@ -79,10 +88,16 @@ describe('AuthorizationController', () => {
 
   it('should throw BadRequestException for extra untrusted fields', async () => {
     const principal = {
-      subject: 'user-1', sessionId: 'session-1', selectedTenantId: 'tenant-1',
-      userAuthorizationVersion: 1, membershipAuthorizationVersion: 1,
-      actorType: 'user' as const, tenantMemberships: [], issuedAt: new Date(),
-      expiresAt: new Date(), tokenId: 'token-1',
+      subject: 'user-1',
+      sessionId: 'session-1',
+      selectedTenantId: 'tenant-1',
+      userAuthorizationVersion: 1,
+      membershipAuthorizationVersion: 1,
+      actorType: 'user' as const,
+      tenantMemberships: [],
+      issuedAt: new Date(),
+      expiresAt: new Date(),
+      tokenId: 'token-1',
     };
     await expect(
       controller.evaluate(
@@ -95,10 +110,16 @@ describe('AuthorizationController', () => {
 
   it('should return allowed=true for matching permission', async () => {
     const principal = {
-      subject: 'user-1', sessionId: 'session-1', selectedTenantId: 'tenant-1',
-      userAuthorizationVersion: 1, membershipAuthorizationVersion: 1,
-      actorType: 'user' as const, tenantMemberships: [], issuedAt: new Date(),
-      expiresAt: new Date(), tokenId: 'token-1',
+      subject: 'user-1',
+      sessionId: 'session-1',
+      selectedTenantId: 'tenant-1',
+      userAuthorizationVersion: 1,
+      membershipAuthorizationVersion: 1,
+      actorType: 'user' as const,
+      tenantMemberships: [],
+      issuedAt: new Date(),
+      expiresAt: new Date(),
+      tokenId: 'token-1',
     };
     const result = await controller.evaluate(
       { action: 'facility.read', resourceType: 'facility' },
@@ -113,10 +134,16 @@ describe('AuthorizationController', () => {
 
   it('should return allowed=false for no matching permission', async () => {
     const principal = {
-      subject: 'user-1', sessionId: 'session-1', selectedTenantId: 'tenant-1',
-      userAuthorizationVersion: 1, membershipAuthorizationVersion: 1,
-      actorType: 'user' as const, tenantMemberships: [], issuedAt: new Date(),
-      expiresAt: new Date(), tokenId: 'token-1',
+      subject: 'user-1',
+      sessionId: 'session-1',
+      selectedTenantId: 'tenant-1',
+      userAuthorizationVersion: 1,
+      membershipAuthorizationVersion: 1,
+      actorType: 'user' as const,
+      tenantMemberships: [],
+      issuedAt: new Date(),
+      expiresAt: new Date(),
+      tokenId: 'token-1',
     };
     const result = await controller.evaluate(
       { action: 'payroll.process', resourceType: 'payroll' },
@@ -129,10 +156,16 @@ describe('AuthorizationController', () => {
 
   it('should generate correlation ID when not provided', async () => {
     const principal = {
-      subject: 'user-1', sessionId: 'session-1', selectedTenantId: 'tenant-1',
-      userAuthorizationVersion: 1, membershipAuthorizationVersion: 1,
-      actorType: 'user' as const, tenantMemberships: [], issuedAt: new Date(),
-      expiresAt: new Date(), tokenId: 'token-1',
+      subject: 'user-1',
+      sessionId: 'session-1',
+      selectedTenantId: 'tenant-1',
+      userAuthorizationVersion: 1,
+      membershipAuthorizationVersion: 1,
+      actorType: 'user' as const,
+      tenantMemberships: [],
+      issuedAt: new Date(),
+      expiresAt: new Date(),
+      tokenId: 'token-1',
     };
     const result = await controller.evaluate(
       { action: 'facility.read', resourceType: 'facility' },
@@ -145,10 +178,16 @@ describe('AuthorizationController', () => {
   it('should fail closed when user not found in database', async () => {
     mockRepo.getUserState.mockResolvedValue(null);
     const principal = {
-      subject: 'user-missing', sessionId: 'session-1', selectedTenantId: 'tenant-1',
-      userAuthorizationVersion: 1, membershipAuthorizationVersion: 1,
-      actorType: 'user' as const, tenantMemberships: [], issuedAt: new Date(),
-      expiresAt: new Date(), tokenId: 'token-1',
+      subject: 'user-missing',
+      sessionId: 'session-1',
+      selectedTenantId: 'tenant-1',
+      userAuthorizationVersion: 1,
+      membershipAuthorizationVersion: 1,
+      actorType: 'user' as const,
+      tenantMemberships: [],
+      issuedAt: new Date(),
+      expiresAt: new Date(),
+      tokenId: 'token-1',
     };
     const result = await controller.evaluate(
       { action: 'facility.read', resourceType: 'facility' },
@@ -162,10 +201,16 @@ describe('AuthorizationController', () => {
   it('should fail closed when membership not found', async () => {
     mockRepo.getMembershipState.mockResolvedValue(null);
     const principal = {
-      subject: 'user-1', sessionId: 'session-1', selectedTenantId: 'tenant-1',
-      userAuthorizationVersion: 1, membershipAuthorizationVersion: 1,
-      actorType: 'user' as const, tenantMemberships: [], issuedAt: new Date(),
-      expiresAt: new Date(), tokenId: 'token-1',
+      subject: 'user-1',
+      sessionId: 'session-1',
+      selectedTenantId: 'tenant-1',
+      userAuthorizationVersion: 1,
+      membershipAuthorizationVersion: 1,
+      actorType: 'user' as const,
+      tenantMemberships: [],
+      issuedAt: new Date(),
+      expiresAt: new Date(),
+      tokenId: 'token-1',
     };
     const result = await controller.evaluate(
       { action: 'facility.read', resourceType: 'facility' },
@@ -178,14 +223,23 @@ describe('AuthorizationController', () => {
 
   it('should handle membership with no roles (empty permissions)', async () => {
     mockRepo.getMembershipState.mockResolvedValue({
-      id: 'mem-1', status: 'ACTIVE', authorizationVersion: 1, roleIds: [],
+      id: 'mem-1',
+      status: 'ACTIVE',
+      authorizationVersion: 1,
+      roleIds: [],
     });
     mockRepo.getPermissionsForRoles.mockResolvedValue([]);
     const principal = {
-      subject: 'user-1', sessionId: 'session-1', selectedTenantId: 'tenant-1',
-      userAuthorizationVersion: 1, membershipAuthorizationVersion: 1,
-      actorType: 'user' as const, tenantMemberships: [], issuedAt: new Date(),
-      expiresAt: new Date(), tokenId: 'token-1',
+      subject: 'user-1',
+      sessionId: 'session-1',
+      selectedTenantId: 'tenant-1',
+      userAuthorizationVersion: 1,
+      membershipAuthorizationVersion: 1,
+      actorType: 'user' as const,
+      tenantMemberships: [],
+      issuedAt: new Date(),
+      expiresAt: new Date(),
+      tokenId: 'token-1',
     };
     const result = await controller.evaluate(
       { action: 'facility.read', resourceType: 'facility' },

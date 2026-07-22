@@ -129,9 +129,7 @@ export class LocalJwksTokenValidator implements TokenValidator {
     const tenantRoles = (payload['tenant_roles'] as string[] | undefined) ?? [];
     const activeTenantId = payload['active_tenant_id'] as string | undefined;
     const membershipId = payload['membership_id'] as string | undefined;
-    const membershipAuthVersion = payload['membership_authorization_version'] as
-      | number
-      | undefined;
+    const membershipAuthVersion = payload['membership_authorization_version'] as number | undefined;
 
     const memberships: TenantMembershipClaim[] = [];
     if (activeTenantId) {

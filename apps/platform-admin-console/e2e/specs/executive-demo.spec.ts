@@ -98,9 +98,7 @@ test.describe('Executive demo', () => {
     // Switch to MAS Tenant Admin — go to root first to ensure clean state
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
-    await page
-      .getByRole('button', { name: 'Switch Persona' })
-      .click();
+    await page.getByRole('button', { name: 'Switch Persona' }).click();
     await expect(
       page.getByRole('heading', { name: 'CareCareer Platform Admin Console' }),
     ).toBeVisible();
@@ -120,9 +118,7 @@ test.describe('Executive demo', () => {
     // === Step 8: Switch back and show suspended state ===
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.waitForLoadState('domcontentloaded');
-    await page
-      .getByRole('button', { name: 'Switch Persona' })
-      .click();
+    await page.getByRole('button', { name: 'Switch Persona' }).click();
     await personaSelector.selectPersona('Platform Administrator');
     await personaSelector.waitForDashboard();
     await page.screenshot({
@@ -147,7 +143,12 @@ test.describe('Executive demo', () => {
       }
     }
     // Audit page heading (may or may not be visible depending on tenant data)
-    if (await page.getByRole('heading', { name: 'Audit Timeline' }).isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (
+      await page
+        .getByRole('heading', { name: 'Audit Timeline' })
+        .isVisible({ timeout: 3000 })
+        .catch(() => false)
+    ) {
       await page.screenshot({
         path: resolve(SCREENSHOTS_DIR, '08-audit-history.png'),
       });

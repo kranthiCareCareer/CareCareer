@@ -30,6 +30,7 @@ The staffing-service uses `StaffingAuthGuard` backed by `LocalJwksTokenValidator
 7. Constructs ValidatedTokenContext and attaches to request
 
 Rejection scenarios (all return 401):
+
 - Missing token
 - Malformed token
 - Unsigned/fabricated signature
@@ -52,6 +53,7 @@ For GP-05, authorization is **tenant-wide by explicit product decision**:
   are defined
 
 This is a conscious choice, not an oversight:
+
 - Healthcare staffing agencies typically have centralized schedulers who
   manage ALL facilities for their tenant
 - Facility-level access restrictions add complexity before the worker/shift

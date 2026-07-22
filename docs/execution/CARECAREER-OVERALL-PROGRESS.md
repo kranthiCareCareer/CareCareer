@@ -2,67 +2,70 @@
 
 ## Repository State
 
-| Field | Value |
-|-------|-------|
-| Branch | master |
-| HEAD | d7ae166 |
-| Working tree | clean |
-| Tags | gp-00-baseline, gp-01-packages-complete, gp-01-service-template, gp-02-platform-service, gp-02-platform-service-final, gp-02-platform-service-hardened, demo-01-complete |
-| Package manager | pnpm 9.15.4 |
-| Node requirement | >=20.0.0 |
-| Monorepo tool | Turborepo 2.5.4 |
+| Field            | Value                                                                                                                                                                    |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Branch           | master                                                                                                                                                                   |
+| HEAD             | d7ae166                                                                                                                                                                  |
+| Working tree     | clean                                                                                                                                                                    |
+| Tags             | gp-00-baseline, gp-01-packages-complete, gp-01-service-template, gp-02-platform-service, gp-02-platform-service-final, gp-02-platform-service-hardened, demo-01-complete |
+| Package manager  | pnpm 9.15.4                                                                                                                                                              |
+| Node requirement | >=20.0.0                                                                                                                                                                 |
+| Monorepo tool    | Turborepo 2.5.4                                                                                                                                                          |
 
 ## Golden Path Milestone Status
 
-| Milestone | Status | Authoritative Commit | Tests | Demo-Ready |
-|-----------|--------|---------------------|-------|------------|
-| GP-00: Repository Baseline | COMPLETE | gp-00-baseline tag | CI green | N/A |
-| GP-01: Service Template + Core Packages | COMPLETE | gp-01-packages-complete tag | All passing | N/A |
-| GP-02: Platform Service | COMPLETE | demo-01-complete tag | 117 unit, 34 integration, 20 E2E | Yes |
-| GP-03.0: Threat Model | COMPLETE | 6098d85 | N/A | N/A |
-| GP-03.1: Identity Schema + RLS | COMPLETE | 4157886 | Migration tests | N/A |
-| GP-03.2: Memberships + Permissions | COMPLETE | 4f80b6e | Membership tests | N/A |
-| GP-03.3: Tokens, Sessions, Signing | COMPLETE | d7ae166 | 201 unit, 98 integration | Partial |
-| GP-03.4: Authorization Decisions | NOT STARTED | — | — | — |
-| GP-04: Admin Portal Shell | PARTIAL | demo-01-complete (UI exists) | 103 component, 20 E2E | Yes (basic) |
-| GP-05–GP-15 | NOT STARTED | — | — | — |
+| Milestone                               | Status      | Authoritative Commit         | Tests                            | Demo-Ready  |
+| --------------------------------------- | ----------- | ---------------------------- | -------------------------------- | ----------- |
+| GP-00: Repository Baseline              | COMPLETE    | gp-00-baseline tag           | CI green                         | N/A         |
+| GP-01: Service Template + Core Packages | COMPLETE    | gp-01-packages-complete tag  | All passing                      | N/A         |
+| GP-02: Platform Service                 | COMPLETE    | demo-01-complete tag         | 117 unit, 34 integration, 20 E2E | Yes         |
+| GP-03.0: Threat Model                   | COMPLETE    | 6098d85                      | N/A                              | N/A         |
+| GP-03.1: Identity Schema + RLS          | COMPLETE    | 4157886                      | Migration tests                  | N/A         |
+| GP-03.2: Memberships + Permissions      | COMPLETE    | 4f80b6e                      | Membership tests                 | N/A         |
+| GP-03.3: Tokens, Sessions, Signing      | COMPLETE    | d7ae166                      | 201 unit, 98 integration         | Partial     |
+| GP-03.4: Authorization Decisions        | NOT STARTED | —                            | —                                | —           |
+| GP-04: Admin Portal Shell               | PARTIAL     | demo-01-complete (UI exists) | 103 component, 20 E2E            | Yes (basic) |
+| GP-05–GP-15                             | NOT STARTED | —                            | —                                | —           |
 
 ## Test Summary (Current HEAD)
 
-| Suite | Count | Status |
-|-------|-------|--------|
-| Identity unit tests | 201 | PASS |
-| Identity integration tests | 98 | PASS (3x deterministic) |
-| Platform service unit tests | 117 | PASS |
-| Platform service integration tests | 34 | PASS |
-| Testing package integration | 8 | PASS |
-| Admin console component tests | 103 | PASS |
-| Chromium E2E (demo:verify custom runner) | 20 | PASS |
-| Chromium E2E (standard Playwright) | ~45/50 | 5 FAILING |
-| OpenAPI validation | 13 | PASS |
-| Docker verification (identity) | 14 | PASS |
-| Docker verification (platform) | 15 | PASS |
+| Suite                                    | Count  | Status                  |
+| ---------------------------------------- | ------ | ----------------------- |
+| Identity unit tests                      | 201    | PASS                    |
+| Identity integration tests               | 98     | PASS (3x deterministic) |
+| Platform service unit tests              | 117    | PASS                    |
+| Platform service integration tests       | 34     | PASS                    |
+| Testing package integration              | 8      | PASS                    |
+| Admin console component tests            | 103    | PASS                    |
+| Chromium E2E (demo:verify custom runner) | 20     | PASS                    |
+| Chromium E2E (standard Playwright)       | ~45/50 | 5 FAILING               |
+| OpenAPI validation                       | 13     | PASS                    |
+| Docker verification (identity)           | 14     | PASS                    |
+| Docker verification (platform)           | 15     | PASS                    |
 
 ## Security Coverage
 
-| Metric | Value | Threshold |
-|--------|-------|-----------|
-| Global statements | 99.02% | ≥95% |
-| Global lines | 99.02% | ≥95% |
-| Global functions | 100% | ≥95% |
-| Global branches | 89.61% | ≥90% |
-| Per-file security (all) | PASS | 95/90 lines/branches |
+| Metric                  | Value  | Threshold            |
+| ----------------------- | ------ | -------------------- |
+| Global statements       | 99.02% | ≥95%                 |
+| Global lines            | 99.02% | ≥95%                 |
+| Global functions        | 100%   | ≥95%                 |
+| Global branches         | 89.61% | ≥90%                 |
+| Per-file security (all) | PASS   | 95/90 lines/branches |
 
 ## What Is Working
 
 ### Backend
+
 - Identity service: RS256 token issuance, session management, refresh rotation, replay detection, family compromise, RLS tenant isolation, membership RBAC, production startup validation
 - Platform service: Tenant provisioning, lifecycle management, organizations, entitlements, features, audit, RLS tenant isolation, idempotency
 
 ### Frontend
+
 - Platform Admin Console: Dashboard, tenant list, tenant creation, tenant detail, entitlements, organizations, features, audit timeline, persona-based demo authentication
 
 ### Security
+
 - PostgreSQL RLS enforced with carecareer_app role
 - Tenant context derived exclusively from validated principal
 - Refresh-token replay → family compromise
@@ -71,6 +74,7 @@
 - Admin context cannot be activated by caller-controlled input
 
 ### Testing
+
 - Unit: 421 tests across all packages
 - Integration: 140 tests with real PostgreSQL (Testcontainers)
 - E2E: 20 Chromium workflows passing (custom runner)
@@ -114,4 +118,5 @@
 5. Continue GP-03.4 (authorization decisions) or GP-04 completion
 
 ---
-*Last updated: 2026-07-21 at d7ae166*
+
+_Last updated: 2026-07-21 at d7ae166_

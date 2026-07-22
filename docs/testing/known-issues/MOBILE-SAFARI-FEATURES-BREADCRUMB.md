@@ -4,15 +4,15 @@
 
 ## Details
 
-| Field | Value |
-|-------|-------|
-| Commit | a36609c |
-| Project | mobile-safari-web (iPhone 13 emulation) |
-| Device | iPhone 13 (390×844) |
-| Engine | WebKit (Playwright bundled) |
-| Spec | entitlements-features.spec.ts:110 |
-| Test | should have breadcrumb to tenant from features |
-| Selector | `getByRole('link', { name: '← Tenant' })` |
+| Field    | Value                                          |
+| -------- | ---------------------------------------------- |
+| Commit   | a36609c                                        |
+| Project  | mobile-safari-web (iPhone 13 emulation)        |
+| Device   | iPhone 13 (390×844)                            |
+| Engine   | WebKit (Playwright bundled)                    |
+| Spec     | entitlements-features.spec.ts:110              |
+| Test     | should have breadcrumb to tenant from features |
+| Selector | `getByRole('link', { name: '← Tenant' })`      |
 
 ## Reproduction
 
@@ -46,6 +46,7 @@ chain. By the time this test runs (test #35 of 64), WebKit mobile has
 degraded page-load performance.
 
 Evidence:
+
 - Passes when run alone or early in the suite
 - Fails only when preceded by many navigation-heavy tests
 - Same code passes in desktop WebKit (same engine, larger viewport)
@@ -74,10 +75,10 @@ non-blocking nightly validation suite.
 
 ## Supported Browser Matrix
 
-| Browser | Project | Status |
-|---------|---------|--------|
-| Chromium | chromium | SUPPORTED, 64/64 |
-| Firefox | firefox-nightly | SUPPORTED, 64/64 |
-| Desktop WebKit | webkit-nightly | SUPPORTED, 64/64 |
-| Mobile Chrome | mobile-chrome-web | SUPPORTED, 64/64 |
-| Mobile Safari | mobile-safari-web | NOT YET SUPPORTED, 57-63/64 |
+| Browser        | Project           | Status                      |
+| -------------- | ----------------- | --------------------------- |
+| Chromium       | chromium          | SUPPORTED, 64/64            |
+| Firefox        | firefox-nightly   | SUPPORTED, 64/64            |
+| Desktop WebKit | webkit-nightly    | SUPPORTED, 64/64            |
+| Mobile Chrome  | mobile-chrome-web | SUPPORTED, 64/64            |
+| Mobile Safari  | mobile-safari-web | NOT YET SUPPORTED, 57-63/64 |

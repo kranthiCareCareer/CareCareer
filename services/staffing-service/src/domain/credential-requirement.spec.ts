@@ -51,15 +51,15 @@ describe('CredentialRequirement Domain', () => {
     });
 
     it('should reject empty credential type', () => {
-      expect(() =>
-        createCredentialRequirement({ ...validInput, credentialType: '' }),
-      ).toThrow('Credential type is required');
+      expect(() => createCredentialRequirement({ ...validInput, credentialType: '' })).toThrow(
+        'Credential type is required',
+      );
     });
 
     it('should reject whitespace-only credential type', () => {
-      expect(() =>
-        createCredentialRequirement({ ...validInput, credentialType: '   ' }),
-      ).toThrow('Credential type is required');
+      expect(() => createCredentialRequirement({ ...validInput, credentialType: '   ' })).toThrow(
+        'Credential type is required',
+      );
     });
 
     it('should trim credential type', () => {

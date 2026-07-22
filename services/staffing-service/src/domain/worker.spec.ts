@@ -42,7 +42,9 @@ describe('Worker Domain', () => {
     });
 
     it('should reject empty first name', () => {
-      expect(() => createWorker({ ...validInput, firstName: '' })).toThrow('first name is required');
+      expect(() => createWorker({ ...validInput, firstName: '' })).toThrow(
+        'first name is required',
+      );
     });
 
     it('should reject empty last name', () => {
@@ -54,8 +56,9 @@ describe('Worker Domain', () => {
     });
 
     it('should reject invalid profession', () => {
-      expect(() => createWorker({ ...validInput, profession: 'INVALID' as never }))
-        .toThrow('Invalid profession');
+      expect(() => createWorker({ ...validInput, profession: 'INVALID' as never })).toThrow(
+        'Invalid profession',
+      );
     });
 
     it('should accept all valid professions', () => {
@@ -68,9 +71,16 @@ describe('Worker Domain', () => {
 
   describe('changeWorkerStatus', () => {
     const applicant: Worker = {
-      id: 'w-1', tenantId: 't-1', firstName: 'Jane', lastName: 'Doe',
-      email: 'jane@example.com', status: 'APPLICANT', profession: 'RN',
-      createdAt: new Date(), updatedAt: new Date(), version: 1,
+      id: 'w-1',
+      tenantId: 't-1',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      email: 'jane@example.com',
+      status: 'APPLICANT',
+      profession: 'RN',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      version: 1,
     };
 
     it('should allow APPLICANT → SCREENING', () => {
@@ -92,8 +102,16 @@ describe('Worker Domain', () => {
     });
 
     it('should allow any non-ALUMNI → ALUMNI', () => {
-      const statuses = ['APPLICANT', 'SCREENING', 'QUALIFIED', 'CREDENTIALING',
-        'READY', 'ACTIVE', 'INACTIVE', 'BLOCKED'] as const;
+      const statuses = [
+        'APPLICANT',
+        'SCREENING',
+        'QUALIFIED',
+        'CREDENTIALING',
+        'READY',
+        'ACTIVE',
+        'INACTIVE',
+        'BLOCKED',
+      ] as const;
       for (const s of statuses) {
         const worker: Worker = { ...applicant, status: s };
         const result = changeWorkerStatus(worker, 'ALUMNI');
@@ -118,10 +136,18 @@ describe('Worker Domain', () => {
 
   describe('updateWorker', () => {
     const worker: Worker = {
-      id: 'w-1', tenantId: 't-1', firstName: 'Jane', lastName: 'Doe',
-      email: 'jane@example.com', status: 'ACTIVE', profession: 'RN',
-      phone: '555-1234', specialty: 'ICU',
-      createdAt: new Date(), updatedAt: new Date(), version: 3,
+      id: 'w-1',
+      tenantId: 't-1',
+      firstName: 'Jane',
+      lastName: 'Doe',
+      email: 'jane@example.com',
+      status: 'ACTIVE',
+      profession: 'RN',
+      phone: '555-1234',
+      specialty: 'ICU',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      version: 3,
     };
 
     it('should update firstName and increment version', () => {
