@@ -16,7 +16,10 @@ import type { PrismaLikeClient, TransactionClient } from '@carecareer/database';
 import { TenantAwareTransaction } from '@carecareer/database';
 
 import type { PermissionAdapter } from '../../infrastructure/authorization-adapter.js';
-import type { IdentityStateAdapter, IdentityStateValidationResult } from '../../infrastructure/identity-state-adapter.js';
+import type {
+  IdentityStateAdapter,
+  IdentityStateValidationResult,
+} from '../../infrastructure/identity-state-adapter.js';
 import { LocalJwksTokenValidator } from '../../infrastructure/local-jwks-token-validator.js';
 import { PostgresStaffingRepository } from '../../infrastructure/postgres-staffing-repository.js';
 import { StaffingAuthGuard } from '../../infrastructure/staffing-auth.guard.js';
@@ -171,7 +174,13 @@ describe('Facility HTTP Integration (GP-05)', () => {
     // Apply migration
     const currentDir = dirname(fileURLToPath(import.meta.url));
     const migrationPath = resolve(
-      currentDir, '..', '..', '..', 'prisma', 'migrations', '001_facilities_schema.sql',
+      currentDir,
+      '..',
+      '..',
+      '..',
+      'prisma',
+      'migrations',
+      '001_facilities_schema.sql',
     );
     await superClient.query(readFileSync(migrationPath, 'utf-8'));
 
@@ -251,12 +260,22 @@ describe('Facility HTTP Integration (GP-05)', () => {
 
     it('should reject unsigned/fabricated token (401)', async () => {
       // Manually construct a token without valid RS256 signature
-      const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: TEST_KID })).toString('base64url');
-      const payload = Buffer.from(JSON.stringify({
-        sub: userAId, active_tenant_id: tenantAId, sid: 'fake', jti: 'fake',
-        user_authorization_version: 1, iss: ISSUER, aud: AUDIENCE,
-        iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 900,
-      })).toString('base64url');
+      const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: TEST_KID })).toString(
+        'base64url',
+      );
+      const payload = Buffer.from(
+        JSON.stringify({
+          sub: userAId,
+          active_tenant_id: tenantAId,
+          sid: 'fake',
+          jti: 'fake',
+          user_authorization_version: 1,
+          iss: ISSUER,
+          aud: AUDIENCE,
+          iat: Math.floor(Date.now() / 1000),
+          exp: Math.floor(Date.now() / 1000) + 900,
+        }),
+      ).toString('base64url');
       const fakeToken = `${header}.${payload}.invalid-signature`;
 
       const res = await request(app.getHttpServer())
@@ -268,13 +287,25 @@ describe('Facility HTTP Integration (GP-05)', () => {
     it('should reject HS256 token (401 — algorithm not allowed)', async () => {
       // Create an HS256 token (not RS256)
       const { createHmac } = await import('node:crypto');
-      const header = Buffer.from(JSON.stringify({ alg: 'HS256', kid: TEST_KID })).toString('base64url');
-      const payload = Buffer.from(JSON.stringify({
-        sub: userAId, active_tenant_id: tenantAId, sid: 'hs256-session', jti: 'hs256-jti',
-        user_authorization_version: 1, iss: ISSUER, aud: AUDIENCE,
-        iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 900,
-      })).toString('base64url');
-      const hmac = createHmac('sha256', 'some-secret-key').update(`${header}.${payload}`).digest('base64url');
+      const header = Buffer.from(JSON.stringify({ alg: 'HS256', kid: TEST_KID })).toString(
+        'base64url',
+      );
+      const payload = Buffer.from(
+        JSON.stringify({
+          sub: userAId,
+          active_tenant_id: tenantAId,
+          sid: 'hs256-session',
+          jti: 'hs256-jti',
+          user_authorization_version: 1,
+          iss: ISSUER,
+          aud: AUDIENCE,
+          iat: Math.floor(Date.now() / 1000),
+          exp: Math.floor(Date.now() / 1000) + 900,
+        }),
+      ).toString('base64url');
+      const hmac = createHmac('sha256', 'some-secret-key')
+        .update(`${header}.${payload}`)
+        .digest('base64url');
       const hs256Token = `${header}.${payload}.${hmac}`;
 
       const res = await request(app.getHttpServer())
@@ -285,7 +316,9 @@ describe('Facility HTTP Integration (GP-05)', () => {
 
     it('should reject token with wrong issuer (401)', async () => {
       const token = await signValidJwt({
-        sub: userAId, tenantId: tenantAId, issuer: 'wrong-issuer',
+        sub: userAId,
+        tenantId: tenantAId,
+        issuer: 'wrong-issuer',
       });
       const res = await request(app.getHttpServer())
         .get('/v1/facilities')
@@ -295,7 +328,9 @@ describe('Facility HTTP Integration (GP-05)', () => {
 
     it('should reject token with wrong audience (401)', async () => {
       const token = await signValidJwt({
-        sub: userAId, tenantId: tenantAId, audience: 'wrong-audience',
+        sub: userAId,
+        tenantId: tenantAId,
+        audience: 'wrong-audience',
       });
       const res = await request(app.getHttpServer())
         .get('/v1/facilities')
@@ -305,7 +340,9 @@ describe('Facility HTTP Integration (GP-05)', () => {
 
     it('should reject expired token (401)', async () => {
       const token = await signValidJwt({
-        sub: userAId, tenantId: tenantAId, expiresIn: '-5m',
+        sub: userAId,
+        tenantId: tenantAId,
+        expiresIn: '-5m',
       });
       const res = await request(app.getHttpServer())
         .get('/v1/facilities')
@@ -316,7 +353,9 @@ describe('Facility HTTP Integration (GP-05)', () => {
 
     it('should reject token with unknown kid (401)', async () => {
       const token = await signValidJwt({
-        sub: userAId, tenantId: tenantAId, kid: 'unknown-key-id-999',
+        sub: userAId,
+        tenantId: tenantAId,
+        kid: 'unknown-key-id-999',
       });
       const res = await request(app.getHttpServer())
         .get('/v1/facilities')
@@ -333,8 +372,12 @@ describe('Facility HTTP Integration (GP-05)', () => {
       });
       const otherPk = await importPKCS8(otherKeys.privateKey as string, 'RS256');
       const token = await new SignJWT({
-        active_tenant_id: tenantAId, sid: 'other-session', user_authorization_version: 1,
-        membership_id: 'mem-other', platform_roles: [], tenant_roles: ['TENANT_ADMIN'],
+        active_tenant_id: tenantAId,
+        sid: 'other-session',
+        user_authorization_version: 1,
+        membership_id: 'mem-other',
+        platform_roles: [],
+        tenant_roles: ['TENANT_ADMIN'],
         permissions: ['facilities:read'],
       })
         .setProtectedHeader({ alg: 'RS256', kid: TEST_KID })
@@ -372,7 +415,11 @@ describe('Facility HTTP Integration (GP-05)', () => {
     });
 
     it('should deny when session is revoked', async () => {
-      mockIdentityResult = { valid: false, code: 'AUTH_SESSION_REVOKED', message: 'Session revoked' };
+      mockIdentityResult = {
+        valid: false,
+        code: 'AUTH_SESSION_REVOKED',
+        message: 'Session revoked',
+      };
       const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
       const res = await request(app.getHttpServer())
         .get('/v1/facilities')
@@ -392,7 +439,11 @@ describe('Facility HTTP Integration (GP-05)', () => {
     });
 
     it('should deny when membership is inactive', async () => {
-      mockIdentityResult = { valid: false, code: 'MEMBERSHIP_INACTIVE', message: 'Membership inactive' };
+      mockIdentityResult = {
+        valid: false,
+        code: 'MEMBERSHIP_INACTIVE',
+        message: 'Membership inactive',
+      };
       const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
       const res = await request(app.getHttpServer())
         .get('/v1/facilities')
@@ -402,7 +453,11 @@ describe('Facility HTTP Integration (GP-05)', () => {
     });
 
     it('should deny when user authorization version is stale', async () => {
-      mockIdentityResult = { valid: false, code: 'AUTH_VERSION_STALE', message: 'Stale auth version' };
+      mockIdentityResult = {
+        valid: false,
+        code: 'AUTH_VERSION_STALE',
+        message: 'Stale auth version',
+      };
       const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
       const res = await request(app.getHttpServer())
         .get('/v1/facilities')
@@ -412,7 +467,11 @@ describe('Facility HTTP Integration (GP-05)', () => {
     });
 
     it('should deny when identity service is unavailable (fail closed)', async () => {
-      mockIdentityResult = { valid: false, code: 'IDENTITY_SERVICE_UNAVAILABLE', message: 'Cannot validate' };
+      mockIdentityResult = {
+        valid: false,
+        code: 'IDENTITY_SERVICE_UNAVAILABLE',
+        message: 'Cannot validate',
+      };
       const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
       const res = await request(app.getHttpServer())
         .get('/v1/facilities')
@@ -506,7 +565,9 @@ describe('Facility HTTP Integration (GP-05)', () => {
         .post('/v1/facilities')
         .set('Authorization', `Bearer ${token}`)
         .send({
-          clientId: clientAId, name: 'Extra', timezone: 'US/Eastern',
+          clientId: clientAId,
+          name: 'Extra',
+          timezone: 'US/Eastern',
           tenantId: tenantBId, // Attempted tenant spoof
         });
       expect(res.status).toBe(HttpStatus.BAD_REQUEST);
@@ -766,8 +827,14 @@ describe('Facility HTTP Integration (GP-05)', () => {
       const facRes = await request(app.getHttpServer())
         .post('/v1/facilities')
         .set('Authorization', `Bearer ${token}`)
-        .send({ clientId: clientAId, name: 'Geofence Test', timezone: 'US/Eastern',
-          latitude: 47.0, longitude: -122.0, geofenceRadiusMeters: 100 });
+        .send({
+          clientId: clientAId,
+          name: 'Geofence Test',
+          timezone: 'US/Eastern',
+          latitude: 47.0,
+          longitude: -122.0,
+          geofenceRadiusMeters: 100,
+        });
       const facilityId = facRes.body.data.facilityId;
 
       const res = await request(app.getHttpServer())
@@ -950,7 +1017,9 @@ describe('Facility HTTP Integration (GP-05)', () => {
       const facilityId = facRes.body.data.facilityId;
 
       const res = await request(app.getHttpServer())
-        .post(`/v1/facilities/${facilityId}/departments/00000000-0000-0000-0000-ffffffffffff/status`)
+        .post(
+          `/v1/facilities/${facilityId}/departments/00000000-0000-0000-0000-ffffffffffff/status`,
+        )
         .set('Authorization', `Bearer ${token}`)
         .send({ status: 'INACTIVE', expectedVersion: 1 });
       expect(res.status).toBe(HttpStatus.NOT_FOUND);

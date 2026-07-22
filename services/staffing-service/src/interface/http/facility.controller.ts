@@ -43,53 +43,65 @@ interface AuthenticatedRequest {
   principal?: { subject: string; selectedTenantId?: string };
 }
 
-const CreateFacilitySchema = z.object({
-  clientId: z.string().uuid(),
-  name: z.string().min(1).max(200),
-  timezone: z.string().min(1).max(50),
-  addressLine1: z.string().max(300).optional(),
-  city: z.string().max(100).optional(),
-  state: z.string().max(50).optional(),
-  zip: z.string().max(20).optional(),
-  latitude: z.number().min(-90).max(90).optional(),
-  longitude: z.number().min(-180).max(180).optional(),
-  geofenceRadiusMeters: z.number().int().positive().optional(),
-}).strict();
+const CreateFacilitySchema = z
+  .object({
+    clientId: z.string().uuid(),
+    name: z.string().min(1).max(200),
+    timezone: z.string().min(1).max(50),
+    addressLine1: z.string().max(300).optional(),
+    city: z.string().max(100).optional(),
+    state: z.string().max(50).optional(),
+    zip: z.string().max(20).optional(),
+    latitude: z.number().min(-90).max(90).optional(),
+    longitude: z.number().min(-180).max(180).optional(),
+    geofenceRadiusMeters: z.number().int().positive().optional(),
+  })
+  .strict();
 
-const CreateDepartmentSchema = z.object({
-  name: z.string().min(1).max(200),
-}).strict();
+const CreateDepartmentSchema = z
+  .object({
+    name: z.string().min(1).max(200),
+  })
+  .strict();
 
-const CreateCredentialRequirementSchema = z.object({
-  departmentId: z.string().uuid().optional(),
-  role: z.enum(['RN', 'LPN', 'CNA', 'RT', 'ALLIED']),
-  credentialType: z.string().min(1).max(100),
-  required: z.boolean().optional(),
-  effectiveFrom: z.string().datetime().optional(),
-}).strict();
+const CreateCredentialRequirementSchema = z
+  .object({
+    departmentId: z.string().uuid().optional(),
+    role: z.enum(['RN', 'LPN', 'CNA', 'RT', 'ALLIED']),
+    credentialType: z.string().min(1).max(100),
+    required: z.boolean().optional(),
+    effectiveFrom: z.string().datetime().optional(),
+  })
+  .strict();
 
-const UpdateFacilitySchema = z.object({
-  name: z.string().min(1).max(200).optional(),
-  timezone: z.string().min(1).max(50).optional(),
-  addressLine1: z.string().max(300).optional(),
-  city: z.string().max(100).optional(),
-  state: z.string().max(50).optional(),
-  zip: z.string().max(20).optional(),
-  latitude: z.number().min(-90).max(90).optional(),
-  longitude: z.number().min(-180).max(180).optional(),
-  geofenceRadiusMeters: z.number().int().positive().optional(),
-  expectedVersion: z.number().int().positive(),
-}).strict();
+const UpdateFacilitySchema = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    timezone: z.string().min(1).max(50).optional(),
+    addressLine1: z.string().max(300).optional(),
+    city: z.string().max(100).optional(),
+    state: z.string().max(50).optional(),
+    zip: z.string().max(20).optional(),
+    latitude: z.number().min(-90).max(90).optional(),
+    longitude: z.number().min(-180).max(180).optional(),
+    geofenceRadiusMeters: z.number().int().positive().optional(),
+    expectedVersion: z.number().int().positive(),
+  })
+  .strict();
 
-const ChangeFacilityStatusSchema = z.object({
-  status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED']),
-  expectedVersion: z.number().int().positive(),
-}).strict();
+const ChangeFacilityStatusSchema = z
+  .object({
+    status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED']),
+    expectedVersion: z.number().int().positive(),
+  })
+  .strict();
 
-const ChangeDepartmentStatusSchema = z.object({
-  status: z.enum(['ACTIVE', 'INACTIVE']),
-  expectedVersion: z.number().int().positive(),
-}).strict();
+const ChangeDepartmentStatusSchema = z
+  .object({
+    status: z.enum(['ACTIVE', 'INACTIVE']),
+    expectedVersion: z.number().int().positive(),
+  })
+  .strict();
 
 /**
  * Facility and Department HTTP controller.
@@ -169,7 +181,8 @@ export class FacilityController {
     const facility = await this.tenantDb.execute(tenantId, async (tx) => {
       return this.repo.getFacilityById(tx, facilityId);
     });
-    if (!facility) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Facility not found' });
+    if (!facility)
+      throw new NotFoundException({ code: 'NOT_FOUND', message: 'Facility not found' });
     return { data: facility };
   }
 
@@ -196,9 +209,13 @@ export class FacilityController {
 
     const updated = await this.tenantDb.execute(tenantId, async (tx) => {
       const facility = await this.repo.getFacilityById(tx, facilityId);
-      if (!facility) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Facility not found' });
+      if (!facility)
+        throw new NotFoundException({ code: 'NOT_FOUND', message: 'Facility not found' });
       if (facility.version !== parsed.data.expectedVersion) {
-        throw new ConflictException({ code: 'VERSION_CONFLICT', message: 'Facility was modified by another request' });
+        throw new ConflictException({
+          code: 'VERSION_CONFLICT',
+          message: 'Facility was modified by another request',
+        });
       }
 
       const updateFields = {
@@ -215,10 +232,21 @@ export class FacilityController {
       const updatedFacility = updateFacility(facility, updateFields);
       await this.repo.updateFacility(tx, updatedFacility);
       await this.emitAudit(tx, {
-        tenantId, actorId, action: 'facility.updated', aggregateType: 'facility',
+        tenantId,
+        actorId,
+        action: 'facility.updated',
+        aggregateType: 'facility',
         aggregateId: facility.id,
-        beforeSummary: { name: facility.name, timezone: facility.timezone, geofenceVersion: facility.geofenceVersion },
-        afterSummary: { name: updatedFacility.name, timezone: updatedFacility.timezone, geofenceVersion: updatedFacility.geofenceVersion },
+        beforeSummary: {
+          name: facility.name,
+          timezone: facility.timezone,
+          geofenceVersion: facility.geofenceVersion,
+        },
+        afterSummary: {
+          name: updatedFacility.name,
+          timezone: updatedFacility.timezone,
+          geofenceVersion: updatedFacility.geofenceVersion,
+        },
         correlationId: corrId,
       });
       return updatedFacility;
@@ -251,7 +279,8 @@ export class FacilityController {
 
     const updated = await this.tenantDb.execute(tenantId, async (tx) => {
       const facility = await this.repo.getFacilityById(tx, facilityId);
-      if (!facility) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Facility not found' });
+      if (!facility)
+        throw new NotFoundException({ code: 'NOT_FOUND', message: 'Facility not found' });
       if (facility.version !== parsed.data.expectedVersion) {
         throw new ConflictException({ code: 'VERSION_CONFLICT', message: 'Facility was modified' });
       }
@@ -260,8 +289,11 @@ export class FacilityController {
         const changed = changeFacilityStatus(facility, parsed.data.status as FacilityStatus);
         await this.repo.updateFacility(tx, changed);
         await this.emitAudit(tx, {
-          tenantId, actorId, action: `facility.${parsed.data.status.toLowerCase()}`,
-          aggregateType: 'facility', aggregateId: facility.id,
+          tenantId,
+          actorId,
+          action: `facility.${parsed.data.status.toLowerCase()}`,
+          aggregateType: 'facility',
+          aggregateId: facility.id,
           beforeSummary: { status: facility.status },
           afterSummary: { status: changed.status },
           correlationId: corrId,
@@ -359,15 +391,21 @@ export class FacilityController {
         throw new NotFoundException({ code: 'NOT_FOUND', message: 'Department not found' });
       }
       if (dept.version !== parsed.data.expectedVersion) {
-        throw new ConflictException({ code: 'VERSION_CONFLICT', message: 'Department was modified' });
+        throw new ConflictException({
+          code: 'VERSION_CONFLICT',
+          message: 'Department was modified',
+        });
       }
 
       try {
         const changed = changeDepartmentStatus(dept, parsed.data.status as Department['status']);
         await this.repo.updateDepartment(tx, changed);
         await this.emitAudit(tx, {
-          tenantId, actorId, action: `department.${parsed.data.status.toLowerCase()}`,
-          aggregateType: 'department', aggregateId: dept.id,
+          tenantId,
+          actorId,
+          action: `department.${parsed.data.status.toLowerCase()}`,
+          aggregateType: 'department',
+          aggregateId: dept.id,
           beforeSummary: { status: dept.status },
           afterSummary: { status: changed.status },
           correlationId: corrId,
@@ -413,9 +451,7 @@ export class FacilityController {
       role: parsed.data.role,
       credentialType: parsed.data.credentialType,
       required: parsed.data.required,
-      effectiveFrom: parsed.data.effectiveFrom
-        ? new Date(parsed.data.effectiveFrom)
-        : undefined,
+      effectiveFrom: parsed.data.effectiveFrom ? new Date(parsed.data.effectiveFrom) : undefined,
     });
 
     await this.tenantDb.execute(tenantId, async (tx) => {

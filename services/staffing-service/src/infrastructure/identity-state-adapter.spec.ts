@@ -22,7 +22,10 @@ describe('HttpIdentityStateAdapter', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    (mockCredentialProvider.getCredential as ReturnType<typeof vi.fn>).mockResolvedValue({ token: 'service-jwt-token', expiresAt: 9999999999 });
+    (mockCredentialProvider.getCredential as ReturnType<typeof vi.fn>).mockResolvedValue({
+      token: 'service-jwt-token',
+      expiresAt: 9999999999,
+    });
   });
 
   afterEach(() => {
@@ -30,22 +33,28 @@ describe('HttpIdentityStateAdapter', () => {
   });
 
   it('should return valid when identity service confirms state', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ valid: true }),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ valid: true }),
+      }),
+    );
 
     const result = await adapter.validate(validInput);
     expect(result.valid).toBe(true);
   });
 
   it('should deny when identity service returns invalid state', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ valid: false, code: 'SESSION_REVOKED' }),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ valid: false, code: 'SESSION_REVOKED' }),
+      }),
+    );
 
     const result = await adapter.validate(validInput);
     expect(result.valid).toBe(false);
@@ -53,11 +62,14 @@ describe('HttpIdentityStateAdapter', () => {
   });
 
   it('should deny when identity service returns HTTP error', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 403,
-      json: async () => ({ code: 'FORBIDDEN' }),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        json: async () => ({ code: 'FORBIDDEN' }),
+      }),
+    );
 
     const result = await adapter.validate(validInput);
     expect(result.valid).toBe(false);
@@ -65,11 +77,14 @@ describe('HttpIdentityStateAdapter', () => {
   });
 
   it('should deny and invalidate token on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false,
-      status: 401,
-      json: async () => ({}),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: async () => ({}),
+      }),
+    );
 
     const result = await adapter.validate(validInput);
     expect(result.valid).toBe(false);
@@ -96,11 +111,14 @@ describe('HttpIdentityStateAdapter', () => {
   });
 
   it('should deny on malformed response (missing valid field)', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ unexpected: 'structure' }),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ unexpected: 'structure' }),
+      }),
+    );
 
     const result = await adapter.validate(validInput);
     expect(result.valid).toBe(false);
@@ -119,7 +137,9 @@ describe('HttpIdentityStateAdapter', () => {
 
   it('should send correct request body with principal fields', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
-      ok: true, status: 200, json: async () => ({ valid: true }),
+      ok: true,
+      status: 200,
+      json: async () => ({ valid: true }),
     });
     vi.stubGlobal('fetch', mockFetch);
 

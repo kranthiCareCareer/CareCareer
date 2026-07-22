@@ -1,6 +1,6 @@
 import type { TenantAwareTransaction, TransactionClient } from '@carecareer/database';
 
-import { createWorker, type Worker , ExternalReference } from '../../domain/worker.js';
+import { createWorker, type Worker, ExternalReference } from '../../domain/worker.js';
 import type { StaffingRepository } from '../ports/staffing-repository.js';
 
 export interface CreateWorkerInput {

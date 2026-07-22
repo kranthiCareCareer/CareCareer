@@ -45,7 +45,9 @@ export class StaffingAuthGuard implements CanActivate {
   constructor(
     @Inject('TOKEN_VALIDATOR') private readonly tokenValidator: TokenValidator,
     private readonly reflector: Reflector,
-    @Optional() @Inject('IDENTITY_STATE_ADAPTER') private readonly identityAdapter?: IdentityStateAdapter,
+    @Optional()
+    @Inject('IDENTITY_STATE_ADAPTER')
+    private readonly identityAdapter?: IdentityStateAdapter,
   ) {
     this.localDevMode = process.env['STAFFING_AUTH_MODE'] === 'local';
   }

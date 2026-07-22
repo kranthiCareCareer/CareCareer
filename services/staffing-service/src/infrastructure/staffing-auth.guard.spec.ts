@@ -38,8 +38,11 @@ describe('StaffingAuthGuard', () => {
       );
 
       mockTokenValidator.validate.mockResolvedValue({
-        subject: 'user-1', sessionId: 's-1', selectedTenantId: 't-1',
-        userAuthorizationVersion: 1, membershipId: 'm-1',
+        subject: 'user-1',
+        sessionId: 's-1',
+        selectedTenantId: 't-1',
+        userAuthorizationVersion: 1,
+        membershipId: 'm-1',
       });
 
       const ctx = createContext({ authorization: 'Bearer valid-token' });
@@ -52,14 +55,12 @@ describe('StaffingAuthGuard', () => {
     it('should allow when identity adapter is missing in local dev mode', async () => {
       process.env['STAFFING_AUTH_MODE'] = 'local';
 
-      const guard = new StaffingAuthGuard(
-        mockTokenValidator as never,
-        mockReflector,
-        undefined,
-      );
+      const guard = new StaffingAuthGuard(mockTokenValidator as never, mockReflector, undefined);
 
       mockTokenValidator.validate.mockResolvedValue({
-        subject: 'user-1', sessionId: 's-1', selectedTenantId: 't-1',
+        subject: 'user-1',
+        sessionId: 's-1',
+        selectedTenantId: 't-1',
         userAuthorizationVersion: 1,
       });
 
@@ -79,7 +80,9 @@ describe('StaffingAuthGuard', () => {
       const guard = new StaffingAuthGuard(mockTokenValidator as never, mockReflector, mockAdapter);
 
       mockTokenValidator.validate.mockResolvedValue({
-        subject: 'user-1', sessionId: 's-1', selectedTenantId: 't-1',
+        subject: 'user-1',
+        sessionId: 's-1',
+        selectedTenantId: 't-1',
         userAuthorizationVersion: 1,
       });
 

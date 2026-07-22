@@ -22,19 +22,20 @@ master (protected — always deployable, production-ready code)
 
 ## Branch Naming Convention
 
-| Type | Pattern | Example |
-|------|---------|---------|
-| Feature | `feature/CC-{ticket}-{description}` | `feature/CC-42-shift-cancellation` |
-| Bug fix | `fix/CC-{ticket}-{description}` | `fix/CC-87-timezone-validation` |
-| Agent work | `agent/{milestone}-{description}` | `agent/gp-05-gp-06-v2` |
-| Release | `release/v{version}` | `release/v0.2.0` |
-| Hotfix | `hotfix/CC-{ticket}-{description}` | `hotfix/CC-99-auth-bypass` |
+| Type       | Pattern                             | Example                            |
+| ---------- | ----------------------------------- | ---------------------------------- |
+| Feature    | `feature/CC-{ticket}-{description}` | `feature/CC-42-shift-cancellation` |
+| Bug fix    | `fix/CC-{ticket}-{description}`     | `fix/CC-87-timezone-validation`    |
+| Agent work | `agent/{milestone}-{description}`   | `agent/gp-05-gp-06-v2`             |
+| Release    | `release/v{version}`                | `release/v0.2.0`                   |
+| Hotfix     | `hotfix/CC-{ticket}-{description}`  | `hotfix/CC-99-auth-bypass`         |
 
 ## Protected Branches
 
 ### `master` — Production
 
 **Settings to apply in GitHub:**
+
 - Require pull request before merging
 - Required approving reviews: 1 (increase to 2 after team growth)
 - Dismiss stale pull request approvals when new commits are pushed
@@ -53,6 +54,7 @@ master (protected — always deployable, production-ready code)
 ### `develop` — Integration
 
 **Settings to apply in GitHub:**
+
 - Require pull request before merging
 - Required approving reviews: 1
 - Require status checks to pass:
@@ -114,11 +116,11 @@ master (protected — always deployable, production-ready code)
 
 ## Merge Strategy
 
-| Target | Merge Type | Reason |
-|--------|-----------|--------|
-| develop ← feature | Squash merge | Clean history, one logical commit |
-| master ← develop | Merge commit | Preserves develop integration history |
-| master ← hotfix | Squash merge | Minimal change, linear |
+| Target            | Merge Type   | Reason                                |
+| ----------------- | ------------ | ------------------------------------- |
+| develop ← feature | Squash merge | Clean history, one logical commit     |
+| master ← develop  | Merge commit | Preserves develop integration history |
+| master ← hotfix   | Squash merge | Minimal change, linear                |
 
 ## Required Status Checks
 
@@ -143,14 +145,17 @@ required_status_checks:
 ## PR Requirements
 
 ### Title Format
+
 ```
 type(scope): short description (max 70 chars)
 ```
 
 ### Body Template
+
 The repository already has `.github/pull_request_template.md`.
 
 ### Labels
+
 - `security` — security-relevant changes
 - `breaking` — breaking API or schema changes
 - `milestone:gp-XX` — golden path milestone

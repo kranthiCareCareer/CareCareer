@@ -71,10 +71,20 @@ describe('Facility Domain', () => {
 
 describe('updateFacility', () => {
   const baseFacility: Facility = {
-    id: 'f-1', tenantId: 't-1', clientId: 'c-1', name: 'Original',
-    status: 'ACTIVE', country: 'US', timezone: 'US/Pacific',
-    geofenceVersion: 1, createdAt: new Date(), updatedAt: new Date(), version: 1,
-    latitude: 47.0, longitude: -122.0, geofenceRadiusMeters: 100,
+    id: 'f-1',
+    tenantId: 't-1',
+    clientId: 'c-1',
+    name: 'Original',
+    status: 'ACTIVE',
+    country: 'US',
+    timezone: 'US/Pacific',
+    geofenceVersion: 1,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    version: 1,
+    latitude: 47.0,
+    longitude: -122.0,
+    geofenceRadiusMeters: 100,
   };
 
   it('should increment version on update', () => {
@@ -95,7 +105,9 @@ describe('updateFacility', () => {
   });
 
   it('should reject empty timezone on update', () => {
-    expect(() => updateFacility(baseFacility, { timezone: '' })).toThrow('Facility timezone is mandatory');
+    expect(() => updateFacility(baseFacility, { timezone: '' })).toThrow(
+      'Facility timezone is mandatory',
+    );
   });
 
   it('should preserve unchanged fields', () => {
@@ -108,9 +120,17 @@ describe('updateFacility', () => {
 
 describe('changeFacilityStatus', () => {
   const active: Facility = {
-    id: 'f-1', tenantId: 't-1', clientId: 'c-1', name: 'Test',
-    status: 'ACTIVE', country: 'US', timezone: 'US/Pacific',
-    geofenceVersion: 1, createdAt: new Date(), updatedAt: new Date(), version: 1,
+    id: 'f-1',
+    tenantId: 't-1',
+    clientId: 'c-1',
+    name: 'Test',
+    status: 'ACTIVE',
+    country: 'US',
+    timezone: 'US/Pacific',
+    geofenceVersion: 1,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    version: 1,
   };
 
   it('should allow ACTIVE → INACTIVE', () => {

@@ -23,16 +23,30 @@ describe('HttpAuthorizationAdapter', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    (mockCredentialProvider.getCredential as ReturnType<typeof vi.fn>).mockResolvedValue({ token: 'service-jwt', expiresAt: 9999999999 });
+    (mockCredentialProvider.getCredential as ReturnType<typeof vi.fn>).mockResolvedValue({
+      token: 'service-jwt',
+      expiresAt: 9999999999,
+    });
   });
 
-  afterEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it('should allow when decision service returns ALLOW', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true, status: 200,
-      json: async () => ({ decision: 'ALLOW', decisionId: 'd-1', policyVersion: 5, reasonCode: 'ROLE_GRANTED' }),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          decision: 'ALLOW',
+          decisionId: 'd-1',
+          policyVersion: 5,
+          reasonCode: 'ROLE_GRANTED',
+        }),
+      }),
+    );
 
     const result = await adapter.hasPermission(validParams);
     expect(result.allowed).toBe(true);
@@ -41,10 +55,19 @@ describe('HttpAuthorizationAdapter', () => {
   });
 
   it('should deny when decision service returns DENY', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true, status: 200,
-      json: async () => ({ decision: 'DENY', decisionId: 'd-2', policyVersion: 5, reasonCode: 'EXPLICIT_DENY' }),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          decision: 'DENY',
+          decisionId: 'd-2',
+          policyVersion: 5,
+          reasonCode: 'EXPLICIT_DENY',
+        }),
+      }),
+    );
 
     const result = await adapter.hasPermission(validParams);
     expect(result.allowed).toBe(false);
@@ -52,10 +75,14 @@ describe('HttpAuthorizationAdapter', () => {
   });
 
   it('should deny on missing decisionId (malformed response)', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true, status: 200,
-      json: async () => ({ decision: 'ALLOW' }), // missing decisionId + policyVersion
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ decision: 'ALLOW' }), // missing decisionId + policyVersion
+      }),
+    );
 
     const result = await adapter.hasPermission(validParams);
     expect(result.allowed).toBe(false);
@@ -63,20 +90,28 @@ describe('HttpAuthorizationAdapter', () => {
   });
 
   it('should deny on missing policyVersion (malformed response)', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true, status: 200,
-      json: async () => ({ decision: 'ALLOW', decisionId: 'd-1' }), // missing policyVersion
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ decision: 'ALLOW', decisionId: 'd-1' }), // missing policyVersion
+      }),
+    );
 
     const result = await adapter.hasPermission(validParams);
     expect(result.allowed).toBe(false);
   });
 
   it('should deny on unknown decision value', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true, status: 200,
-      json: async () => ({ decision: 'UNKNOWN', decisionId: 'd-1', policyVersion: 1 }),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ decision: 'UNKNOWN', decisionId: 'd-1', policyVersion: 1 }),
+      }),
+    );
 
     const result = await adapter.hasPermission(validParams);
     expect(result.allowed).toBe(false);
@@ -117,7 +152,9 @@ describe('HttpAuthorizationAdapter', () => {
   });
 
   it('should deny when service token acquisition fails', async () => {
-    (mockCredentialProvider.getCredential as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('no key'));
+    (mockCredentialProvider.getCredential as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error('no key'),
+    );
 
     const result = await adapter.hasPermission(validParams);
     expect(result.allowed).toBe(false);
@@ -126,7 +163,8 @@ describe('HttpAuthorizationAdapter', () => {
 
   it('should send service JWT in Authorization header', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
-      ok: true, status: 200,
+      ok: true,
+      status: 200,
       json: async () => ({ decision: 'ALLOW', decisionId: 'd', policyVersion: 1 }),
     });
     vi.stubGlobal('fetch', mockFetch);
@@ -144,7 +182,8 @@ describe('HttpAuthorizationAdapter', () => {
 
   it('should send principal and action in request body', async () => {
     const mockFetch = vi.fn().mockResolvedValue({
-      ok: true, status: 200,
+      ok: true,
+      status: 200,
       json: async () => ({ decision: 'ALLOW', decisionId: 'd', policyVersion: 1 }),
     });
     vi.stubGlobal('fetch', mockFetch);

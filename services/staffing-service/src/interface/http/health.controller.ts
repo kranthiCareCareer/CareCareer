@@ -13,9 +13,7 @@ import { Public } from '../../infrastructure/public.decorator.js';
 export class HealthController implements OnModuleInit {
   private ready = false;
 
-  constructor(
-    @Inject('STAFFING_TENANT_DB') private readonly tenantDb: TenantAwareTransaction,
-  ) {}
+  constructor(@Inject('STAFFING_TENANT_DB') private readonly tenantDb: TenantAwareTransaction) {}
 
   onModuleInit(): void {
     this.ready = true;

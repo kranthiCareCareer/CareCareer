@@ -995,32 +995,70 @@ describe('Session Integration Tests (GP-03.3 — Durable Lineage)', () => {
     it('should reject refresh when membership ID does not exist', async () => {
       const nonexistentMembershipId = '00000000-0000-0000-0000-000000000999';
 
-      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'mnf-clean' }, refreshTokenRepo);
-      const { session, refreshToken } = await createSessionCommand(prismaClient, sessionRepo, { userId, correlationId: 'mnf-create' }, refreshTokenRepo);
+      await logoutAllCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'mnf-clean' },
+        refreshTokenRepo,
+      );
+      const { session, refreshToken } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'mnf-create' },
+        refreshTokenRepo,
+      );
 
-      await rawClient.query('UPDATE identity.auth_sessions SET membership_id = $1, membership_authorization_version = 1 WHERE id = $2', [nonexistentMembershipId, session.id]);
+      await rawClient.query(
+        'UPDATE identity.auth_sessions SET membership_id = $1, membership_authorization_version = 1 WHERE id = $2',
+        [nonexistentMembershipId, session.id],
+      );
 
       try {
-        await refreshSessionCommand(prismaClient, sessionRepo, identityRepo, { refreshToken, correlationId: 'mnf-refresh' }, refreshTokenRepo, membershipRepo);
+        await refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken, correlationId: 'mnf-refresh' },
+          refreshTokenRepo,
+          membershipRepo,
+        );
         expect.fail('Should have thrown');
-      } catch (error: unknown) { expect(error).toBeInstanceOf(RefreshError); expect((error as RefreshError).code).toBe('AUTH_MEMBERSHIP_INVALID');
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(RefreshError);
+        expect((error as RefreshError).code).toBe('AUTH_MEMBERSHIP_INVALID');
       }
     });
   });
 
   describe('Session expiry during refresh', () => {
     it('should reject refresh when session has expired', async () => {
-      await logoutAllCommand(prismaClient, sessionRepo, { userId, correlationId: 'exp-clean' }, refreshTokenRepo);
-      const { session, refreshToken } = await createSessionCommand(prismaClient, sessionRepo, { userId, correlationId: 'exp-create' }, refreshTokenRepo);
+      await logoutAllCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'exp-clean' },
+        refreshTokenRepo,
+      );
+      const { session, refreshToken } = await createSessionCommand(
+        prismaClient,
+        sessionRepo,
+        { userId, correlationId: 'exp-create' },
+        refreshTokenRepo,
+      );
 
       // Force session to be expired
       await rawClient.query(
         `UPDATE identity.auth_sessions SET expires_at = NOW() - INTERVAL '1 second' WHERE id = $1`,
-        [session.id]
+        [session.id],
       );
 
       try {
-        await refreshSessionCommand(prismaClient, sessionRepo, identityRepo, { refreshToken, correlationId: 'exp-refresh' }, refreshTokenRepo);
+        await refreshSessionCommand(
+          prismaClient,
+          sessionRepo,
+          identityRepo,
+          { refreshToken, correlationId: 'exp-refresh' },
+          refreshTokenRepo,
+        );
         expect.fail('Should have thrown');
       } catch (error: unknown) {
         expect(error).toBeInstanceOf(RefreshError);

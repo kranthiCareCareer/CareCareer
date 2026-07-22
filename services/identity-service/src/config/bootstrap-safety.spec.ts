@@ -65,7 +65,11 @@ describe('Production bootstrap-before-listen validation (GP-03.3)', () => {
     it('should NOT call listener when DEMO_MODE=true in production', async () => {
       await expect(
         testableBootstrap(
-          { ...validProdEnv, DEMO_MODE: 'true', DEMO_AUTH_SECRET: 'a-long-enough-secret-for-testing-purposes-here' },
+          {
+            ...validProdEnv,
+            DEMO_MODE: 'true',
+            DEMO_AUTH_SECRET: 'a-long-enough-secret-for-testing-purposes-here',
+          },
           listenerSpy,
         ),
       ).rejects.toThrow();
@@ -167,7 +171,12 @@ describe('Production bootstrap-before-listen validation (GP-03.3)', () => {
     it('should NOT call listener when DEMO_AUTH_SECRET is too short in demo mode', async () => {
       await expect(
         testableBootstrap(
-          { NODE_ENV: 'development', DATABASE_URL: 'postgresql://x/y', DEMO_MODE: 'true', DEMO_AUTH_SECRET: 'short' },
+          {
+            NODE_ENV: 'development',
+            DATABASE_URL: 'postgresql://x/y',
+            DEMO_MODE: 'true',
+            DEMO_AUTH_SECRET: 'short',
+          },
           listenerSpy,
         ),
       ).rejects.toThrow();

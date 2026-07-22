@@ -96,10 +96,7 @@ export class PostgresOutboxDispatcher implements OutboxDispatcherOps {
       WHERE id = ${eventId}::uuid`;
   }
 
-  async releaseExpiredLeases(
-    tx: TransactionClient,
-    maxLeaseSeconds: number,
-  ): Promise<number> {
+  async releaseExpiredLeases(tx: TransactionClient, maxLeaseSeconds: number): Promise<number> {
     const count = await tx.$executeRaw`
       UPDATE staffing.event_outbox
       SET status = 'PENDING', leased_by = NULL, leased_at = NULL
@@ -110,19 +107,31 @@ export class PostgresOutboxDispatcher implements OutboxDispatcherOps {
 }
 
 interface OutboxRow {
-  id: string; tenant_id: string; event_type: string;
-  aggregate_type: string; aggregate_id: string;
-  payload: Record<string, unknown>; correlation_id: string;
-  status: string; attempts: number; max_attempts: number;
+  id: string;
+  tenant_id: string;
+  event_type: string;
+  aggregate_type: string;
+  aggregate_id: string;
+  payload: Record<string, unknown>;
+  correlation_id: string;
+  status: string;
+  attempts: number;
+  max_attempts: number;
   created_at: string;
 }
 
 function mapOutboxEvent(r: OutboxRow): OutboxEvent {
   return {
-    id: r.id, tenantId: r.tenant_id, eventType: r.event_type,
-    aggregateType: r.aggregate_type, aggregateId: r.aggregate_id,
-    payload: r.payload, correlationId: r.correlation_id,
-    status: r.status, attempts: r.attempts, maxAttempts: r.max_attempts,
+    id: r.id,
+    tenantId: r.tenant_id,
+    eventType: r.event_type,
+    aggregateType: r.aggregate_type,
+    aggregateId: r.aggregate_id,
+    payload: r.payload,
+    correlationId: r.correlation_id,
+    status: r.status,
+    attempts: r.attempts,
+    maxAttempts: r.max_attempts,
     createdAt: r.created_at,
   };
 }

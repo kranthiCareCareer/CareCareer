@@ -63,7 +63,7 @@ paths:
     get:
       operationId: listFacilities
       summary: List facilities for the authenticated tenant
-      description: Requires permission: facility.list
+      description: Requires permission facility.list
       responses:
         '200':
           description: List of facilities
@@ -162,7 +162,7 @@ paths:
     post:
       operationId: createDepartment
       summary: Create a department within a facility
-      description: Requires permission: department.create
+      description: Requires permission department.create
       parameters:
         - $ref: '#/components/parameters/FacilityId'
         - $ref: '#/components/parameters/CorrelationId'
@@ -184,7 +184,7 @@ paths:
     get:
       operationId: listDepartments
       summary: List departments for a facility
-      description: Requires permission: department.list
+      description: Requires permission department.list
       parameters:
         - $ref: '#/components/parameters/FacilityId'
       responses:
@@ -197,7 +197,7 @@ paths:
     post:
       operationId: changeDepartmentStatus
       summary: Activate or deactivate a department
-      description: Requires permission: department.activate
+      description: Requires permission department.activate
       parameters:
         - $ref: '#/components/parameters/FacilityId'
         - name: departmentId
@@ -227,7 +227,7 @@ paths:
     post:
       operationId: createCredentialRequirement
       summary: Add a credential requirement
-      description: Requires permission: credential-requirement.manage
+      description: Requires permission credential-requirement.manage
       parameters:
         - $ref: '#/components/parameters/FacilityId'
         - $ref: '#/components/parameters/CorrelationId'
@@ -247,7 +247,7 @@ paths:
     get:
       operationId: listCredentialRequirements
       summary: Query credential requirements by role and/or department
-      description: Requires permission: credential-requirement.read
+      description: Requires permission credential-requirement.read
       parameters:
         - $ref: '#/components/parameters/FacilityId'
         - name: role
@@ -293,13 +293,24 @@ paths:
     get:
       operationId: listWorkers
       summary: List workers (admin)
-      description: Requires permission: worker.list
+      description: Requires permission worker.list
       parameters:
         - name: status
           in: query
           schema:
             type: string
-            enum: [APPLICANT, SCREENING, QUALIFIED, CREDENTIALING, READY, ACTIVE, INACTIVE, BLOCKED, ALUMNI]
+            enum:
+              [
+                APPLICANT,
+                SCREENING,
+                QUALIFIED,
+                CREDENTIALING,
+                READY,
+                ACTIVE,
+                INACTIVE,
+                BLOCKED,
+                ALUMNI,
+              ]
       responses:
         '200':
           description: Worker list
@@ -557,7 +568,18 @@ components:
       properties:
         status:
           type: string
-          enum: [APPLICANT, SCREENING, QUALIFIED, CREDENTIALING, READY, ACTIVE, INACTIVE, BLOCKED, ALUMNI]
+          enum:
+            [
+              APPLICANT,
+              SCREENING,
+              QUALIFIED,
+              CREDENTIALING,
+              READY,
+              ACTIVE,
+              INACTIVE,
+              BLOCKED,
+              ALUMNI,
+            ]
         expectedVersion: { type: integer, minimum: 1 }
 
     FacilityIdResponse:

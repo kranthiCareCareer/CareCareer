@@ -19,7 +19,9 @@ describe('StaffingPermissionGuard', () => {
 
   describe('no @RequirePermission decorator', () => {
     it('should allow when no permission is required', async () => {
-      const reflector = { getAllAndOverride: vi.fn().mockReturnValue(undefined) } as unknown as Reflector;
+      const reflector = {
+        getAllAndOverride: vi.fn().mockReturnValue(undefined),
+      } as unknown as Reflector;
       const guard = new StaffingPermissionGuard(reflector, null);
       const result = await guard.canActivate(createContext({ subject: 'u' }));
       expect(result).toBe(true);
@@ -31,7 +33,9 @@ describe('StaffingPermissionGuard', () => {
       const originalEnv = process.env['STAFFING_AUTH_MODE'];
       delete process.env['STAFFING_AUTH_MODE'];
 
-      const reflector = { getAllAndOverride: vi.fn().mockReturnValue('facility.create') } as unknown as Reflector;
+      const reflector = {
+        getAllAndOverride: vi.fn().mockReturnValue('facility.create'),
+      } as unknown as Reflector;
       const guard = new StaffingPermissionGuard(reflector, null);
       const ctx = createContext({ subject: 'u', selectedTenantId: 't' });
 
@@ -42,7 +46,9 @@ describe('StaffingPermissionGuard', () => {
     it('should allow when adapter is null in local dev mode', async () => {
       process.env['STAFFING_AUTH_MODE'] = 'local';
 
-      const reflector = { getAllAndOverride: vi.fn().mockReturnValue('facility.create') } as unknown as Reflector;
+      const reflector = {
+        getAllAndOverride: vi.fn().mockReturnValue('facility.create'),
+      } as unknown as Reflector;
       const guard = new StaffingPermissionGuard(reflector, null);
       const ctx = createContext({ subject: 'u', selectedTenantId: 't' });
 
@@ -58,7 +64,9 @@ describe('StaffingPermissionGuard', () => {
       const adapter: PermissionAdapter = {
         hasPermission: vi.fn().mockResolvedValue({ allowed: true }),
       };
-      const reflector = { getAllAndOverride: vi.fn().mockReturnValue('worker.create') } as unknown as Reflector;
+      const reflector = {
+        getAllAndOverride: vi.fn().mockReturnValue('worker.create'),
+      } as unknown as Reflector;
       const guard = new StaffingPermissionGuard(reflector, adapter);
       const ctx = createContext({ subject: 'u', selectedTenantId: 't', membershipId: 'm' });
 
@@ -70,7 +78,9 @@ describe('StaffingPermissionGuard', () => {
       const adapter: PermissionAdapter = {
         hasPermission: vi.fn().mockResolvedValue({ allowed: false, reason: 'EXPLICIT_DENY' }),
       };
-      const reflector = { getAllAndOverride: vi.fn().mockReturnValue('worker.create') } as unknown as Reflector;
+      const reflector = {
+        getAllAndOverride: vi.fn().mockReturnValue('worker.create'),
+      } as unknown as Reflector;
       const guard = new StaffingPermissionGuard(reflector, adapter);
       const ctx = createContext({ subject: 'u', selectedTenantId: 't' });
 
@@ -81,7 +91,9 @@ describe('StaffingPermissionGuard', () => {
       const adapter: PermissionAdapter = {
         hasPermission: vi.fn().mockResolvedValue({ allowed: true }),
       };
-      const reflector = { getAllAndOverride: vi.fn().mockReturnValue('facility.read') } as unknown as Reflector;
+      const reflector = {
+        getAllAndOverride: vi.fn().mockReturnValue('facility.read'),
+      } as unknown as Reflector;
       const guard = new StaffingPermissionGuard(reflector, adapter);
       const ctx = createContext(undefined); // no principal
 

@@ -30,12 +30,14 @@ import { Public } from '../../infrastructure/public.decorator.js';
  * Validates: registered client, credential hash, allowed scopes
  */
 
-const TokenRequestSchema = z.object({
-  grant_type: z.literal('client_credentials'),
-  client_id: z.string().min(1).max(100),
-  client_secret: z.string().min(1).max(500),
-  scope: z.string().min(1).max(500),
-}).strict();
+const TokenRequestSchema = z
+  .object({
+    grant_type: z.literal('client_credentials'),
+    client_id: z.string().min(1).max(100),
+    client_secret: z.string().min(1).max(500),
+    scope: z.string().min(1).max(500),
+  })
+  .strict();
 
 /** Registered service clients (in production, loaded from DB/Secrets Manager) */
 interface RegisteredClient {
@@ -163,7 +165,9 @@ export class InternalOAuthController {
   static hashSecret(secret: string): string {
     const { scryptSync, randomBytes } = crypto_module;
     const salt = randomBytes(32);
-    const N = 16384; const r = 8; const p = 1;
+    const N = 16384;
+    const r = 8;
+    const p = 1;
     const hash = scryptSync(secret, salt, 64, { N, r, p });
     return `scrypt$${String(N)}$${String(r)}$${String(p)}$${salt.toString('base64url')}$${hash.toString('base64url')}`;
   }

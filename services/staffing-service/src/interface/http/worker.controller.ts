@@ -22,11 +22,7 @@ import type { TenantAwareTransaction, TransactionClient } from '@carecareer/data
 import { ChangeWorkerStatusHandler } from '../../application/commands/change-worker-status.command.js';
 import { CreateWorkerHandler } from '../../application/commands/create-worker.command.js';
 import type { StaffingRepository } from '../../application/ports/staffing-repository.js';
-import {
-  updateWorker,
-  type Worker,
-  type WorkerStatus,
-} from '../../domain/worker.js';
+import { updateWorker, type Worker, type WorkerStatus } from '../../domain/worker.js';
 import { RequirePermission } from '../../infrastructure/permission.decorator.js';
 
 const TENANT_DB = 'STAFFING_TENANT_DB';
@@ -59,45 +55,62 @@ interface AuthenticatedRequest {
   principal?: { subject: string; selectedTenantId?: string };
 }
 
-const CreateWorkerSchema = z.object({
-  firstName: z.string().min(1).max(100),
-  lastName: z.string().min(1).max(100),
-  email: z.string().email().max(254),
-  phone: z.string().max(30).optional(),
-  profession: z.enum(['RN', 'LPN', 'CNA', 'RT', 'ALLIED']),
-  specialty: z.string().max(100).optional(),
-  userId: z.string().uuid().optional(),
-  homeLatitude: z.number().min(-90).max(90).optional(),
-  homeLongitude: z.number().min(-180).max(180).optional(),
-  homeCity: z.string().max(100).optional(),
-  homeState: z.string().max(50).optional(),
-  homeZip: z.string().max(20).optional(),
-  externalReferences: z.array(z.object({
-    systemName: z.enum(['symplr', 'bullhorn', 'labor-edge', 'maestra', 'auth0']),
-    externalId: z.string().min(1).max(200),
-  })).optional(),
-}).strict();
+const CreateWorkerSchema = z
+  .object({
+    firstName: z.string().min(1).max(100),
+    lastName: z.string().min(1).max(100),
+    email: z.string().email().max(254),
+    phone: z.string().max(30).optional(),
+    profession: z.enum(['RN', 'LPN', 'CNA', 'RT', 'ALLIED']),
+    specialty: z.string().max(100).optional(),
+    userId: z.string().uuid().optional(),
+    homeLatitude: z.number().min(-90).max(90).optional(),
+    homeLongitude: z.number().min(-180).max(180).optional(),
+    homeCity: z.string().max(100).optional(),
+    homeState: z.string().max(50).optional(),
+    homeZip: z.string().max(20).optional(),
+    externalReferences: z
+      .array(
+        z.object({
+          systemName: z.enum(['symplr', 'bullhorn', 'labor-edge', 'maestra', 'auth0']),
+          externalId: z.string().min(1).max(200),
+        }),
+      )
+      .optional(),
+  })
+  .strict();
 
-const UpdateWorkerSchema = z.object({
-  firstName: z.string().min(1).max(100).optional(),
-  lastName: z.string().min(1).max(100).optional(),
-  phone: z.string().max(30).optional(),
-  specialty: z.string().max(100).optional(),
-  homeLatitude: z.number().min(-90).max(90).optional(),
-  homeLongitude: z.number().min(-180).max(180).optional(),
-  homeCity: z.string().max(100).optional(),
-  homeState: z.string().max(50).optional(),
-  homeZip: z.string().max(20).optional(),
-  expectedVersion: z.number().int().positive(),
-}).strict();
+const UpdateWorkerSchema = z
+  .object({
+    firstName: z.string().min(1).max(100).optional(),
+    lastName: z.string().min(1).max(100).optional(),
+    phone: z.string().max(30).optional(),
+    specialty: z.string().max(100).optional(),
+    homeLatitude: z.number().min(-90).max(90).optional(),
+    homeLongitude: z.number().min(-180).max(180).optional(),
+    homeCity: z.string().max(100).optional(),
+    homeState: z.string().max(50).optional(),
+    homeZip: z.string().max(20).optional(),
+    expectedVersion: z.number().int().positive(),
+  })
+  .strict();
 
-const ChangeWorkerStatusSchema = z.object({
-  status: z.enum([
-    'APPLICANT', 'SCREENING', 'QUALIFIED', 'CREDENTIALING',
-    'READY', 'ACTIVE', 'INACTIVE', 'BLOCKED', 'ALUMNI',
-  ]),
-  expectedVersion: z.number().int().positive(),
-}).strict();
+const ChangeWorkerStatusSchema = z
+  .object({
+    status: z.enum([
+      'APPLICANT',
+      'SCREENING',
+      'QUALIFIED',
+      'CREDENTIALING',
+      'READY',
+      'ACTIVE',
+      'INACTIVE',
+      'BLOCKED',
+      'ALUMNI',
+    ]),
+    expectedVersion: z.number().int().positive(),
+  })
+  .strict();
 
 /**
  * Worker HTTP controller.
@@ -218,8 +231,11 @@ export class WorkerController {
       const updatedWorker = updateWorker(worker, fields);
       await this.repo.updateWorker(tx, updatedWorker);
       await this.emitAudit(tx, {
-        tenantId, actorId, action: 'worker.updated',
-        aggregateType: 'worker', aggregateId: worker.id,
+        tenantId,
+        actorId,
+        action: 'worker.updated',
+        aggregateType: 'worker',
+        aggregateId: worker.id,
         afterSummary: { version: updatedWorker.version },
         correlationId: corrId,
       });
@@ -294,7 +310,10 @@ export class WorkerController {
       return this.repo.getWorkerByUserId(tx, userId);
     });
     if (!worker) {
-      throw new NotFoundException({ code: 'NOT_FOUND', message: 'No worker profile linked to this account' });
+      throw new NotFoundException({
+        code: 'NOT_FOUND',
+        message: 'No worker profile linked to this account',
+      });
     }
     return { data: worker };
   }
@@ -349,8 +368,11 @@ export class WorkerController {
       const updatedWorker = updateWorker(worker, fields);
       await this.repo.updateWorker(tx, updatedWorker);
       await this.emitAudit(tx, {
-        tenantId, actorId: userId, action: 'worker.self-updated',
-        aggregateType: 'worker', aggregateId: worker.id,
+        tenantId,
+        actorId: userId,
+        action: 'worker.self-updated',
+        aggregateType: 'worker',
+        aggregateId: worker.id,
         afterSummary: { version: updatedWorker.version },
         correlationId: corrId,
       });

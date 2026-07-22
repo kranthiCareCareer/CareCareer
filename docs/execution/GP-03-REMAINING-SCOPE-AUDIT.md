@@ -4,35 +4,35 @@
 
 ## Implemented (GP-03.0 through GP-03.3)
 
-| Requirement | Status | Evidence |
-|-------------|--------|----------|
-| User profile (name, email, status) | COMPLETE | identity.users table, PostgresIdentityRepository |
-| Tenant membership (user belongs to tenant) | COMPLETE | identity.tenant_memberships, MembershipController |
-| Roles (CRUD, assignment to users) | COMPLETE | identity.roles, membership_roles tables |
-| Permissions (resolved from roles) | COMPLETE | identity.role_permissions, permission resolution |
-| Access suspension (immediate block) | COMPLETE | SessionStateValidator, auth version enforcement |
-| Token issuance (RS256) | COMPLETE | jwt-service, PlatformTokenValidator |
-| Session management | COMPLETE | auth_sessions, refresh rotation, replay detection |
-| JWKS endpoint | COMPLETE | /.well-known/jwks.json |
-| Tenant isolation (RLS) | COMPLETE | 21 HTTP→RLS tests |
-| Production startup fail-closed | COMPLETE | 14+13 config validation tests |
-| User belongs to tenant with specific roles | COMPLETE | Membership + role integration tests |
-| Tenant switching requires valid membership | COMPLETE | Session selected_tenant_id enforcement |
-| Disabled membership immediately blocks access | COMPLETE | Authorization version checks |
+| Requirement                                   | Status   | Evidence                                          |
+| --------------------------------------------- | -------- | ------------------------------------------------- |
+| User profile (name, email, status)            | COMPLETE | identity.users table, PostgresIdentityRepository  |
+| Tenant membership (user belongs to tenant)    | COMPLETE | identity.tenant_memberships, MembershipController |
+| Roles (CRUD, assignment to users)             | COMPLETE | identity.roles, membership_roles tables           |
+| Permissions (resolved from roles)             | COMPLETE | identity.role_permissions, permission resolution  |
+| Access suspension (immediate block)           | COMPLETE | SessionStateValidator, auth version enforcement   |
+| Token issuance (RS256)                        | COMPLETE | jwt-service, PlatformTokenValidator               |
+| Session management                            | COMPLETE | auth_sessions, refresh rotation, replay detection |
+| JWKS endpoint                                 | COMPLETE | /.well-known/jwks.json                            |
+| Tenant isolation (RLS)                        | COMPLETE | 21 HTTP→RLS tests                                 |
+| Production startup fail-closed                | COMPLETE | 14+13 config validation tests                     |
+| User belongs to tenant with specific roles    | COMPLETE | Membership + role integration tests               |
+| Tenant switching requires valid membership    | COMPLETE | Session selected_tenant_id enforcement            |
+| Disabled membership immediately blocks access | COMPLETE | Authorization version checks                      |
 
 ## NOT Implemented (Remaining for GP-03 Closure)
 
-| Requirement | Source | Current State | Security Risk |
-|-------------|--------|---------------|---------------|
-| Authorization decision endpoint | Backlog: "Authorization decision endpoint" | No endpoint exists | Medium — no centralized authz query |
-| Explicit deny overrides role grants | Acceptance criteria #4 | Not implemented | High — cannot block specific actions |
-| Policy attribute evaluation (ABAC) | Included capabilities | Not implemented | Medium — coarse RBAC only |
-| Authorization decisions generate audit | Acceptance criteria #6 | Not implemented | Medium — no authz audit trail |
-| Break-glass elevation with TTL | Acceptance criteria #7, included capabilities | Not implemented | Low — no admin emergency path |
-| Invitation lifecycle and expiration | Acceptance criteria #8, state transitions | No invitations table | Low — manual user creation works |
-| External OIDC user mapping | Acceptance criteria #1 | Schema exists, no real provider | Medium — demo auth only |
-| GET /v1/me/permissions | API contracts | Not implemented | Low — roles visible via /me |
-| POST /v1/users/invite | API contracts | Not implemented | Low — manual creation works |
+| Requirement                            | Source                                        | Current State                   | Security Risk                        |
+| -------------------------------------- | --------------------------------------------- | ------------------------------- | ------------------------------------ |
+| Authorization decision endpoint        | Backlog: "Authorization decision endpoint"    | No endpoint exists              | Medium — no centralized authz query  |
+| Explicit deny overrides role grants    | Acceptance criteria #4                        | Not implemented                 | High — cannot block specific actions |
+| Policy attribute evaluation (ABAC)     | Included capabilities                         | Not implemented                 | Medium — coarse RBAC only            |
+| Authorization decisions generate audit | Acceptance criteria #6                        | Not implemented                 | Medium — no authz audit trail        |
+| Break-glass elevation with TTL         | Acceptance criteria #7, included capabilities | Not implemented                 | Low — no admin emergency path        |
+| Invitation lifecycle and expiration    | Acceptance criteria #8, state transitions     | No invitations table            | Low — manual user creation works     |
+| External OIDC user mapping             | Acceptance criteria #1                        | Schema exists, no real provider | Medium — demo auth only              |
+| GET /v1/me/permissions                 | API contracts                                 | Not implemented                 | Low — roles visible via /me          |
+| POST /v1/users/invite                  | API contracts                                 | Not implemented                 | Low — manual creation works          |
 
 ## Proposed Milestone Split
 
@@ -41,6 +41,7 @@
 **Purpose:** Centralized, auditable authorization query for any service or UI component.
 
 **Included:**
+
 - Authorization decision endpoint (POST /v1/authorization/decisions)
 - Default-deny behavior
 - Explicit deny overrides role grants
@@ -52,6 +53,7 @@
 - OpenAPI contract
 
 **Excluded:**
+
 - Break-glass elevation (GP-03.5)
 - Invitation lifecycle (GP-03.6)
 - Real OIDC provider integration (GP-15)
@@ -61,6 +63,7 @@
 **Dependencies:** GP-03.3 (COMPLETE)
 
 **Acceptance criteria:**
+
 - [ ] Decision endpoint returns allow/deny with reason code
 - [ ] Default deny when no matching permission
 - [ ] Explicit deny overrides all grants
@@ -78,6 +81,7 @@
 **Purpose:** Emergency elevated access with audit trail and automatic expiration.
 
 **Included:**
+
 - Elevation request with reason
 - Time-bounded TTL
 - Revocation
@@ -91,6 +95,7 @@
 **Purpose:** Invite users to tenants with configurable expiration.
 
 **Included:**
+
 - Invitation creation with email
 - Invitation acceptance
 - TTL-based expiration
@@ -104,6 +109,7 @@
 **Purpose:** Connect to real OIDC providers and AWS KMS for production.
 
 **Included:**
+
 - Auth0/Entra OIDC validation
 - External identity mapping (subject → user)
 - AWS KMS signing
@@ -114,11 +120,11 @@
 
 ## Parallelization Analysis
 
-| Milestone | Can Proceed After | Blocks |
-|-----------|-------------------|--------|
-| GP-03.4 | GP-03.3 (done) | GP-03.5, GP-03.6, GP-04 |
-| GP-05 (Facilities) | GP-01 (done) | GP-07, GP-08 |
-| GP-06 (Workers) | GP-01 (done) | GP-07, GP-09 |
+| Milestone          | Can Proceed After | Blocks                  |
+| ------------------ | ----------------- | ----------------------- |
+| GP-03.4            | GP-03.3 (done)    | GP-03.5, GP-03.6, GP-04 |
+| GP-05 (Facilities) | GP-01 (done)      | GP-07, GP-08            |
+| GP-06 (Workers)    | GP-01 (done)      | GP-07, GP-09            |
 
 **Recommendation:** GP-03.4 and GP-05/GP-06 can proceed in parallel.
 GP-03.4 is required before GP-04 (formal admin portal) can close.

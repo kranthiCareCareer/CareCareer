@@ -42,9 +42,15 @@ export function FacilityDetail() {
         const headers = { Authorization: `Bearer ${token ?? ''}` };
         const [facRes, deptRes] = await Promise.all([
           fetch(`/api/v1/facilities/${facilityId ?? ''}`, { headers, signal: controller.signal }),
-          fetch(`/api/v1/facilities/${facilityId ?? ''}/departments`, { headers, signal: controller.signal }),
+          fetch(`/api/v1/facilities/${facilityId ?? ''}/departments`, {
+            headers,
+            signal: controller.signal,
+          }),
         ]);
-        if (!facRes.ok) throw new Error(facRes.status === 404 ? 'Facility not found' : `HTTP ${String(facRes.status)}`);
+        if (!facRes.ok)
+          throw new Error(
+            facRes.status === 404 ? 'Facility not found' : `HTTP ${String(facRes.status)}`,
+          );
         const facBody = (await facRes.json()) as { data: Facility };
         setFacility(facBody.data);
         if (deptRes.ok) {
@@ -63,7 +69,12 @@ export function FacilityDetail() {
   }, [facilityId, token]);
 
   if (loading) return <p role="status">Loading facility...</p>;
-  if (error) return <p role="alert" className="error">{error}</p>;
+  if (error)
+    return (
+      <p role="alert" className="error">
+        {error}
+      </p>
+    );
   if (!facility) return <p>Facility not found</p>;
 
   return (
@@ -79,11 +90,20 @@ export function FacilityDetail() {
 
       <section aria-label="Facility details">
         <dl className="detail-list">
-          <dt>Timezone</dt><dd>{facility.timezone}</dd>
-          <dt>Address</dt><dd>{facility.addressLine1 ?? '—'}</dd>
-          <dt>Location</dt><dd>{facility.city && facility.state ? `${facility.city}, ${facility.state} ${facility.zip ?? ''}` : '—'}</dd>
-          <dt>Geofence Version</dt><dd>{facility.geofenceVersion}</dd>
-          <dt>Version</dt><dd>{facility.version}</dd>
+          <dt>Timezone</dt>
+          <dd>{facility.timezone}</dd>
+          <dt>Address</dt>
+          <dd>{facility.addressLine1 ?? '—'}</dd>
+          <dt>Location</dt>
+          <dd>
+            {facility.city && facility.state
+              ? `${facility.city}, ${facility.state} ${facility.zip ?? ''}`
+              : '—'}
+          </dd>
+          <dt>Geofence Version</dt>
+          <dd>{facility.geofenceVersion}</dd>
+          <dt>Version</dt>
+          <dd>{facility.version}</dd>
         </dl>
       </section>
 

@@ -51,7 +51,7 @@ export class RemoteJwksTokenValidator implements TokenValidator {
     this.clockToleranceSec = config.clockToleranceSec ?? 30;
     this.jwks = createRemoteJWKSet(new URL(config.jwksUri), {
       cooldownDuration: 30000, // 30s between JWKS refetches
-      timeoutDuration: 3000,  // 3s timeout on fetch
+      timeoutDuration: 3000, // 3s timeout on fetch
     });
   }
 
@@ -125,9 +125,7 @@ export class RemoteJwksTokenValidator implements TokenValidator {
     const tenantRoles = (payload['tenant_roles'] as string[] | undefined) ?? [];
     const activeTenantId = payload['active_tenant_id'] as string | undefined;
     const membershipId = payload['membership_id'] as string | undefined;
-    const membershipAuthVersion = payload['membership_authorization_version'] as
-      | number
-      | undefined;
+    const membershipAuthVersion = payload['membership_authorization_version'] as number | undefined;
 
     const memberships: TenantMembershipClaim[] = [];
     if (activeTenantId) {

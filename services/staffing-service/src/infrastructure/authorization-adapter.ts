@@ -69,34 +69,33 @@ export class HttpAuthorizationAdapter implements PermissionAdapter {
     }
 
     try {
-      const response = await fetch(
-        `${this.baseUrl}/internal/v1/authorization/decisions`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${serviceToken}`,
-            'X-Correlation-ID': params.correlationId ?? crypto.randomUUID(),
-          },
-          body: JSON.stringify({
-            principal: {
-              subject: params.userId,
-              sessionId: params.sessionId,
-              tenantId: params.tenantId,
-              membershipId: params.membershipId,
-              userAuthorizationVersion: params.userAuthorizationVersion,
-              membershipAuthorizationVersion: params.membershipAuthorizationVersion,
-            },
-            action: params.permission,
-            resource: params.resourceType ? {
-              type: params.resourceType,
-              id: params.resourceId,
-              tenantId: params.tenantId,
-            } : undefined,
-          }),
-          signal: AbortSignal.timeout(3000),
+      const response = await fetch(`${this.baseUrl}/internal/v1/authorization/decisions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${serviceToken}`,
+          'X-Correlation-ID': params.correlationId ?? crypto.randomUUID(),
         },
-      );
+        body: JSON.stringify({
+          principal: {
+            subject: params.userId,
+            sessionId: params.sessionId,
+            tenantId: params.tenantId,
+            membershipId: params.membershipId,
+            userAuthorizationVersion: params.userAuthorizationVersion,
+            membershipAuthorizationVersion: params.membershipAuthorizationVersion,
+          },
+          action: params.permission,
+          resource: params.resourceType
+            ? {
+                type: params.resourceType,
+                id: params.resourceId,
+                tenantId: params.tenantId,
+              }
+            : undefined,
+        }),
+        signal: AbortSignal.timeout(3000),
+      });
 
       if (response.status === 401) {
         this.credentialProvider.invalidate();
@@ -104,11 +103,14 @@ export class HttpAuthorizationAdapter implements PermissionAdapter {
       }
 
       if (!response.ok) {
-        return { allowed: false, reason: `Authorization service returned ${String(response.status)}` };
+        return {
+          allowed: false,
+          reason: `Authorization service returned ${String(response.status)}`,
+        };
       }
 
       // Validate response schema strictly
-      const body = await response.json() as unknown;
+      const body = (await response.json()) as unknown;
       if (!body || typeof body !== 'object' || !('decision' in body)) {
         return { allowed: false, reason: 'Malformed authorization response' };
       }

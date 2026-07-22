@@ -4,7 +4,10 @@ import { APP_GUARD, Reflector } from '@nestjs/core';
 import type { TokenValidator } from '@carecareer/auth';
 import { TenantAwareTransaction } from '@carecareer/database';
 
-import { HttpAuthorizationAdapter, type PermissionAdapter } from './infrastructure/authorization-adapter.js';
+import {
+  HttpAuthorizationAdapter,
+  type PermissionAdapter,
+} from './infrastructure/authorization-adapter.js';
 import {
   HttpIdentityStateAdapter,
   type IdentityStateAdapter,
@@ -45,7 +48,7 @@ import { WorkerController } from './interface/http/worker.controller.js';
         // Local dev/test: use static keys from environment
         const jwksKeys = process.env['JWKS_PUBLIC_KEYS'];
         const publicKeys: Array<{ kid: string; publicKeyPem: string }> = jwksKeys
-          ? JSON.parse(jwksKeys) as Array<{ kid: string; publicKeyPem: string }>
+          ? (JSON.parse(jwksKeys) as Array<{ kid: string; publicKeyPem: string }>)
           : [];
 
         return new LocalJwksTokenValidator({ issuer, audience, publicKeys });
@@ -59,7 +62,9 @@ import { WorkerController } from './interface/http/worker.controller.js';
         const clientSecret = process.env['SERVICE_CLIENT_SECRET'];
         if (!identityUrl || !clientSecret) return undefined;
         const credentialProvider = new LocalClientCredentialsProvider({
-          identityServiceUrl: identityUrl, clientId, clientSecret,
+          identityServiceUrl: identityUrl,
+          clientId,
+          clientSecret,
         });
         return new HttpIdentityStateAdapter(identityUrl, credentialProvider);
       },
@@ -78,12 +83,15 @@ import { WorkerController } from './interface/http/worker.controller.js';
     {
       provide: 'PERMISSION_ADAPTER',
       useFactory: (): PermissionAdapter | null => {
-        const authUrl = process.env['AUTHORIZATION_SERVICE_URL'] ?? process.env['IDENTITY_SERVICE_URL'];
+        const authUrl =
+          process.env['AUTHORIZATION_SERVICE_URL'] ?? process.env['IDENTITY_SERVICE_URL'];
         const clientId = process.env['SERVICE_CLIENT_ID'] ?? 'staffing-service';
         const clientSecret = process.env['SERVICE_CLIENT_SECRET'];
         if (!authUrl || !clientSecret) return null;
         const credentialProvider = new LocalClientCredentialsProvider({
-          identityServiceUrl: authUrl, clientId, clientSecret,
+          identityServiceUrl: authUrl,
+          clientId,
+          clientSecret,
         });
         return new HttpAuthorizationAdapter(authUrl, credentialProvider);
       },

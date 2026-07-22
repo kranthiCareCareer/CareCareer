@@ -2,9 +2,9 @@
 /**
  * Generate a scrypt hash for a service client secret.
  * Output format: scrypt$N$r$p$salt_b64$hash_b64
- * 
+ *
  * Usage: node scripts/hash-secret.mjs <secret>
- * 
+ *
  * NEVER commit the plaintext secret.
  * Store only the hash in the database.
  */
@@ -21,7 +21,9 @@ if (secret.length < 32) {
   process.exit(1);
 }
 
-const N = 16384; const r = 8; const p = 1;
+const N = 16384;
+const r = 8;
+const p = 1;
 const salt = randomBytes(32);
 const hash = scryptSync(secret, salt, 64, { N, r, p });
 const result = `scrypt$${N}$${r}$${p}$${salt.toString('base64url')}$${hash.toString('base64url')}`;

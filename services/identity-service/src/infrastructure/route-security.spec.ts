@@ -21,10 +21,7 @@ const __dir = dirname(fileURLToPath(import.meta.url));
  */
 describe('Internal route security inventory', () => {
   function readController(filename: string): string {
-    return readFileSync(
-      resolve(__dir, '..', 'interface', 'http', filename),
-      'utf-8',
-    );
+    return readFileSync(resolve(__dir, '..', 'interface', 'http', filename), 'utf-8');
   }
 
   describe('InternalIdentityController', () => {

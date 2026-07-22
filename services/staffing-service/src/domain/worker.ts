@@ -57,12 +57,14 @@ export interface ExternalReference {
 export type ExternalSystemName = 'symplr' | 'bullhorn' | 'labor-edge' | 'maestra' | 'auth0';
 
 export const VALID_EXTERNAL_SYSTEMS: readonly ExternalSystemName[] = [
-  'symplr', 'bullhorn', 'labor-edge', 'maestra', 'auth0',
+  'symplr',
+  'bullhorn',
+  'labor-edge',
+  'maestra',
+  'auth0',
 ];
 
-export const VALID_PROFESSIONS: readonly WorkerProfession[] = [
-  'RN', 'LPN', 'CNA', 'RT', 'ALLIED',
-];
+export const VALID_PROFESSIONS: readonly WorkerProfession[] = ['RN', 'LPN', 'CNA', 'RT', 'ALLIED'];
 
 export interface CreateWorkerInput {
   readonly tenantId: string;
@@ -141,9 +143,7 @@ const VALID_WORKER_STATUS_TRANSITIONS: Record<WorkerStatus, WorkerStatus[]> = {
 export function changeWorkerStatus(worker: Worker, newStatus: WorkerStatus): Worker {
   const allowed = VALID_WORKER_STATUS_TRANSITIONS[worker.status];
   if (!allowed.includes(newStatus)) {
-    throw new Error(
-      `Invalid worker status transition: ${worker.status} → ${newStatus}`,
-    );
+    throw new Error(`Invalid worker status transition: ${worker.status} → ${newStatus}`);
   }
 
   return {

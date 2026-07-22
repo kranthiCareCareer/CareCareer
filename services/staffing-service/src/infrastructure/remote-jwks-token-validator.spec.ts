@@ -53,18 +53,25 @@ describe('RemoteJwksTokenValidator', () => {
       .sign(pk);
   }
 
-  afterEach(() => { vi.restoreAllMocks(); });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it('should validate a correctly signed token', async () => {
     jwksResponse = await buildJwks();
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true, status: 200,
-      json: async () => jwksResponse,
-      headers: new Headers({ 'content-type': 'application/json' }),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => jwksResponse,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      }),
+    );
 
     const validator = new RemoteJwksTokenValidator({
-      issuer: ISSUER, audience: AUDIENCE,
+      issuer: ISSUER,
+      audience: AUDIENCE,
       jwksUri: 'http://identity:3100/.well-known/jwks.json',
     });
 
@@ -79,7 +86,8 @@ describe('RemoteJwksTokenValidator', () => {
 
   it('should reject empty token', async () => {
     const validator = new RemoteJwksTokenValidator({
-      issuer: ISSUER, audience: AUDIENCE,
+      issuer: ISSUER,
+      audience: AUDIENCE,
       jwksUri: 'http://identity:3100/.well-known/jwks.json',
     });
 
@@ -88,7 +96,8 @@ describe('RemoteJwksTokenValidator', () => {
 
   it('should reject malformed token', async () => {
     const validator = new RemoteJwksTokenValidator({
-      issuer: ISSUER, audience: AUDIENCE,
+      issuer: ISSUER,
+      audience: AUDIENCE,
       jwksUri: 'http://identity:3100/.well-known/jwks.json',
     });
 
@@ -102,7 +111,8 @@ describe('RemoteJwksTokenValidator', () => {
     const fakeToken = `${header}.${payload}.fakesig`;
 
     const validator = new RemoteJwksTokenValidator({
-      issuer: ISSUER, audience: AUDIENCE,
+      issuer: ISSUER,
+      audience: AUDIENCE,
       jwksUri: 'http://identity:3100/.well-known/jwks.json',
     });
 
@@ -113,13 +123,17 @@ describe('RemoteJwksTokenValidator', () => {
     const pk = await importPKCS8(keyPair.privateKey as string, 'RS256');
     const token = await new SignJWT({ sid: 's', user_authorization_version: 1 })
       .setProtectedHeader({ alg: 'RS256' }) // no kid
-      .setIssuedAt().setExpirationTime('15m')
-      .setIssuer(ISSUER).setAudience(AUDIENCE)
-      .setSubject('u').setJti('j')
+      .setIssuedAt()
+      .setExpirationTime('15m')
+      .setIssuer(ISSUER)
+      .setAudience(AUDIENCE)
+      .setSubject('u')
+      .setJti('j')
       .sign(pk);
 
     const validator = new RemoteJwksTokenValidator({
-      issuer: ISSUER, audience: AUDIENCE,
+      issuer: ISSUER,
+      audience: AUDIENCE,
       jwksUri: 'http://identity:3100/.well-known/jwks.json',
     });
 
@@ -128,14 +142,19 @@ describe('RemoteJwksTokenValidator', () => {
 
   it('should reject token with wrong issuer', async () => {
     jwksResponse = await buildJwks();
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true, status: 200,
-      json: async () => jwksResponse,
-      headers: new Headers({ 'content-type': 'application/json' }),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => jwksResponse,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      }),
+    );
 
     const validator = new RemoteJwksTokenValidator({
-      issuer: 'wrong-issuer', audience: AUDIENCE,
+      issuer: 'wrong-issuer',
+      audience: AUDIENCE,
       jwksUri: 'http://identity:3100/.well-known/jwks.json',
     });
 
@@ -145,14 +164,19 @@ describe('RemoteJwksTokenValidator', () => {
 
   it('should reject expired token', async () => {
     jwksResponse = await buildJwks();
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true, status: 200,
-      json: async () => jwksResponse,
-      headers: new Headers({ 'content-type': 'application/json' }),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => jwksResponse,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      }),
+    );
 
     const validator = new RemoteJwksTokenValidator({
-      issuer: ISSUER, audience: AUDIENCE,
+      issuer: ISSUER,
+      audience: AUDIENCE,
       jwksUri: 'http://identity:3100/.well-known/jwks.json',
       clockToleranceSec: 0,
     });
@@ -162,8 +186,10 @@ describe('RemoteJwksTokenValidator', () => {
       .setProtectedHeader({ alg: 'RS256', kid: KID })
       .setIssuedAt(Math.floor(Date.now() / 1000) - 600)
       .setExpirationTime(Math.floor(Date.now() / 1000) - 300)
-      .setIssuer(ISSUER).setAudience(AUDIENCE)
-      .setSubject('u').setJti('j')
+      .setIssuer(ISSUER)
+      .setAudience(AUDIENCE)
+      .setSubject('u')
+      .setJti('j')
       .sign(pk);
 
     await expect(validator.validate(token)).rejects.toThrow();
@@ -171,23 +197,31 @@ describe('RemoteJwksTokenValidator', () => {
 
   it('should reject token missing required claims (sid)', async () => {
     jwksResponse = await buildJwks();
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true, status: 200,
-      json: async () => jwksResponse,
-      headers: new Headers({ 'content-type': 'application/json' }),
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => jwksResponse,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      }),
+    );
 
     const validator = new RemoteJwksTokenValidator({
-      issuer: ISSUER, audience: AUDIENCE,
+      issuer: ISSUER,
+      audience: AUDIENCE,
       jwksUri: 'http://identity:3100/.well-known/jwks.json',
     });
 
     const pk = await importPKCS8(keyPair.privateKey as string, 'RS256');
     const token = await new SignJWT({ user_authorization_version: 1 }) // no sid
       .setProtectedHeader({ alg: 'RS256', kid: KID })
-      .setIssuedAt().setExpirationTime('15m')
-      .setIssuer(ISSUER).setAudience(AUDIENCE)
-      .setSubject('u').setJti('j')
+      .setIssuedAt()
+      .setExpirationTime('15m')
+      .setIssuer(ISSUER)
+      .setAudience(AUDIENCE)
+      .setSubject('u')
+      .setJti('j')
       .sign(pk);
 
     await expect(validator.validate(token)).rejects.toThrow('missing session identifier');

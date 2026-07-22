@@ -9,7 +9,12 @@
  * - Cross-tenant denial
  */
 import { Client } from 'pg';
-import { startPostgres, runMigrations, seedUser, startIdentityService } from './phase-a-orchestration.mjs';
+import {
+  startPostgres,
+  runMigrations,
+  seedUser,
+  startIdentityService,
+} from './phase-a-orchestration.mjs';
 
 const USER_A_ID = '10000000-0000-0000-0000-000000000003';
 const USER_B_ID = '10000000-0000-0000-0000-000000000004';
@@ -17,7 +22,9 @@ const USER_B_ID = '10000000-0000-0000-0000-000000000004';
 async function assertStatus(res, expected, context) {
   if (res.status !== expected) {
     const body = await res.text().catch(() => '');
-    throw new Error(`${context}: expected ${expected}, got ${res.status}. Body: ${body.slice(0, 200)}`);
+    throw new Error(
+      `${context}: expected ${expected}, got ${res.status}. Body: ${body.slice(0, 200)}`,
+    );
   }
 }
 

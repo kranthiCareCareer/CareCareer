@@ -43,25 +43,25 @@ The platform control plane is functional with:
 
 ### Services
 
-| Service | Port | Purpose |
-|---------|------|---------|
-| platform-service | 3001 | Tenants, organizations, entitlements, features |
-| identity-service | 3100 | Users, sessions, authorization, signing keys |
+| Service          | Port | Purpose                                                |
+| ---------------- | ---- | ------------------------------------------------------ |
+| platform-service | 3001 | Tenants, organizations, entitlements, features         |
+| identity-service | 3100 | Users, sessions, authorization, signing keys           |
 | staffing-service | 3200 | Facilities, departments, workers, shifts (in progress) |
 
 ### Packages
 
-| Package | Purpose |
-|---------|---------|
-| @carecareer/auth | Authentication guards, JWT validation, principal types |
-| @carecareer/database | TenantAwareTransaction, AdministrativeDatabase, RLS |
-| @carecareer/config | Validated environment configuration |
-| @carecareer/events | Transactional outbox, domain event contracts |
-| @carecareer/idempotency | Request deduplication |
-| @carecareer/observability | Structured logging, correlation IDs |
-| @carecareer/request-context | Async-local request state |
-| @carecareer/service-core | NestJS base patterns |
-| @carecareer/testing | Test containers, fixtures, helpers |
+| Package                     | Purpose                                                |
+| --------------------------- | ------------------------------------------------------ |
+| @carecareer/auth            | Authentication guards, JWT validation, principal types |
+| @carecareer/database        | TenantAwareTransaction, AdministrativeDatabase, RLS    |
+| @carecareer/config          | Validated environment configuration                    |
+| @carecareer/events          | Transactional outbox, domain event contracts           |
+| @carecareer/idempotency     | Request deduplication                                  |
+| @carecareer/observability   | Structured logging, correlation IDs                    |
+| @carecareer/request-context | Async-local request state                              |
+| @carecareer/service-core    | NestJS base patterns                                   |
+| @carecareer/testing         | Test containers, fixtures, helpers                     |
 
 ## Quick Start
 
@@ -128,18 +128,18 @@ pnpm local:verify
 
 ## Golden Path Milestones
 
-| # | Milestone | Status |
-|---|-----------|--------|
-| GP-00 | Repository baseline | ✅ Complete |
-| GP-01 | Service template + packages | ✅ Complete |
-| GP-02 | Platform service | ✅ Complete |
-| GP-03.0–03.3 | Identity, sessions, signing | ✅ Complete |
-| GP-03.4 | Authorization decisions | ✅ Complete |
-| GP-05 | Facilities and departments | 🔄 In progress |
-| GP-06 | Worker profiles | ⬜ Not started |
-| GP-07 | Credentials and eligibility | ⬜ Not started |
-| GP-08 | Shift creation | ⬜ Not started |
-| GP-09–15 | Marketplace through production | ⬜ Not started |
+| #            | Milestone                      | Status         |
+| ------------ | ------------------------------ | -------------- |
+| GP-00        | Repository baseline            | ✅ Complete    |
+| GP-01        | Service template + packages    | ✅ Complete    |
+| GP-02        | Platform service               | ✅ Complete    |
+| GP-03.0–03.3 | Identity, sessions, signing    | ✅ Complete    |
+| GP-03.4      | Authorization decisions        | ✅ Complete    |
+| GP-05        | Facilities and departments     | 🔄 In progress |
+| GP-06        | Worker profiles                | ⬜ Not started |
+| GP-07        | Credentials and eligibility    | ⬜ Not started |
+| GP-08        | Shift creation                 | ⬜ Not started |
+| GP-09–15     | Marketplace through production | ⬜ Not started |
 
 ## Security
 

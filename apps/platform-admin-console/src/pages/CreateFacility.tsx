@@ -20,10 +20,10 @@ export function CreateFacility() {
       clientId: form.get('clientId') as string,
       name: form.get('name') as string,
       timezone: form.get('timezone') as string,
-      addressLine1: form.get('addressLine1') as string || undefined,
-      city: form.get('city') as string || undefined,
-      state: form.get('state') as string || undefined,
-      zip: form.get('zip') as string || undefined,
+      addressLine1: (form.get('addressLine1') as string) || undefined,
+      city: (form.get('city') as string) || undefined,
+      state: (form.get('state') as string) || undefined,
+      zip: (form.get('zip') as string) || undefined,
     };
 
     if (!body.timezone) {
@@ -57,9 +57,17 @@ export function CreateFacility() {
   return (
     <div className="page">
       <h1>Create Facility</h1>
-      {error && <p role="alert" className="error">{error}</p>}
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
 
-      <form onSubmit={(e) => void handleSubmit(e)} className="form" aria-label="Create facility form">
+      <form
+        onSubmit={(e) => void handleSubmit(e)}
+        className="form"
+        aria-label="Create facility form"
+      >
         <div className="form-group">
           <label htmlFor="name">Facility Name *</label>
           <input id="name" name="name" required maxLength={200} />

@@ -2,7 +2,16 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { Controller, Get, Inject, type INestApplication, HttpStatus, NotFoundException, Param, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Inject,
+  type INestApplication,
+  HttpStatus,
+  NotFoundException,
+  Param,
+  Req,
+} from '@nestjs/common';
 import { APP_GUARD, Reflector } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
@@ -316,7 +325,10 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
           inject: [Reflector],
         },
         { provide: IDENTITY_REPOSITORY, useValue: identityRepo },
-        { provide: ADMINISTRATIVE_DATABASE, useValue: new AdministrativeDatabase(adminPrismaClient) },
+        {
+          provide: ADMINISTRATIVE_DATABASE,
+          useValue: new AdministrativeDatabase(adminPrismaClient),
+        },
         { provide: TENANT_DATABASE, useValue: tenantDb },
       ],
     }).compile();
@@ -410,7 +422,9 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
       expect(resources[0].secret_value).toBe('TENANT_B_SECRET_GAMMA');
       expect(resources[0].tenant_id).toBe(tenantBId);
       // No Tenant A secrets leaked
-      expect(resources.find((r: { secret_value: string }) => r.secret_value.includes('TENANT_A'))).toBeUndefined();
+      expect(
+        resources.find((r: { secret_value: string }) => r.secret_value.includes('TENANT_A')),
+      ).toBeUndefined();
       // Verify database context
       expect(context[0].database_user).toBe('carecareer_app');
       expect(context[0].tenant_id).toBe(tenantBId);
@@ -468,9 +482,9 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
         .expect(HttpStatus.OK);
       const pidA2 = resA2.body.data.context[0].backend_pid;
       expect(resA2.body.data.resources).toHaveLength(2);
-      expect(resA2.body.data.resources.every(
-        (r: { tenant_id: string }) => r.tenant_id === tenantAId,
-      )).toBe(true);
+      expect(
+        resA2.body.data.resources.every((r: { tenant_id: string }) => r.tenant_id === tenantAId),
+      ).toBe(true);
 
       // Prove same backend connection was reused (pool max=1)
       expect(pidA).toBe(pidB);
@@ -525,7 +539,9 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
           await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantBId}::text, true)`;
           throw new Error('FORCED_ROLLBACK_FOR_TEST');
         });
-      } catch { /* expected */ }
+      } catch {
+        /* expected */
+      }
 
       // Now an HTTP request as Tenant A must see only Tenant A data
       const token = await tokenForUser(userAId, sessionAId, tenantAId);
@@ -537,9 +553,9 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
       expect(res.body.data.resources).toHaveLength(2);
       expect(res.body.data.context[0].tenant_id).toBe(tenantAId);
       // No residual tenantB context
-      expect(res.body.data.resources.every(
-        (r: { tenant_id: string }) => r.tenant_id === tenantAId,
-      )).toBe(true);
+      expect(
+        res.body.data.resources.every((r: { tenant_id: string }) => r.tenant_id === tenantAId),
+      ).toBe(true);
     });
   });
 
@@ -557,9 +573,9 @@ describe('HTTP Tenant-Resource RLS Isolation (GP-03.3)', () => {
 
       // Still only sees tenant A data (RLS is enforced, admin bypass not triggered)
       expect(res.body.data.resources).toHaveLength(2);
-      expect(res.body.data.resources.every(
-        (r: { tenant_id: string }) => r.tenant_id === tenantAId,
-      )).toBe(true);
+      expect(
+        res.body.data.resources.every((r: { tenant_id: string }) => r.tenant_id === tenantAId),
+      ).toBe(true);
       // Database context proves is_admin was never set
       expect(res.body.data.context[0].is_admin).toBeNull();
     });

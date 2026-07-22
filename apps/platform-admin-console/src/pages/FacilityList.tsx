@@ -56,8 +56,16 @@ export function FacilityList() {
         </Link>
       </header>
 
-      {loading && <p role="status" aria-live="polite">Loading facilities...</p>}
-      {error && <p role="alert" className="error">{error}</p>}
+      {loading && (
+        <p role="status" aria-live="polite">
+          Loading facilities...
+        </p>
+      )}
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
 
       {!loading && !error && facilities.length === 0 && (
         <p className="empty-state">No facilities found. Create your first facility.</p>
@@ -77,12 +85,18 @@ export function FacilityList() {
           <tbody>
             {facilities.map((f) => (
               <tr key={f.id}>
-                <td><Link to={`/facilities/${f.id}`}>{f.name}</Link></td>
-                <td><span className={`badge badge--${f.status.toLowerCase()}`}>{f.status}</span></td>
+                <td>
+                  <Link to={`/facilities/${f.id}`}>{f.name}</Link>
+                </td>
+                <td>
+                  <span className={`badge badge--${f.status.toLowerCase()}`}>{f.status}</span>
+                </td>
                 <td>{f.timezone}</td>
                 <td>{f.city && f.state ? `${f.city}, ${f.state}` : '—'}</td>
                 <td>
-                  <Link to={`/facilities/${f.id}`} className="btn btn--sm">View</Link>
+                  <Link to={`/facilities/${f.id}`} className="btn btn--sm">
+                    View
+                  </Link>
                 </td>
               </tr>
             ))}

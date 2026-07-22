@@ -18,13 +18,13 @@ services:
       dockerfile: docker/e2e/Dockerfile
     network_mode: host
     environment:
-      CI: "1"
+      CI: '1'
       HOME: /tmp
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     volumes:
       - playwright-browsers:/ms-playwright
-    entrypoint: ["pnpm", "exec", "playwright", "test"]
-    command: ["--project=chromium", "--reporter=line"]
+    entrypoint: ['pnpm', 'exec', 'playwright', 'test']
+    command: ['--project=chromium', '--reporter=line']
 
 volumes:
   playwright-browsers:

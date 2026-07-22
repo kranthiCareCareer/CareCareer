@@ -87,7 +87,9 @@ test.describe('Entitlements and features', () => {
 
   test('should display features page', async ({ page }) => {
     await page.goto(`/tenants/${tenantId}/features`);
-    await expect(page.getByRole('heading', { name: 'Feature Configuration' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: 'Feature Configuration' })).toBeVisible({
+      timeout: 15000,
+    });
     await expect(
       page.getByText(/Feature settings are available only for entitled modules/),
     ).toBeVisible();

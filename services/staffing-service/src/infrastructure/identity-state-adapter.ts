@@ -75,35 +75,36 @@ export class HttpIdentityStateAdapter implements IdentityStateAdapter {
     }
 
     try {
-      const response = await fetch(
-        `${this.baseUrl}/internal/v1/identity/state-validations`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${serviceToken}`,
-            'X-Correlation-ID': crypto.randomUUID(),
-          },
-          body: JSON.stringify({
-            subject: input.userId,
-            sessionId: input.sessionId,
-            selectedTenantId: input.selectedTenantId,
-            membershipId: input.membershipId,
-            userAuthorizationVersion: input.userAuthorizationVersion,
-            membershipAuthorizationVersion: input.membershipAuthorizationVersion,
-          }),
-          signal: AbortSignal.timeout(3000),
+      const response = await fetch(`${this.baseUrl}/internal/v1/identity/state-validations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${serviceToken}`,
+          'X-Correlation-ID': crypto.randomUUID(),
         },
-      );
+        body: JSON.stringify({
+          subject: input.userId,
+          sessionId: input.sessionId,
+          selectedTenantId: input.selectedTenantId,
+          membershipId: input.membershipId,
+          userAuthorizationVersion: input.userAuthorizationVersion,
+          membershipAuthorizationVersion: input.membershipAuthorizationVersion,
+        }),
+        signal: AbortSignal.timeout(3000),
+      });
 
       if (response.status === 401) {
         // Service token rejected — invalidate and deny
         this.credentialProvider.invalidate();
-        return { valid: false, code: 'SERVICE_AUTH_FAILED', message: 'Service authentication failed' };
+        return {
+          valid: false,
+          code: 'SERVICE_AUTH_FAILED',
+          message: 'Service authentication failed',
+        };
       }
 
       if (!response.ok) {
-        const body = await response.json().catch(() => null) as StateValidationResponse | null;
+        const body = (await response.json().catch(() => null)) as StateValidationResponse | null;
         return {
           valid: false,
           code: body?.code ?? 'IDENTITY_STATE_INVALID',
@@ -112,9 +113,13 @@ export class HttpIdentityStateAdapter implements IdentityStateAdapter {
       }
 
       // Validate response schema
-      const body = await response.json() as unknown;
+      const body = (await response.json()) as unknown;
       if (!body || typeof body !== 'object' || !('valid' in body)) {
-        return { valid: false, code: 'MALFORMED_RESPONSE', message: 'Unexpected identity response' };
+        return {
+          valid: false,
+          code: 'MALFORMED_RESPONSE',
+          message: 'Unexpected identity response',
+        };
       }
 
       const result = body as StateValidationResponse;

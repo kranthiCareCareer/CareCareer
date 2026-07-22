@@ -45,15 +45,22 @@ describe('Worker HTTP Integration (GP-06)', () => {
   async function signJwt(sub: string, tenantId: string): Promise<string> {
     const pk = await importPKCS8(privateKeyPem, 'RS256');
     return new SignJWT({
-      active_tenant_id: tenantId, membership_id: `mem-${sub}`,
-      user_authorization_version: 1, membership_authorization_version: 1,
-      platform_roles: ['TENANT_ADMIN'], tenant_roles: ['TENANT_ADMIN'],
-      permissions: ['workers:create', 'workers:read'], sid: `s-${sub}`,
+      active_tenant_id: tenantId,
+      membership_id: `mem-${sub}`,
+      user_authorization_version: 1,
+      membership_authorization_version: 1,
+      platform_roles: ['TENANT_ADMIN'],
+      tenant_roles: ['TENANT_ADMIN'],
+      permissions: ['workers:create', 'workers:read'],
+      sid: `s-${sub}`,
     })
       .setProtectedHeader({ alg: 'RS256', kid: TEST_KID })
-      .setIssuedAt().setExpirationTime('15m')
-      .setIssuer(ISSUER).setAudience(AUDIENCE)
-      .setSubject(sub).setJti(crypto.randomUUID())
+      .setIssuedAt()
+      .setExpirationTime('15m')
+      .setIssuer(ISSUER)
+      .setAudience(AUDIENCE)
+      .setSubject(sub)
+      .setJti(crypto.randomUUID())
       .sign(pk);
   }
 
@@ -69,20 +76,33 @@ describe('Worker HTTP Integration (GP-06)', () => {
           const tx: TransactionClient = {
             async $executeRaw(s: TemplateStringsArray, ...v: unknown[]): Promise<number> {
               let q = '';
-              for (let i = 0; i < s.length; i++) { q += s[i]; if (i < v.length) q += `$${i + 1}`; }
+              for (let i = 0; i < s.length; i++) {
+                q += s[i];
+                if (i < v.length) q += `$${i + 1}`;
+              }
               return (await conn.query(q, v)).rowCount ?? 0;
             },
-            async $queryRaw<R = Record<string, unknown>>(s: TemplateStringsArray, ...v: unknown[]): Promise<R[]> {
+            async $queryRaw<R = Record<string, unknown>>(
+              s: TemplateStringsArray,
+              ...v: unknown[]
+            ): Promise<R[]> {
               let q = '';
-              for (let i = 0; i < s.length; i++) { q += s[i]; if (i < v.length) q += `$${i + 1}`; }
+              for (let i = 0; i < s.length; i++) {
+                q += s[i];
+                if (i < v.length) q += `$${i + 1}`;
+              }
               return (await conn.query(q, v)).rows as R[];
             },
           };
           const result = await fn(tx);
           await conn.query('COMMIT');
           return result;
-        } catch (e) { await conn.query('ROLLBACK'); throw e; }
-        finally { conn.release(); }
+        } catch (e) {
+          await conn.query('ROLLBACK');
+          throw e;
+        } finally {
+          conn.release();
+        }
       },
     };
   }
@@ -97,7 +117,9 @@ describe('Worker HTTP Integration (GP-06)', () => {
     publicKeyPem = keyPair.publicKey as string;
 
     container = await new PostgreSqlContainer('postgres:16-alpine')
-      .withDatabase('worker_test').withUsername('test_user').withPassword('test_pass')
+      .withDatabase('worker_test')
+      .withUsername('test_user')
+      .withPassword('test_pass')
       .start();
 
     superClient = new Client({ connectionString: container.getConnectionUri() });
@@ -105,9 +127,15 @@ describe('Worker HTTP Integration (GP-06)', () => {
 
     const currentDir = dirname(fileURLToPath(import.meta.url));
     const migrationsDir = resolve(currentDir, '..', '..', '..', 'prisma', 'migrations');
-    await superClient.query(readFileSync(resolve(migrationsDir, '001_facilities_schema.sql'), 'utf-8'));
-    await superClient.query(readFileSync(resolve(migrationsDir, '002_workers_schema.sql'), 'utf-8'));
-    await superClient.query(readFileSync(resolve(migrationsDir, '003_worker_identity_link.sql'), 'utf-8'));
+    await superClient.query(
+      readFileSync(resolve(migrationsDir, '001_facilities_schema.sql'), 'utf-8'),
+    );
+    await superClient.query(
+      readFileSync(resolve(migrationsDir, '002_workers_schema.sql'), 'utf-8'),
+    );
+    await superClient.query(
+      readFileSync(resolve(migrationsDir, '003_worker_identity_link.sql'), 'utf-8'),
+    );
 
     // Set test password for app role (not in migration — provisioned separately)
     await superClient.query(`ALTER ROLE staffing_app PASSWORD 'staffing_app_test'`);
@@ -119,7 +147,9 @@ describe('Worker HTTP Integration (GP-06)', () => {
     );
     const tenantDb = new TenantAwareTransaction(prisma);
     const tokenValidator = new LocalJwksTokenValidator({
-      issuer: ISSUER, audience: AUDIENCE, clockToleranceSec: 30,
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      clockToleranceSec: 30,
       publicKeys: [{ kid: TEST_KID, publicKeyPem }],
     });
 
@@ -129,8 +159,14 @@ describe('Worker HTTP Integration (GP-06)', () => {
         { provide: 'STAFFING_TENANT_DB', useValue: tenantDb },
         { provide: 'STAFFING_REPOSITORY', useClass: PostgresStaffingRepository },
         { provide: 'TOKEN_VALIDATOR', useValue: tokenValidator },
-        { provide: 'IDENTITY_STATE_ADAPTER', useValue: { validate: async () => ({ valid: true }) } satisfies IdentityStateAdapter },
-        { provide: 'PERMISSION_ADAPTER', useValue: { hasPermission: async () => ({ allowed: true }) } },
+        {
+          provide: 'IDENTITY_STATE_ADAPTER',
+          useValue: { validate: async () => ({ valid: true }) } satisfies IdentityStateAdapter,
+        },
+        {
+          provide: 'PERMISSION_ADAPTER',
+          useValue: { hasPermission: async () => ({ allowed: true }) },
+        },
         {
           provide: APP_GUARD,
           useFactory: (tv: unknown, ref: Reflector, adapter: IdentityStateAdapter) =>
@@ -139,7 +175,8 @@ describe('Worker HTTP Integration (GP-06)', () => {
         },
         {
           provide: APP_GUARD,
-          useFactory: (ref: Reflector, pa: unknown) => new StaffingPermissionGuard(ref, pa as never),
+          useFactory: (ref: Reflector, pa: unknown) =>
+            new StaffingPermissionGuard(ref, pa as never),
           inject: [Reflector, 'PERMISSION_ADAPTER'],
         },
       ],
@@ -163,8 +200,12 @@ describe('Worker HTTP Integration (GP-06)', () => {
         .post('/v1/workers')
         .set('Authorization', `Bearer ${token}`)
         .send({
-          firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com',
-          profession: 'RN', phone: '555-0100', specialty: 'ICU',
+          firstName: 'Jane',
+          lastName: 'Doe',
+          email: 'jane@example.com',
+          profession: 'RN',
+          phone: '555-0100',
+          specialty: 'ICU',
         });
       expect(res.status).toBe(HttpStatus.CREATED);
       expect(res.body.data.workerId).toMatch(/^[0-9a-f-]{36}$/);
@@ -176,7 +217,9 @@ describe('Worker HTTP Integration (GP-06)', () => {
         .post('/v1/workers')
         .set('Authorization', `Bearer ${token}`)
         .send({
-          firstName: 'Bob', lastName: 'Smith', email: 'bob@example.com',
+          firstName: 'Bob',
+          lastName: 'Smith',
+          email: 'bob@example.com',
           profession: 'CNA',
           externalReferences: [
             { systemName: 'symplr', externalId: 'SYM-12345' },
@@ -394,7 +437,12 @@ describe('Worker HTTP Integration (GP-06)', () => {
       const createRes = await request(app.getHttpServer())
         .post('/v1/workers')
         .set('Authorization', `Bearer ${token}`)
-        .send({ firstName: 'Status', lastName: 'Event', email: 'status-ev@t.com', profession: 'LPN' });
+        .send({
+          firstName: 'Status',
+          lastName: 'Event',
+          email: 'status-ev@t.com',
+          profession: 'LPN',
+        });
       const workerId = createRes.body.data.workerId;
 
       await request(app.getHttpServer())
@@ -424,8 +472,11 @@ describe('Worker HTTP Integration (GP-06)', () => {
         .post('/v1/workers')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          firstName: 'Self', lastName: 'Service', email: 'self@worker.com',
-          profession: 'RN', userId: workerUserId,
+          firstName: 'Self',
+          lastName: 'Service',
+          email: 'self@worker.com',
+          profession: 'RN',
+          userId: workerUserId,
         });
 
       // Authenticate AS the worker (subject = workerUserId)
@@ -471,8 +522,11 @@ describe('Worker HTTP Integration (GP-06)', () => {
         .post('/v1/workers')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          firstName: 'Other', lastName: 'Worker', email: 'other@worker.com',
-          profession: 'CNA', userId: otherUserId,
+          firstName: 'Other',
+          lastName: 'Worker',
+          email: 'other@worker.com',
+          profession: 'CNA',
+          userId: otherUserId,
         });
       const workerBId = createRes.body.data.workerId;
 
@@ -550,7 +604,13 @@ describe('Worker HTTP Integration (GP-06)', () => {
       await request(app.getHttpServer())
         .post('/v1/workers')
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ firstName: 'SelfVal', lastName: 'Test', email: 'selfval@t.com', profession: 'CNA', userId: selfUserId });
+        .send({
+          firstName: 'SelfVal',
+          lastName: 'Test',
+          email: 'selfval@t.com',
+          profession: 'CNA',
+          userId: selfUserId,
+        });
 
       const selfToken = await signJwt(selfUserId, tenantAId);
       const res = await request(app.getHttpServer())
@@ -566,7 +626,13 @@ describe('Worker HTTP Integration (GP-06)', () => {
       await request(app.getHttpServer())
         .post('/v1/workers')
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ firstName: 'SelfVC', lastName: 'Test', email: 'selfvc@t.com', profession: 'RT', userId: selfUserId });
+        .send({
+          firstName: 'SelfVC',
+          lastName: 'Test',
+          email: 'selfvc@t.com',
+          profession: 'RT',
+          userId: selfUserId,
+        });
 
       const selfToken = await signJwt(selfUserId, tenantAId);
       const res = await request(app.getHttpServer())
@@ -590,7 +656,12 @@ describe('Worker HTTP Integration (GP-06)', () => {
       const createRes = await request(app.getHttpServer())
         .post('/v1/workers')
         .set('Authorization', `Bearer ${token}`)
-        .send({ firstName: 'Strict', lastName: 'Schema', email: 'strict@t.com', profession: 'CNA' });
+        .send({
+          firstName: 'Strict',
+          lastName: 'Schema',
+          email: 'strict@t.com',
+          profession: 'CNA',
+        });
       const workerId = createRes.body.data.workerId;
 
       const res = await request(app.getHttpServer())

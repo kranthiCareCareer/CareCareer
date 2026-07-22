@@ -18,8 +18,7 @@ import { PlatformTokenValidator } from './infrastructure/platform-token-validato
 import { PostgresAuthorizationRepository } from './infrastructure/postgres-authorization-repository.js';
 import { PostgresIdentityRepository } from './infrastructure/postgres-identity-repository.js';
 import { PostgresMembershipRepository } from './infrastructure/postgres-membership-repository.js';
-import {
-  PostgresSessionRepository } from './infrastructure/postgres-session-repository.js';
+import { PostgresSessionRepository } from './infrastructure/postgres-session-repository.js';
 import { PostgresSigningKeyRepository } from './infrastructure/postgres-signing-key-repository.js';
 import { ServiceIdentityGuard } from './infrastructure/service-identity.guard.js';
 import { SessionStateValidator } from './infrastructure/session-state-validator.js';
@@ -107,8 +106,13 @@ function resolveTokenValidator(): TokenValidator {
 
 @Module({
   controllers: [
-    HealthController, UserController, MembershipController, AuthController,
-    AuthorizationController, InternalOAuthController, InternalIdentityController,
+    HealthController,
+    UserController,
+    MembershipController,
+    AuthController,
+    AuthorizationController,
+    InternalOAuthController,
+    InternalIdentityController,
     InternalAuthorizationController,
   ],
   providers: [
@@ -172,7 +176,11 @@ function resolveTokenValidator(): TokenValidator {
       useFactory: () => {
         const dbUrl = process.env['DATABASE_URL'];
         if (!dbUrl) {
-          return { $transaction: async () => { throw new Error('No database configured'); } };
+          return {
+            $transaction: async () => {
+              throw new Error('No database configured');
+            },
+          };
         }
         return createPgPrismaClient(dbUrl);
       },
@@ -186,7 +194,11 @@ function resolveTokenValidator(): TokenValidator {
       useFactory: () => {
         const dbUrl = process.env['DATABASE_URL'];
         if (!dbUrl) {
-          return { $transaction: async () => { throw new Error('No database configured'); } };
+          return {
+            $transaction: async () => {
+              throw new Error('No database configured');
+            },
+          };
         }
         return createPgPrismaClient(dbUrl);
       },

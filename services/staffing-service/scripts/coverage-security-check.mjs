@@ -46,7 +46,13 @@ const SECURITY_THRESHOLDS = [
   { pattern: 'domain/facility.ts', lines: 98, branches: 90, functions: 95, stmts: 98 },
   { pattern: 'domain/department.ts', lines: 95, branches: 95, functions: 95, stmts: 95 },
   { pattern: 'domain/worker.ts', lines: 95, branches: 83, functions: 95, stmts: 95 },
-  { pattern: 'domain/credential-requirement.ts', lines: 95, branches: 95, functions: 95, stmts: 95 },
+  {
+    pattern: 'domain/credential-requirement.ts',
+    lines: 95,
+    branches: 95,
+    functions: 95,
+    stmts: 95,
+  },
 
   // Application Commands (strict 95/90)
   { pattern: 'create-facility.command.ts', lines: 95, branches: 90, functions: 95, stmts: 95 },
@@ -70,7 +76,9 @@ const files = Object.keys(summary).filter((k) => k !== 'total');
 
 for (const threshold of SECURITY_THRESHOLDS) {
   const normalizedPattern = threshold.pattern.replace(/\//g, '\\');
-  const matchingFile = files.find((f) => f.includes(threshold.pattern) || f.includes(normalizedPattern));
+  const matchingFile = files.find(
+    (f) => f.includes(threshold.pattern) || f.includes(normalizedPattern),
+  );
   if (!matchingFile) {
     console.error(`FAIL MISSING: ${threshold.pattern} not found in coverage report`);
     exitCode = 1;

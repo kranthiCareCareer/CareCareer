@@ -136,9 +136,7 @@ const VALID_STATUS_TRANSITIONS: Record<FacilityStatus, FacilityStatus[]> = {
 export function changeFacilityStatus(facility: Facility, newStatus: FacilityStatus): Facility {
   const allowed = VALID_STATUS_TRANSITIONS[facility.status];
   if (!allowed.includes(newStatus)) {
-    throw new Error(
-      `Invalid status transition: ${facility.status} → ${newStatus}`,
-    );
+    throw new Error(`Invalid status transition: ${facility.status} → ${newStatus}`);
   }
 
   return {

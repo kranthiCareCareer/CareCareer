@@ -68,11 +68,17 @@ export class ServiceIdentityGuard implements CanActivate {
     try {
       header = decodeProtectedHeader(token);
     } catch {
-      throw new UnauthorizedException({ error: 'invalid_token', error_description: 'Malformed token' });
+      throw new UnauthorizedException({
+        error: 'invalid_token',
+        error_description: 'Malformed token',
+      });
     }
 
     if (header.alg !== 'RS256') {
-      throw new UnauthorizedException({ error: 'invalid_token', error_description: 'Unsupported algorithm' });
+      throw new UnauthorizedException({
+        error: 'invalid_token',
+        error_description: 'Unsupported algorithm',
+      });
     }
 
     // Load signing keys and verify
@@ -101,34 +107,52 @@ export class ServiceIdentityGuard implements CanActivate {
       });
       payload = result.payload;
     } catch {
-      throw new UnauthorizedException({ error: 'invalid_token', error_description: 'Token verification failed' });
+      throw new UnauthorizedException({
+        error: 'invalid_token',
+        error_description: 'Token verification failed',
+      });
     }
 
     // Verify token_type = service
     if (payload['token_type'] !== 'service') {
-      throw new UnauthorizedException({ error: 'invalid_token', error_description: 'Not a service token' });
+      throw new UnauthorizedException({
+        error: 'invalid_token',
+        error_description: 'Not a service token',
+      });
     }
 
     // Verify subject format
     const sub = payload.sub;
     if (!sub || !sub.startsWith('service:')) {
-      throw new UnauthorizedException({ error: 'invalid_token', error_description: 'Invalid service identity' });
+      throw new UnauthorizedException({
+        error: 'invalid_token',
+        error_description: 'Invalid service identity',
+      });
     }
 
     const clientId = payload['client_id'] as string;
     if (!clientId) {
-      throw new UnauthorizedException({ error: 'invalid_token', error_description: 'Missing client_id' });
+      throw new UnauthorizedException({
+        error: 'invalid_token',
+        error_description: 'Missing client_id',
+      });
     }
 
     // Verify sub exactly matches service:{client_id}
     if (sub !== `service:${clientId}`) {
-      throw new UnauthorizedException({ error: 'invalid_token', error_description: 'Subject/client_id mismatch' });
+      throw new UnauthorizedException({
+        error: 'invalid_token',
+        error_description: 'Subject/client_id mismatch',
+      });
     }
 
     // Verify client still active
     const clientActive = await this.isClientActive(clientId);
     if (!clientActive) {
-      throw new UnauthorizedException({ error: 'invalid_client', error_description: 'Client disabled' });
+      throw new UnauthorizedException({
+        error: 'invalid_client',
+        error_description: 'Client disabled',
+      });
     }
 
     // Check required scope — validate scopes is an array of strings
@@ -138,9 +162,10 @@ export class ServiceIdentityGuard implements CanActivate {
     );
 
     const rawScopes = payload['scopes'];
-    const tokenScopes: string[] = Array.isArray(rawScopes) && rawScopes.every((s): s is string => typeof s === 'string')
-      ? rawScopes
-      : [];
+    const tokenScopes: string[] =
+      Array.isArray(rawScopes) && rawScopes.every((s): s is string => typeof s === 'string')
+        ? rawScopes
+        : [];
     if (requiredScope && !tokenScopes.includes(requiredScope)) {
       throw new ForbiddenException({
         error: 'insufficient_scope',

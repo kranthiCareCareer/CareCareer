@@ -18,7 +18,10 @@ import {
   type AuthorizationRepository,
 } from '../../application/commands/authorization-decision.command.js';
 import { InternalService } from '../../infrastructure/internal-service.decorator.js';
-import { RequireServiceScope, ServiceIdentityGuard } from '../../infrastructure/service-identity.guard.js';
+import {
+  RequireServiceScope,
+  ServiceIdentityGuard,
+} from '../../infrastructure/service-identity.guard.js';
 
 /**
  * Internal Authorization Decision Endpoint
@@ -33,27 +36,37 @@ import { RequireServiceScope, ServiceIdentityGuard } from '../../infrastructure/
  * The authorization service loads current roles/permissions/denials from DB.
  */
 
-const InternalDecisionSchema = z.object({
-  principal: z.object({
-    subject: z.string().uuid(),
-    sessionId: z.string().uuid(),
-    tenantId: z.string().uuid(),
-    membershipId: z.string().uuid(),
-    userAuthorizationVersion: z.number().int(),
-    membershipAuthorizationVersion: z.number().int(),
-  }).strict(),
-  action: z.string().min(1).max(200),
-  resource: z.object({
-    type: z.string().min(1).max(100),
-    id: z.string().uuid().optional(),
-    tenantId: z.string().uuid(),
-  }).strict().optional(),
-  context: z.object({
-    facilityId: z.string().uuid().optional(),
-    departmentId: z.string().uuid().optional(),
-    correlationId: z.string().optional(),
-  }).strict().optional(),
-}).strict();
+const InternalDecisionSchema = z
+  .object({
+    principal: z
+      .object({
+        subject: z.string().uuid(),
+        sessionId: z.string().uuid(),
+        tenantId: z.string().uuid(),
+        membershipId: z.string().uuid(),
+        userAuthorizationVersion: z.number().int(),
+        membershipAuthorizationVersion: z.number().int(),
+      })
+      .strict(),
+    action: z.string().min(1).max(200),
+    resource: z
+      .object({
+        type: z.string().min(1).max(100),
+        id: z.string().uuid().optional(),
+        tenantId: z.string().uuid(),
+      })
+      .strict()
+      .optional(),
+    context: z
+      .object({
+        facilityId: z.string().uuid().optional(),
+        departmentId: z.string().uuid().optional(),
+        correlationId: z.string().optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
 
 @Controller('internal/v1/authorization')
 @UseGuards(ServiceIdentityGuard)

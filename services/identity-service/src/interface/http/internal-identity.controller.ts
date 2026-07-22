@@ -14,7 +14,10 @@ import type { PrismaLikeClient, TransactionClient } from '@carecareer/database';
 
 import { InternalService } from '../../infrastructure/internal-service.decorator.js';
 import type { SessionRepository } from '../../infrastructure/postgres-session-repository.js';
-import { RequireServiceScope, ServiceIdentityGuard } from '../../infrastructure/service-identity.guard.js';
+import {
+  RequireServiceScope,
+  ServiceIdentityGuard,
+} from '../../infrastructure/service-identity.guard.js';
 
 /**
  * Internal Identity State Validation Endpoint
@@ -28,14 +31,16 @@ import { RequireServiceScope, ServiceIdentityGuard } from '../../infrastructure/
  * Returns structured validation result.
  */
 
-const StateValidationSchema = z.object({
-  subject: z.string().uuid(),
-  sessionId: z.string().uuid(),
-  selectedTenantId: z.string().uuid(),
-  membershipId: z.string().uuid(),
-  userAuthorizationVersion: z.number().int(),
-  membershipAuthorizationVersion: z.number().int(),
-}).strict();
+const StateValidationSchema = z
+  .object({
+    subject: z.string().uuid(),
+    sessionId: z.string().uuid(),
+    selectedTenantId: z.string().uuid(),
+    membershipId: z.string().uuid(),
+    userAuthorizationVersion: z.number().int(),
+    membershipAuthorizationVersion: z.number().int(),
+  })
+  .strict();
 
 @Controller('internal/v1/identity')
 @UseGuards(ServiceIdentityGuard)
@@ -65,8 +70,12 @@ export class InternalIdentityController {
     }
 
     const {
-      subject, sessionId, selectedTenantId, membershipId,
-      userAuthorizationVersion, membershipAuthorizationVersion,
+      subject,
+      sessionId,
+      selectedTenantId,
+      membershipId,
+      userAuthorizationVersion,
+      membershipAuthorizationVersion,
     } = parsed.data;
 
     return this.prisma.$transaction(async (tx: TransactionClient) => {
@@ -114,7 +123,9 @@ export class InternalIdentityController {
 
       // 4. Check membership is active and matches
       const memberRows = await tx.$queryRaw<{
-        status: string; tenant_id: string; authorization_version: number;
+        status: string;
+        tenant_id: string;
+        authorization_version: number;
       }>`
         SELECT status, tenant_id, authorization_version
         FROM identity.tenant_memberships

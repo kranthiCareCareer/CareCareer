@@ -7,6 +7,7 @@ Accepted (2026-07-22)
 ## Context
 
 The staffing-service needs to call identity-service internal endpoints for:
+
 1. Session/user/membership state validation
 2. Authorization decisions
 
@@ -31,6 +32,7 @@ The identity-service validates the registered client and issues a short-lived
 service JWT. The staffing-service NEVER holds the identity issuer's signing key.
 
 Service token properties:
+
 ```json
 {
   "iss": "carecareer-identity",
@@ -48,6 +50,7 @@ Service token properties:
 ### ServiceCredentialProvider Abstraction
 
 The credential acquisition is behind an interface:
+
 ```typescript
 interface ServiceCredentialProvider {
   getCredential(): Promise<ServiceCredential>;
@@ -56,6 +59,7 @@ interface ServiceCredentialProvider {
 ```
 
 Implementations:
+
 - Current: `LocalClientCredentialsProvider` (client secret from env/Secrets Manager)
 - Future: `AwsSigV4WorkloadCredentialProvider` (ECS task role, no app credentials)
 
@@ -79,15 +83,16 @@ The raw user bearer token is NOT forwarded as the primary credential.
 
 ### Endpoint Structure
 
-| Endpoint | Auth | Purpose |
-|----------|------|---------|
-| `GET /.well-known/jwks.json` | Public | Key discovery |
+| Endpoint                                       | Auth        | Purpose                |
+| ---------------------------------------------- | ----------- | ---------------------- |
+| `GET /.well-known/jwks.json`                   | Public      | Key discovery          |
 | `POST /internal/v1/identity/state-validations` | Service JWT | Validate session state |
-| `POST /internal/v1/authorization/decisions` | Service JWT | Authorization decision |
+| `POST /internal/v1/authorization/decisions`    | Service JWT | Authorization decision |
 
 ### Fail-Closed Rules
 
 The staffing-service MUST deny access when:
+
 - Missing service token configuration → refuse to start
 - Invalid/expired service token → deny request
 - Identity service unavailable → deny request
@@ -100,6 +105,7 @@ The staffing-service MUST deny access when:
 ### Security Requirements for Internal Endpoints
 
 The identity/authorization services MUST validate:
+
 - Caller service identity (from service JWT sub/client_id)
 - Service token audience (carecareer-internal)
 - Service token expiry
@@ -112,6 +118,7 @@ The identity/authorization services MUST validate:
 ### B — Raw pass-through user token
 
 Rejected because:
+
 - Audience mismatch (user tokens target carecareer-api, not internal)
 - Confused-deputy risk (can't distinguish user calling vs service calling)
 - Excessive token propagation across service boundaries
@@ -121,6 +128,7 @@ Rejected because:
 ### C — Shared API key
 
 Rejected because:
+
 - No rotation story
 - No per-service authorization
 - No audit trail of which service made which call

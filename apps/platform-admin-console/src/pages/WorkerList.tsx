@@ -27,9 +27,7 @@ export function WorkerList() {
     async function load() {
       try {
         setLoading(true);
-        const url = statusFilter
-          ? `/api/v1/workers?status=${statusFilter}`
-          : '/api/v1/workers';
+        const url = statusFilter ? `/api/v1/workers?status=${statusFilter}` : '/api/v1/workers';
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token ?? ''}` },
           signal: controller.signal,
@@ -74,7 +72,11 @@ export function WorkerList() {
       </div>
 
       {loading && <p role="status">Loading workers...</p>}
-      {error && <p role="alert" className="error">{error}</p>}
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
 
       {!loading && !error && workers.length === 0 && (
         <p className="empty-state">No workers found.</p>
@@ -93,10 +95,20 @@ export function WorkerList() {
           <tbody>
             {workers.map((w) => (
               <tr key={w.id}>
-                <td><Link to={`/workers/${w.id}`}>{w.lastName}, {w.firstName}</Link></td>
+                <td>
+                  <Link to={`/workers/${w.id}`}>
+                    {w.lastName}, {w.firstName}
+                  </Link>
+                </td>
                 <td>{w.profession}</td>
-                <td><span className={`badge badge--${w.status.toLowerCase()}`}>{w.status}</span></td>
-                <td><Link to={`/workers/${w.id}`} className="btn btn--sm">View</Link></td>
+                <td>
+                  <span className={`badge badge--${w.status.toLowerCase()}`}>{w.status}</span>
+                </td>
+                <td>
+                  <Link to={`/workers/${w.id}`} className="btn btn--sm">
+                    View
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>

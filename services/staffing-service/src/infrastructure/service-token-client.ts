@@ -67,13 +67,13 @@ export class LocalClientCredentialsProvider implements ServiceCredentialProvider
     });
 
     if (!response.ok) {
-      const err = await response.json().catch(() => ({})) as Record<string, unknown>;
+      const err = (await response.json().catch(() => ({}))) as Record<string, unknown>;
       throw new Error(
         `Token exchange failed: ${(err['error_description'] as string) ?? response.status}`,
       );
     }
 
-    const body = await response.json() as {
+    const body = (await response.json()) as {
       access_token: string;
       expires_in: number;
     };

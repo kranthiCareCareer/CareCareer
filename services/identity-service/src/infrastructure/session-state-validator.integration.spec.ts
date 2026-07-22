@@ -380,7 +380,9 @@ describe('Live Session-State Enforcement (GP-03.3)', () => {
       expect(result).toBeNull();
 
       // Restore active key for other tests
-      await rawClient.query(`UPDATE identity.signing_keys SET status = 'ACTIVE' WHERE id = '${keyId}'`);
+      await rawClient.query(
+        `UPDATE identity.signing_keys SET status = 'ACTIVE' WHERE id = '${keyId}'`,
+      );
     });
 
     it('should return the active key when one exists', async () => {
