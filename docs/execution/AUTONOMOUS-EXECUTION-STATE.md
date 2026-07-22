@@ -1,78 +1,58 @@
 # Autonomous Execution State
 
-## Last Updated: 2026-07-22T10:20:00Z
+## Last Updated: 2026-07-22T10:45:00Z
 
 ## Repository State
 
 | Field | Value |
 |-------|-------|
-| Branch | agent/gp-05-gp-06-completion |
-| HEAD | 9be9535 |
+| Branch | agent/gp-05-gp-06-enterprise-closure |
+| HEAD | 748249c |
 | Working tree | clean |
-| Current milestone | GP-05 + GP-06 near-complete |
-| Authoritative source | docs/decisions/golden-path-backlog.md |
+| Origin master | e2f6ec6 (unchanged) |
+| Commits ahead of master | 16 |
 
-## Session Progress (2026-07-22)
+## P0 Items Status
 
-| # | Commit | Description |
-|---|--------|-------------|
-| 1 | 78d367e | Correct execution docs to IN PROGRESS |
-| 2 | 1a2dc89 | Enforce current identity/session state |
-| 3 | 55ac5a5 | Enforce action permissions |
-| 4 | 509224f | Worker self-service + same-tenant privacy |
-| 5 | 735b639 | Worker outbox events via application commands |
-| 6 | 6f8ebf9 | Execution state update |
-| 7 | 1ba1589 | External reference reconciliation rules |
-| 8 | 36440b0 | PII redaction proven |
-| 9 | 9f1f279 | OpenAPI specification published |
-| 10 | 62f7d9d | Execution state update |
-| 11 | 20ae7a5 | Security coverage gate (2 clean runs) |
-| 12 | 9be9535 | Admin UI (facility list/create/detail, worker list) |
+| # | Item | Status |
+|---|------|--------|
+| 1 | GitHub CI targets master | ✅ Done (9bf248f) |
+| 2 | Remove hardcoded DB password | ✅ Done (9bf248f) |
+| 3 | Composite tenant foreign keys | ✅ Done (9bf248f) |
+| 4 | Remote JWKS with rotation | ✅ Done (1d3cd8c) |
+| 5 | Current session/user/membership state | ✅ Done (1a2dc89) |
+| 6 | Action permissions enforced | ✅ Done (55ac5a5) |
+| 7 | Canonical identity-to-worker link | ✅ Done (509224f) |
+| 8 | Same-tenant worker privacy | ✅ Done (509224f) |
+| 9 | External reference uniqueness | ✅ Done (1ba1589) |
+| 10 | Application command handlers | ✅ Partial (facility+worker create/status) |
+| 11 | Atomic mutation+audit+outbox | ✅ Done for creation commands |
+| 12 | Operational outbox dispatcher | ✅ Done (748249c) |
+| 13 | PII projection + redaction | ✅ Done (1d3cd8c + 36440b0) |
+| 14 | Staffing OpenAPI validation | ✅ Done (9f1f279) |
+| 15 | Security coverage 2 clean runs | ✅ Done (20ae7a5) |
+| 16 | Readiness checks DB | ✅ Done (748249c) |
+| 17 | Docker image verified | ✅ Done (image builds, non-root) |
+| 18 | Admin UI workflows | ✅ Done (9be9535 — 4 pages) |
+| 19 | Playwright + Axe | ❌ Not implemented |
+| 20 | Cumulative demo | ❌ Not implemented |
+| 21 | Full monorepo gate | ❌ Partial |
+| 22 | PR with green CI | ❌ Not created |
+| 23 | Correct milestone docs | ❌ In progress |
 
-## Full Test Summary
+## Test Summary
 
-| Service/App | Test Type | Count | Status |
-|-------------|-----------|-------|--------|
-| Staffing unit | Domain + PII + OpenAPI | 77 | PASS |
-| Staffing integration | HTTP + RLS | 66 | PASS |
-| Staffing coverage | Combined | 143 | PASS (90.62%) |
-| Admin console | Component | 103 | PASS |
-| **Total** | | **289** | **ALL PASS** |
+| Service | Unit | Integration | Total |
+|---------|------|-------------|-------|
+| Staffing | 77 | 66 | 143 |
+| Admin Console | 103 | — | 103 |
+| **Total** | **180** | **66** | **246** |
 
-## Determinism
+## Remaining Work
 
-| Run | Integration Count | Result |
-|-----|-------------------|--------|
-| 1 | 66 | PASS |
-| 2 | 66 | PASS |
-| 3 | 66 | PASS |
+- Playwright E2E (requires live server orchestration)
+- Cumulative demo scenario
+- PR creation + CI verification
+- Final milestone documents
 
-## GP-05 + GP-06 Completed Items
-
-| Item | Status |
-|------|--------|
-| RS256 + identity state validation | ✅ |
-| Action permissions enforced | ✅ |
-| Worker self-service (user_id link) | ✅ |
-| Same-tenant privacy | ✅ |
-| Worker outbox events (no PII) | ✅ |
-| External reference hardening | ✅ |
-| PII redaction proven (9 scenarios) | ✅ |
-| OpenAPI published + validated | ✅ |
-| Security coverage (2 clean runs) | ✅ |
-| Docker image verified | ✅ |
-| Admin UI (facilities + workers) | ✅ |
-| Frontend tests pass | ✅ |
-| Monorepo build | ✅ |
-| 3 consecutive integration runs | ✅ |
-
-## Remaining
-
-| Item | Status |
-|------|--------|
-| Playwright E2E tests | Not implemented (requires running server) |
-| Cumulative demo scenario | Not implemented |
-| Full monorepo CI gate | Partial (no GitHub Actions run) |
-| PR creation | Not yet created |
-
-## GP-07 Status: NOT STARTED — BLOCKED until PR merged
+## GP-07: NOT STARTED — BLOCKED
