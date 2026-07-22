@@ -11,6 +11,7 @@ import {
 import { LocalJwksTokenValidator } from './infrastructure/local-jwks-token-validator.js';
 import { PostgresStaffingRepository } from './infrastructure/postgres-staffing-repository.js';
 import { StaffingAuthGuard } from './infrastructure/staffing-auth.guard.js';
+import { StaffingPermissionGuard } from './infrastructure/staffing-permission.guard.js';
 import { FacilityController } from './interface/http/facility.controller.js';
 import { HealthController } from './interface/http/health.controller.js';
 import { WorkerController } from './interface/http/worker.controller.js';
@@ -59,6 +60,17 @@ import { WorkerController } from './interface/http/worker.controller.js';
         return new StaffingAuthGuard(tv as never, reflector, adapter);
       },
       inject: ['TOKEN_VALIDATOR', Reflector, 'IDENTITY_STATE_ADAPTER'],
+    },
+    {
+      provide: 'PERMISSION_ADAPTER',
+      useValue: undefined, // Will be replaced when authorization service integration is complete
+    },
+    {
+      provide: APP_GUARD,
+      useFactory: (reflector: Reflector, adapter: unknown): StaffingPermissionGuard => {
+        return new StaffingPermissionGuard(reflector, adapter as never);
+      },
+      inject: [Reflector, 'PERMISSION_ADAPTER'],
     },
     {
       provide: 'STAFFING_TENANT_DB',

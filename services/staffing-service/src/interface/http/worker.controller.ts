@@ -28,6 +28,7 @@ import {
   type Worker,
   type WorkerStatus,
 } from '../../domain/worker.js';
+import { RequirePermission } from '../../infrastructure/permission.decorator.js';
 
 const TENANT_DB = 'STAFFING_TENANT_DB';
 const STAFFING_REPO = 'STAFFING_REPOSITORY';
@@ -89,6 +90,7 @@ export class WorkerController {
 
   @Post('v1/workers')
   @HttpCode(HttpStatus.CREATED)
+  @RequirePermission('worker.create')
   async create(
     @Body() body: unknown,
     @Req() req: AuthenticatedRequest,
@@ -139,6 +141,7 @@ export class WorkerController {
   }
 
   @Get('v1/workers/:workerId')
+  @RequirePermission('worker.read')
   async getById(
     @Param('workerId') workerId: string,
     @Req() req: AuthenticatedRequest,
@@ -152,6 +155,7 @@ export class WorkerController {
   }
 
   @Get('v1/workers')
+  @RequirePermission('worker.list')
   async list(
     @Req() req: AuthenticatedRequest,
     @Query('status') status?: string,
@@ -164,6 +168,7 @@ export class WorkerController {
   }
 
   @Patch('v1/workers/:workerId')
+  @RequirePermission('worker.update')
   async update(
     @Param('workerId') workerId: string,
     @Body() body: unknown,
@@ -217,6 +222,7 @@ export class WorkerController {
 
   @Post('v1/workers/:workerId/status')
   @HttpCode(HttpStatus.OK)
+  @RequirePermission('worker.change-status')
   async changeStatus(
     @Param('workerId') workerId: string,
     @Body() body: unknown,

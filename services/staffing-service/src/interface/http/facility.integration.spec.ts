@@ -19,6 +19,7 @@ import type { IdentityStateAdapter, IdentityStateValidationResult } from '../../
 import { LocalJwksTokenValidator } from '../../infrastructure/local-jwks-token-validator.js';
 import { PostgresStaffingRepository } from '../../infrastructure/postgres-staffing-repository.js';
 import { StaffingAuthGuard } from '../../infrastructure/staffing-auth.guard.js';
+import { StaffingPermissionGuard, type PermissionAdapter } from '../../infrastructure/staffing-permission.guard.js';
 
 import { FacilityController } from './facility.controller.js';
 import { HealthController } from './health.controller.js';
@@ -59,6 +60,12 @@ describe('Facility HTTP Integration (GP-05)', () => {
   let mockIdentityResult: IdentityStateValidationResult = { valid: true };
   const mockIdentityAdapter: IdentityStateAdapter = {
     validate: async () => mockIdentityResult,
+  };
+
+  /** Configurable permission mock — defaults to "allowed" */
+  let mockPermissionResult: { allowed: boolean; reason?: string } = { allowed: true };
+  const mockPermissionAdapter: PermissionAdapter = {
+    hasPermission: async () => mockPermissionResult,
   };
 
   /**
@@ -197,12 +204,19 @@ describe('Facility HTTP Integration (GP-05)', () => {
         { provide: 'STAFFING_REPOSITORY', useClass: PostgresStaffingRepository },
         { provide: 'TOKEN_VALIDATOR', useValue: tokenValidator },
         { provide: 'IDENTITY_STATE_ADAPTER', useValue: mockIdentityAdapter },
+        { provide: 'PERMISSION_ADAPTER', useValue: mockPermissionAdapter },
         {
           provide: APP_GUARD,
           useFactory: (tv: unknown, ref: Reflector, adapter: IdentityStateAdapter) => {
             return new StaffingAuthGuard(tv as never, ref, adapter);
           },
           inject: ['TOKEN_VALIDATOR', Reflector, 'IDENTITY_STATE_ADAPTER'],
+        },
+        {
+          provide: APP_GUARD,
+          useFactory: (ref: Reflector, pa: PermissionAdapter) =>
+            new StaffingPermissionGuard(ref, pa),
+          inject: [Reflector, 'PERMISSION_ADAPTER'],
         },
       ],
     }).compile();
@@ -406,9 +420,34 @@ describe('Facility HTTP Integration (GP-05)', () => {
     });
   });
 
+  describe('Permission enforcement', () => {
+    it('should deny when permission adapter rejects (403)', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: false, reason: 'No facility.create permission' };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'Denied Fac', timezone: 'US/Eastern' });
+      expect(res.status).toBe(HttpStatus.FORBIDDEN);
+      expect(res.body.code).toBe('INSUFFICIENT_PERMISSIONS');
+    });
+
+    it('should allow when permission adapter grants', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .get('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(HttpStatus.OK);
+    });
+  });
+
   describe('POST /v1/facilities', () => {
     it('should create a facility with valid input and return 201', async () => {
       mockIdentityResult = { valid: true }; // Reset for non-auth tests
+      mockPermissionResult = { allowed: true };
       const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
       const res = await request(app.getHttpServer())
         .post('/v1/facilities')
