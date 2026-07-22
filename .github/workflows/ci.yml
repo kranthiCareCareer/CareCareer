@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: '24'
+  NODE_VERSION: '22'
   PNPM_VERSION: '9.15.4'
 
 jobs:
@@ -22,20 +22,17 @@ jobs:
 
     steps:
       - name: Checkout
-        # actions/checkout@v4 pinned to commit SHA
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Setup pnpm
-        # pnpm/action-setup@v4 pinned to commit SHA
-        uses: pnpm/action-setup@fe02b34f77f8bc703788d534f2ed8388abd93613
+        uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
-      - name: Setup Node.js ${{ env.NODE_VERSION }}
-        # actions/setup-node@v4 pinned to commit SHA
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
@@ -43,7 +40,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint (zero warnings)
+      - name: Lint
         run: pnpm lint
 
       - name: Format check
@@ -57,10 +54,3 @@ jobs:
 
       - name: Build
         run: pnpm build
-
-      - name: Verify build artifacts
-        run: |
-          echo "Build completed at $(date -u)"
-          echo "Commit: ${{ github.sha }}"
-          echo "Node: $(node --version)"
-          echo "pnpm: $(pnpm --version)"

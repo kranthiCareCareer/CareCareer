@@ -15,7 +15,10 @@ describe('HttpAuthorizationAdapter', () => {
     userId: 'user-1',
     tenantId: 'tenant-1',
     permission: 'facility.create',
+    sessionId: 'session-1',
     membershipId: 'mem-1',
+    userAuthorizationVersion: 7,
+    membershipAuthorizationVersion: 12,
   };
 
   beforeEach(() => {

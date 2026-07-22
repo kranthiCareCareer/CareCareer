@@ -15,7 +15,10 @@ export interface PermissionCheckInput {
   readonly userId: string;
   readonly tenantId: string;
   readonly permission: string;
-  readonly membershipId?: string | undefined;
+  readonly sessionId: string;
+  readonly membershipId: string;
+  readonly userAuthorizationVersion: number;
+  readonly membershipAuthorizationVersion: number;
   readonly resourceType?: string | undefined;
   readonly resourceId?: string | undefined;
   readonly correlationId?: string | undefined;
@@ -78,8 +81,11 @@ export class HttpAuthorizationAdapter implements PermissionAdapter {
           body: JSON.stringify({
             principal: {
               subject: params.userId,
+              sessionId: params.sessionId,
               tenantId: params.tenantId,
               membershipId: params.membershipId,
+              userAuthorizationVersion: params.userAuthorizationVersion,
+              membershipAuthorizationVersion: params.membershipAuthorizationVersion,
             },
             action: params.permission,
             resource: params.resourceType ? {

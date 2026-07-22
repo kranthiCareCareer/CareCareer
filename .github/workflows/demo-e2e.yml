@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: '24'
+  NODE_VERSION: '22'
   PNPM_VERSION: '9.15.4'
 
 jobs:
@@ -57,15 +57,15 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@fe02b34f77f8bc703788d534f2ed8388abd93613
+        uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
 
-      - name: Setup Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
@@ -111,7 +111,7 @@ jobs:
           echo "Waiting for backend..."
           for i in $(seq 1 30); do
             if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
-              echo "Backend ready after ${i}s"
+              echo "Backend ready"
               break
             fi
             sleep 2
@@ -119,7 +119,7 @@ jobs:
           echo "Waiting for frontend..."
           for i in $(seq 1 30); do
             if curl -sf http://localhost:4000 > /dev/null 2>&1; then
-              echo "Frontend ready after ${i}s"
+              echo "Frontend ready"
               break
             fi
             sleep 2
@@ -130,20 +130,10 @@ jobs:
 
       - name: Upload HTML report
         if: always()
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb2cf8a3
+        uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: apps/platform-admin-console/playwright-report/
-          retention-days: 14
-
-      - name: Upload failure artifacts
-        if: failure()
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb2cf8a3
-        with:
-          name: test-results
-          path: |
-            apps/platform-admin-console/test-results/
-            apps/platform-admin-console/artifacts/demo-screenshots/
           retention-days: 14
 
       - name: Cleanup

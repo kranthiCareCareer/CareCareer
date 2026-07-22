@@ -16,12 +16,10 @@ jobs:
 
     steps:
       - name: Checkout
-        # actions/checkout@v4 pinned to commit SHA
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        uses: actions/checkout@v4
 
       - name: Dependency Review
-        # actions/dependency-review-action@v4 pinned to commit SHA
-        uses: actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019
+        uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
           deny-licenses: GPL-3.0, AGPL-3.0

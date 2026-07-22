@@ -77,7 +77,10 @@ export class StaffingPermissionGuard implements CanActivate {
       userId: principal.subject,
       tenantId: principal.selectedTenantId ?? '',
       permission: requiredPermission,
-      membershipId: principal.membershipId,
+      sessionId: principal.sessionId,
+      membershipId: principal.membershipId ?? '',
+      userAuthorizationVersion: principal.userAuthorizationVersion,
+      membershipAuthorizationVersion: principal.membershipAuthorizationVersion ?? 0,
     });
 
     if (!result.allowed) {
