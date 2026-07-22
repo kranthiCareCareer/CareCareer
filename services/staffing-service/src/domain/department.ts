@@ -41,3 +41,27 @@ export function createDepartment(input: CreateDepartmentInput): Department {
     version: 1,
   };
 }
+
+type DepartmentStatus = 'ACTIVE' | 'INACTIVE';
+
+const VALID_DEPT_STATUS_TRANSITIONS: Record<DepartmentStatus, DepartmentStatus[]> = {
+  ACTIVE: ['INACTIVE'],
+  INACTIVE: ['ACTIVE'],
+};
+
+/**
+ * Change department status with transition validation.
+ */
+export function changeDepartmentStatus(dept: Department, newStatus: DepartmentStatus): Department {
+  const allowed = VALID_DEPT_STATUS_TRANSITIONS[dept.status];
+  if (!allowed.includes(newStatus)) {
+    throw new Error(`Invalid department status transition: ${dept.status} → ${newStatus}`);
+  }
+
+  return {
+    ...dept,
+    status: newStatus,
+    updatedAt: new Date(),
+    version: dept.version + 1,
+  };
+}

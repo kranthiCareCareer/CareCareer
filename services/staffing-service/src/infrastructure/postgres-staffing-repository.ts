@@ -77,6 +77,17 @@ export class PostgresStaffingRepository implements StaffingRepository {
     return rows.map(mapDepartment);
   }
 
+  async updateDepartment(tx: TransactionClient, d: Department): Promise<void> {
+    const count = await tx.$executeRaw`
+      UPDATE staffing.departments SET
+        name = ${d.name}, status = ${d.status},
+        version = ${d.version}, updated_at = NOW()
+      WHERE id = ${d.id}::uuid AND version = ${d.version - 1}`;
+    if (count === 0) {
+      throw new Error('VERSION_CONFLICT');
+    }
+  }
+
   async createCredentialRequirement(
     tx: TransactionClient,
     r: CredentialRequirement,

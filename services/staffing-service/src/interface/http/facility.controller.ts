@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   Get,
   Headers,
@@ -9,6 +10,7 @@ import {
   Inject,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -25,8 +27,13 @@ import {
   VALID_WORKER_ROLES,
   type CredentialRequirement,
 } from '../../domain/credential-requirement.js';
-import type { Department } from '../../domain/department.js';
-import type { Facility } from '../../domain/facility.js';
+import { changeDepartmentStatus, type Department } from '../../domain/department.js';
+import {
+  changeFacilityStatus,
+  updateFacility,
+  type Facility,
+  type FacilityStatus,
+} from '../../domain/facility.js';
 
 const TENANT_DB = 'STAFFING_TENANT_DB';
 const STAFFING_REPO = 'STAFFING_REPOSITORY';
@@ -58,6 +65,29 @@ const CreateCredentialRequirementSchema = z.object({
   credentialType: z.string().min(1).max(100),
   required: z.boolean().optional(),
   effectiveFrom: z.string().datetime().optional(),
+}).strict();
+
+const UpdateFacilitySchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  timezone: z.string().min(1).max(50).optional(),
+  addressLine1: z.string().max(300).optional(),
+  city: z.string().max(100).optional(),
+  state: z.string().max(50).optional(),
+  zip: z.string().max(20).optional(),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
+  geofenceRadiusMeters: z.number().int().positive().optional(),
+  expectedVersion: z.number().int().positive(),
+}).strict();
+
+const ChangeFacilityStatusSchema = z.object({
+  status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED']),
+  expectedVersion: z.number().int().positive(),
+}).strict();
+
+const ChangeDepartmentStatusSchema = z.object({
+  status: z.enum(['ACTIVE', 'INACTIVE']),
+  expectedVersion: z.number().int().positive(),
 }).strict();
 
 /**
@@ -139,6 +169,109 @@ export class FacilityController {
     return { data: facility };
   }
 
+  @Patch('v1/facilities/:facilityId')
+  async update(
+    @Param('facilityId') facilityId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+    @Headers('x-correlation-id') correlationId?: string,
+  ): Promise<{ data: Facility }> {
+    const tenantId = this.requireTenant(req);
+    const actorId = req.principal?.subject ?? 'unknown';
+    const corrId = correlationId ?? crypto.randomUUID();
+
+    const parsed = UpdateFacilitySchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        code: 'INVALID_REQUEST',
+        message: 'Invalid update request',
+        details: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      });
+    }
+
+    const updated = await this.tenantDb.execute(tenantId, async (tx) => {
+      const facility = await this.repo.getFacilityById(tx, facilityId);
+      if (!facility) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Facility not found' });
+      if (facility.version !== parsed.data.expectedVersion) {
+        throw new ConflictException({ code: 'VERSION_CONFLICT', message: 'Facility was modified by another request' });
+      }
+
+      const updateFields = {
+        name: parsed.data.name,
+        timezone: parsed.data.timezone,
+        addressLine1: parsed.data.addressLine1,
+        city: parsed.data.city,
+        state: parsed.data.state,
+        zip: parsed.data.zip,
+        latitude: parsed.data.latitude,
+        longitude: parsed.data.longitude,
+        geofenceRadiusMeters: parsed.data.geofenceRadiusMeters,
+      };
+      const updatedFacility = updateFacility(facility, updateFields);
+      await this.repo.updateFacility(tx, updatedFacility);
+      await this.emitAudit(tx, {
+        tenantId, actorId, action: 'facility.updated', aggregateType: 'facility',
+        aggregateId: facility.id,
+        beforeSummary: { name: facility.name, timezone: facility.timezone, geofenceVersion: facility.geofenceVersion },
+        afterSummary: { name: updatedFacility.name, timezone: updatedFacility.timezone, geofenceVersion: updatedFacility.geofenceVersion },
+        correlationId: corrId,
+      });
+      return updatedFacility;
+    });
+
+    return { data: updated };
+  }
+
+  @Post('v1/facilities/:facilityId/status')
+  @HttpCode(HttpStatus.OK)
+  async changeStatus(
+    @Param('facilityId') facilityId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+    @Headers('x-correlation-id') correlationId?: string,
+  ): Promise<{ data: Facility }> {
+    const tenantId = this.requireTenant(req);
+    const actorId = req.principal?.subject ?? 'unknown';
+    const corrId = correlationId ?? crypto.randomUUID();
+
+    const parsed = ChangeFacilityStatusSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        code: 'INVALID_REQUEST',
+        message: 'Invalid status change request',
+        details: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      });
+    }
+
+    const updated = await this.tenantDb.execute(tenantId, async (tx) => {
+      const facility = await this.repo.getFacilityById(tx, facilityId);
+      if (!facility) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Facility not found' });
+      if (facility.version !== parsed.data.expectedVersion) {
+        throw new ConflictException({ code: 'VERSION_CONFLICT', message: 'Facility was modified' });
+      }
+
+      try {
+        const changed = changeFacilityStatus(facility, parsed.data.status as FacilityStatus);
+        await this.repo.updateFacility(tx, changed);
+        await this.emitAudit(tx, {
+          tenantId, actorId, action: `facility.${parsed.data.status.toLowerCase()}`,
+          aggregateType: 'facility', aggregateId: facility.id,
+          beforeSummary: { status: facility.status },
+          afterSummary: { status: changed.status },
+          correlationId: corrId,
+        });
+        return changed;
+      } catch (e: unknown) {
+        if (e instanceof Error && e.message.startsWith('Invalid status transition')) {
+          throw new BadRequestException({ code: 'INVALID_TRANSITION', message: e.message });
+        }
+        throw e;
+      }
+    });
+
+    return { data: updated };
+  }
+
   @Post('v1/facilities/:facilityId/departments')
   @HttpCode(HttpStatus.CREATED)
   async createDepartment(
@@ -187,6 +320,59 @@ export class FacilityController {
       return this.repo.listDepartmentsByFacility(tx, facilityId);
     });
     return { data: departments };
+  }
+
+  @Post('v1/facilities/:facilityId/departments/:departmentId/status')
+  @HttpCode(HttpStatus.OK)
+  async changeDepartmentStatus(
+    @Param('facilityId') facilityId: string,
+    @Param('departmentId') departmentId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+    @Headers('x-correlation-id') correlationId?: string,
+  ): Promise<{ data: Department }> {
+    const tenantId = this.requireTenant(req);
+    const actorId = req.principal?.subject ?? 'unknown';
+    const corrId = correlationId ?? crypto.randomUUID();
+
+    const parsed = ChangeDepartmentStatusSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        code: 'INVALID_REQUEST',
+        message: 'Invalid department status change',
+        details: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      });
+    }
+
+    const updated = await this.tenantDb.execute(tenantId, async (tx) => {
+      const dept = await this.repo.getDepartmentById(tx, departmentId);
+      if (!dept || dept.facilityId !== facilityId) {
+        throw new NotFoundException({ code: 'NOT_FOUND', message: 'Department not found' });
+      }
+      if (dept.version !== parsed.data.expectedVersion) {
+        throw new ConflictException({ code: 'VERSION_CONFLICT', message: 'Department was modified' });
+      }
+
+      try {
+        const changed = changeDepartmentStatus(dept, parsed.data.status as Department['status']);
+        await this.repo.updateDepartment(tx, changed);
+        await this.emitAudit(tx, {
+          tenantId, actorId, action: `department.${parsed.data.status.toLowerCase()}`,
+          aggregateType: 'department', aggregateId: dept.id,
+          beforeSummary: { status: dept.status },
+          afterSummary: { status: changed.status },
+          correlationId: corrId,
+        });
+        return changed;
+      } catch (e: unknown) {
+        if (e instanceof Error && e.message.startsWith('Invalid department status')) {
+          throw new BadRequestException({ code: 'INVALID_TRANSITION', message: e.message });
+        }
+        throw e;
+      }
+    });
+
+    return { data: updated };
   }
 
   @Post('v1/facilities/:facilityId/credential-requirements')

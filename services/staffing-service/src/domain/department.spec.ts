@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { createDepartment } from './department.js';
+import { changeDepartmentStatus, createDepartment, type Department } from './department.js';
 
 describe('Department Domain', () => {
   const validInput = {
@@ -36,5 +36,33 @@ describe('Department Domain', () => {
       const dept = createDepartment({ ...validInput, name: '  ICU  ' });
       expect(dept.name).toBe('ICU');
     });
+  });
+});
+
+describe('changeDepartmentStatus', () => {
+  const active: Department = {
+    id: 'd-1', tenantId: 't-1', facilityId: 'f-1', name: 'ER',
+    status: 'ACTIVE', createdAt: new Date(), updatedAt: new Date(), version: 1,
+  };
+
+  it('should allow ACTIVE → INACTIVE', () => {
+    const result = changeDepartmentStatus(active, 'INACTIVE');
+    expect(result.status).toBe('INACTIVE');
+    expect(result.version).toBe(2);
+  });
+
+  it('should allow INACTIVE → ACTIVE', () => {
+    const inactive: Department = { ...active, status: 'INACTIVE' };
+    const result = changeDepartmentStatus(inactive, 'ACTIVE');
+    expect(result.status).toBe('ACTIVE');
+  });
+
+  it('should reject ACTIVE → ACTIVE', () => {
+    expect(() => changeDepartmentStatus(active, 'ACTIVE')).toThrow('Invalid department status');
+  });
+
+  it('should reject INACTIVE → INACTIVE', () => {
+    const inactive: Department = { ...active, status: 'INACTIVE' };
+    expect(() => changeDepartmentStatus(inactive, 'INACTIVE')).toThrow('Invalid department status');
   });
 });

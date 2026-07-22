@@ -627,4 +627,161 @@ describe('Facility HTTP Integration (GP-05)', () => {
       expect(res.body.data).toHaveLength(2);
     });
   });
+
+  describe('PATCH /v1/facilities/:facilityId (update)', () => {
+    it('should update facility name and increment version', async () => {
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'Update Target', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/facilities/${facilityId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Updated Name', expectedVersion: 1 });
+
+      expect(res.status).toBe(HttpStatus.OK);
+      expect(res.body.data.name).toBe('Updated Name');
+      expect(res.body.data.version).toBe(2);
+    });
+
+    it('should increment geofenceVersion when geofence changes', async () => {
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'Geofence Test', timezone: 'US/Eastern',
+          latitude: 47.0, longitude: -122.0, geofenceRadiusMeters: 100 });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/facilities/${facilityId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ latitude: 48.0, expectedVersion: 1 });
+
+      expect(res.status).toBe(HttpStatus.OK);
+      expect(res.body.data.geofenceVersion).toBe(2);
+      expect(res.body.data.latitude).toBe(48);
+    });
+
+    it('should reject update with wrong expectedVersion (409)', async () => {
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'Conflict Test', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/facilities/${facilityId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Stale', expectedVersion: 99 });
+
+      expect(res.status).toBe(HttpStatus.CONFLICT);
+      expect(res.body.code).toBe('VERSION_CONFLICT');
+    });
+  });
+
+  describe('POST /v1/facilities/:facilityId/status', () => {
+    it('should deactivate an active facility', async () => {
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'Deactivate Test', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/status`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'INACTIVE', expectedVersion: 1 });
+
+      expect(res.status).toBe(HttpStatus.OK);
+      expect(res.body.data.status).toBe('INACTIVE');
+      expect(res.body.data.version).toBe(2);
+    });
+
+    it('should reactivate an inactive facility', async () => {
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'Reactivate Test', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      // Deactivate first
+      await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/status`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'INACTIVE', expectedVersion: 1 });
+
+      // Reactivate
+      const res = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/status`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'ACTIVE', expectedVersion: 2 });
+
+      expect(res.status).toBe(HttpStatus.OK);
+      expect(res.body.data.status).toBe('ACTIVE');
+    });
+
+    it('should reject invalid status transition (400)', async () => {
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'Invalid Trans', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      // Deactivate
+      await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/status`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'INACTIVE', expectedVersion: 1 });
+
+      // Try INACTIVE → SUSPENDED (not allowed)
+      const res = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/status`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'SUSPENDED', expectedVersion: 2 });
+
+      expect(res.status).toBe(HttpStatus.BAD_REQUEST);
+      expect(res.body.code).toBe('INVALID_TRANSITION');
+    });
+  });
+
+  describe('POST /v1/facilities/:facilityId/departments/:departmentId/status', () => {
+    it('should deactivate and reactivate a department', async () => {
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'Dept Status Fac', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const deptRes = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/departments`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'ICU' });
+      const deptId = deptRes.body.data.departmentId;
+
+      // Deactivate
+      const deact = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/departments/${deptId}/status`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'INACTIVE', expectedVersion: 1 });
+      expect(deact.status).toBe(HttpStatus.OK);
+      expect(deact.body.data.status).toBe('INACTIVE');
+
+      // Reactivate
+      const react = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/departments/${deptId}/status`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'ACTIVE', expectedVersion: 2 });
+      expect(react.status).toBe(HttpStatus.OK);
+      expect(react.body.data.status).toBe('ACTIVE');
+    });
+  });
 });

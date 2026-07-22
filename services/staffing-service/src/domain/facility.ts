@@ -76,3 +76,75 @@ export function createFacility(input: CreateFacilityInput): Facility {
     version: 1,
   };
 }
+
+export interface UpdateFacilityInput {
+  readonly name?: string | undefined;
+  readonly timezone?: string | undefined;
+  readonly addressLine1?: string | undefined;
+  readonly city?: string | undefined;
+  readonly state?: string | undefined;
+  readonly zip?: string | undefined;
+  readonly latitude?: number | undefined;
+  readonly longitude?: number | undefined;
+  readonly geofenceRadiusMeters?: number | undefined;
+}
+
+/**
+ * Apply an update to a facility, returning a new version.
+ * Increments geofenceVersion if geofence fields change.
+ * Increments version for optimistic concurrency.
+ */
+export function updateFacility(facility: Facility, input: UpdateFacilityInput): Facility {
+  const newTimezone = input.timezone?.trim() ?? facility.timezone;
+  if (!newTimezone || newTimezone === '') {
+    throw new Error('Facility timezone is mandatory');
+  }
+
+  const geofenceChanged =
+    (input.latitude !== undefined && input.latitude !== facility.latitude) ||
+    (input.longitude !== undefined && input.longitude !== facility.longitude) ||
+    (input.geofenceRadiusMeters !== undefined &&
+      input.geofenceRadiusMeters !== facility.geofenceRadiusMeters);
+
+  return {
+    ...facility,
+    name: input.name ?? facility.name,
+    timezone: newTimezone,
+    addressLine1: input.addressLine1 ?? facility.addressLine1,
+    city: input.city ?? facility.city,
+    state: input.state ?? facility.state,
+    zip: input.zip ?? facility.zip,
+    latitude: input.latitude ?? facility.latitude,
+    longitude: input.longitude ?? facility.longitude,
+    geofenceRadiusMeters: input.geofenceRadiusMeters ?? facility.geofenceRadiusMeters,
+    geofenceVersion: geofenceChanged ? facility.geofenceVersion + 1 : facility.geofenceVersion,
+    updatedAt: new Date(),
+    version: facility.version + 1,
+  };
+}
+
+const VALID_STATUS_TRANSITIONS: Record<FacilityStatus, FacilityStatus[]> = {
+  ACTIVE: ['INACTIVE', 'SUSPENDED'],
+  INACTIVE: ['ACTIVE'],
+  SUSPENDED: ['ACTIVE'],
+};
+
+/**
+ * Change facility status with transition validation.
+ * Only allowed transitions proceed; invalid ones throw.
+ */
+export function changeFacilityStatus(facility: Facility, newStatus: FacilityStatus): Facility {
+  const allowed = VALID_STATUS_TRANSITIONS[facility.status];
+  if (!allowed.includes(newStatus)) {
+    throw new Error(
+      `Invalid status transition: ${facility.status} → ${newStatus}`,
+    );
+  }
+
+  return {
+    ...facility,
+    status: newStatus,
+    updatedAt: new Date(),
+    version: facility.version + 1,
+  };
+}

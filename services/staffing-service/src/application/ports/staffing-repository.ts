@@ -19,6 +19,7 @@ export interface StaffingRepository {
   createDepartment(tx: TransactionClient, department: Department): Promise<void>;
   getDepartmentById(tx: TransactionClient, departmentId: string): Promise<Department | null>;
   listDepartmentsByFacility(tx: TransactionClient, facilityId: string): Promise<Department[]>;
+  updateDepartment(tx: TransactionClient, department: Department): Promise<void>;
 
   // Credential Requirements
   createCredentialRequirement(
