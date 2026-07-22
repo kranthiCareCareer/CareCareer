@@ -17,8 +17,8 @@ import {
   evaluateAuthorizationDecision,
   type AuthorizationRepository,
 } from '../../application/commands/authorization-decision.command.js';
-import { RequireServiceScope, ServiceIdentityGuard } from '../../infrastructure/service-identity.guard.js';
 import { InternalService } from '../../infrastructure/internal-service.decorator.js';
+import { RequireServiceScope, ServiceIdentityGuard } from '../../infrastructure/service-identity.guard.js';
 
 /**
  * Internal Authorization Decision Endpoint

@@ -13,8 +13,8 @@ import {
   type ValidatedTokenContext,
 } from '@carecareer/auth';
 
-import { IS_PUBLIC_KEY } from './public.decorator.js';
 import { IS_INTERNAL_SERVICE_KEY } from './internal-service.decorator.js';
+import { IS_PUBLIC_KEY } from './public.decorator.js';
 import type { SessionStateValidator } from './session-state-validator.js';
 
 export const REQUIRED_PERMISSION_KEY = 'requiredPermission';

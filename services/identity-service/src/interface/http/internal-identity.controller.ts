@@ -12,9 +12,9 @@ import { z } from 'zod';
 
 import type { PrismaLikeClient, TransactionClient } from '@carecareer/database';
 
-import { RequireServiceScope, ServiceIdentityGuard } from '../../infrastructure/service-identity.guard.js';
 import { InternalService } from '../../infrastructure/internal-service.decorator.js';
 import type { SessionRepository } from '../../infrastructure/postgres-session-repository.js';
+import { RequireServiceScope, ServiceIdentityGuard } from '../../infrastructure/service-identity.guard.js';
 
 /**
  * Internal Identity State Validation Endpoint

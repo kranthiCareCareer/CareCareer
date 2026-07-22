@@ -1,3 +1,5 @@
+import * as crypto_module from 'node:crypto';
+
 import {
   BadRequestException,
   Body,
@@ -8,14 +10,13 @@ import {
   Post,
   UnauthorizedException,
 } from '@nestjs/common';
-import { z } from 'zod';
 import { SignJWT, importPKCS8 } from 'jose';
-import * as crypto_module from 'node:crypto';
+import { z } from 'zod';
 
 import type { PrismaLikeClient, TransactionClient } from '@carecareer/database';
 
-import { Public } from '../../infrastructure/public.decorator.js';
 import type { SigningKeyRepository } from '../../infrastructure/postgres-signing-key-repository.js';
+import { Public } from '../../infrastructure/public.decorator.js';
 
 /**
  * Internal OAuth Token Endpoint
