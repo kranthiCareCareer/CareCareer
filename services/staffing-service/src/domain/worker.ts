@@ -25,6 +25,8 @@ export type WorkerProfession = 'RN' | 'LPN' | 'CNA' | 'RT' | 'ALLIED';
 export interface Worker {
   readonly id: string;
   readonly tenantId: string;
+  /** Canonical link to identity-service user. Null if not yet bound. */
+  readonly userId?: string | undefined;
   readonly firstName: string;
   readonly lastName: string;
   readonly email: string;
@@ -57,6 +59,7 @@ export const VALID_PROFESSIONS: readonly WorkerProfession[] = [
 
 export interface CreateWorkerInput {
   readonly tenantId: string;
+  readonly userId?: string | undefined;
   readonly firstName: string;
   readonly lastName: string;
   readonly email: string;
@@ -90,6 +93,7 @@ export function createWorker(input: CreateWorkerInput): Worker {
   return {
     id: crypto.randomUUID(),
     tenantId: input.tenantId,
+    userId: input.userId,
     firstName: input.firstName.trim(),
     lastName: input.lastName.trim(),
     email: input.email.trim().toLowerCase(),

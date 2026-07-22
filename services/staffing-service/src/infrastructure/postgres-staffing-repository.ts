@@ -150,11 +150,12 @@ export class PostgresStaffingRepository implements StaffingRepository {
   async createWorker(tx: TransactionClient, w: Worker): Promise<void> {
     await tx.$executeRaw`
       INSERT INTO staffing.workers (
-        id, tenant_id, first_name, last_name, email, phone, status, profession,
+        id, tenant_id, user_id, first_name, last_name, email, phone, status, profession,
         specialty, home_latitude, home_longitude, home_city, home_state, home_zip,
         version, created_at, updated_at
       ) VALUES (
-        ${w.id}::uuid, ${w.tenantId}::uuid, ${w.firstName}, ${w.lastName},
+        ${w.id}::uuid, ${w.tenantId}::uuid, ${w.userId ?? null}::uuid,
+        ${w.firstName}, ${w.lastName},
         ${w.email}, ${w.phone ?? null}, ${w.status}, ${w.profession},
         ${w.specialty ?? null}, ${w.homeLatitude ?? null}::decimal,
         ${w.homeLongitude ?? null}::decimal, ${w.homeCity ?? null},
@@ -167,6 +168,13 @@ export class PostgresStaffingRepository implements StaffingRepository {
   async getWorkerById(tx: TransactionClient, workerId: string): Promise<Worker | null> {
     const rows = await tx.$queryRaw<WorkerRow>`
       SELECT * FROM staffing.workers WHERE id = ${workerId}::uuid`;
+    if (rows.length === 0) return null;
+    return mapWorker(rows[0]!);
+  }
+
+  async getWorkerByUserId(tx: TransactionClient, userId: string): Promise<Worker | null> {
+    const rows = await tx.$queryRaw<WorkerRow>`
+      SELECT * FROM staffing.workers WHERE user_id = ${userId}::uuid`;
     if (rows.length === 0) return null;
     return mapWorker(rows[0]!);
   }
@@ -277,7 +285,7 @@ function mapCredentialRequirement(r: CredentialRequirementRow): CredentialRequir
 }
 
 interface WorkerRow {
-  id: string; tenant_id: string; first_name: string; last_name: string;
+  id: string; tenant_id: string; user_id: string | null; first_name: string; last_name: string;
   email: string; phone: string | null; status: string; profession: string;
   specialty: string | null; home_latitude: number | null; home_longitude: number | null;
   home_city: string | null; home_state: string | null; home_zip: string | null;
@@ -291,7 +299,8 @@ interface ExternalReferenceRow {
 
 function mapWorker(r: WorkerRow): Worker {
   return {
-    id: r.id, tenantId: r.tenant_id, firstName: r.first_name, lastName: r.last_name,
+    id: r.id, tenantId: r.tenant_id, userId: r.user_id ?? undefined,
+    firstName: r.first_name, lastName: r.last_name,
     email: r.email, phone: r.phone ?? undefined, status: r.status as Worker['status'],
     profession: r.profession as Worker['profession'],
     specialty: r.specialty ?? undefined,

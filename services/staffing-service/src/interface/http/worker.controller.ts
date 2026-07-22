@@ -44,6 +44,7 @@ const CreateWorkerSchema = z.object({
   phone: z.string().max(30).optional(),
   profession: z.enum(['RN', 'LPN', 'CNA', 'RT', 'ALLIED']),
   specialty: z.string().max(100).optional(),
+  userId: z.string().uuid().optional(),
   homeLatitude: z.number().min(-90).max(90).optional(),
   homeLongitude: z.number().min(-180).max(180).optional(),
   homeCity: z.string().max(100).optional(),
@@ -266,6 +267,89 @@ export class WorkerController {
         }
         throw e;
       }
+    });
+
+    return { data: updated };
+  }
+
+  /**
+   * Worker self-service: read own profile.
+   * Uses principal.subject (user ID) to find the linked worker record.
+   * No worker.read permission required — workers always access their own profile.
+   */
+  @Get('v1/my-profile')
+  async getMyProfile(@Req() req: AuthenticatedRequest): Promise<{ data: Worker }> {
+    const tenantId = this.requireTenant(req);
+    const userId = req.principal?.subject;
+    if (!userId) {
+      throw new BadRequestException({ code: 'NO_IDENTITY', message: 'No authenticated identity' });
+    }
+
+    const worker = await this.tenantDb.execute(tenantId, async (tx) => {
+      return this.repo.getWorkerByUserId(tx, userId);
+    });
+    if (!worker) {
+      throw new NotFoundException({ code: 'NOT_FOUND', message: 'No worker profile linked to this account' });
+    }
+    return { data: worker };
+  }
+
+  /**
+   * Worker self-service: update own profile (permitted fields only).
+   * Workers cannot change: email, profession, status, userId.
+   * No worker.update permission required — workers always update their own profile.
+   */
+  @Patch('v1/my-profile')
+  async updateMyProfile(
+    @Body() body: unknown,
+    @Req() req: AuthenticatedRequest,
+    @Headers('x-correlation-id') correlationId?: string,
+  ): Promise<{ data: Worker }> {
+    const tenantId = this.requireTenant(req);
+    const userId = req.principal?.subject;
+    if (!userId) {
+      throw new BadRequestException({ code: 'NO_IDENTITY', message: 'No authenticated identity' });
+    }
+    const corrId = correlationId ?? crypto.randomUUID();
+
+    const parsed = UpdateWorkerSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new BadRequestException({
+        code: 'INVALID_REQUEST',
+        message: 'Invalid profile update',
+        details: parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+      });
+    }
+
+    const updated = await this.tenantDb.execute(tenantId, async (tx) => {
+      const worker = await this.repo.getWorkerByUserId(tx, userId);
+      if (!worker) {
+        throw new NotFoundException({ code: 'NOT_FOUND', message: 'No worker profile linked' });
+      }
+      if (worker.version !== parsed.data.expectedVersion) {
+        throw new ConflictException({ code: 'VERSION_CONFLICT', message: 'Profile was modified' });
+      }
+
+      const fields = {
+        firstName: parsed.data.firstName,
+        lastName: parsed.data.lastName,
+        phone: parsed.data.phone,
+        specialty: parsed.data.specialty,
+        homeLatitude: parsed.data.homeLatitude,
+        homeLongitude: parsed.data.homeLongitude,
+        homeCity: parsed.data.homeCity,
+        homeState: parsed.data.homeState,
+        homeZip: parsed.data.homeZip,
+      };
+      const updatedWorker = updateWorker(worker, fields);
+      await this.repo.updateWorker(tx, updatedWorker);
+      await this.emitAudit(tx, {
+        tenantId, actorId: userId, action: 'worker.self-updated',
+        aggregateType: 'worker', aggregateId: worker.id,
+        afterSummary: { version: updatedWorker.version },
+        correlationId: corrId,
+      });
+      return updatedWorker;
     });
 
     return { data: updated };
