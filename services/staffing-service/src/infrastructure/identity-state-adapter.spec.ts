@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { HttpIdentityStateAdapter } from './identity-state-adapter.js';
-import type { ServiceTokenClient } from './service-token-client.js';
+import type { ServiceCredentialProvider } from './service-token-client.js';
 
 describe('HttpIdentityStateAdapter', () => {
-  const mockTokenClient: ServiceTokenClient = {
-    getToken: vi.fn().mockResolvedValue('service-jwt-token'),
+  const mockCredentialProvider: ServiceCredentialProvider = {
+    getCredential: vi.fn().mockResolvedValue({ token: 'service-jwt-token', expiresAt: 9999999999 }),
     invalidate: vi.fn(),
-  } as unknown as ServiceTokenClient;
+  };
 
-  const adapter = new HttpIdentityStateAdapter('http://identity:3100', mockTokenClient);
+  const adapter = new HttpIdentityStateAdapter('http://identity:3100', mockCredentialProvider);
 
   const validInput = {
     sessionId: 'session-1',
@@ -22,7 +22,7 @@ describe('HttpIdentityStateAdapter', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    (mockTokenClient.getToken as ReturnType<typeof vi.fn>).mockResolvedValue('service-jwt-token');
+    (mockCredentialProvider.getCredential as ReturnType<typeof vi.fn>).mockResolvedValue({ token: 'service-jwt-token', expiresAt: 9999999999 });
   });
 
   afterEach(() => {
@@ -74,7 +74,7 @@ describe('HttpIdentityStateAdapter', () => {
     const result = await adapter.validate(validInput);
     expect(result.valid).toBe(false);
     expect(result.code).toBe('SERVICE_AUTH_FAILED');
-    expect(mockTokenClient.invalidate).toHaveBeenCalled();
+    expect(mockCredentialProvider.invalidate).toHaveBeenCalled();
   });
 
   it('should deny on network failure (fail closed)', async () => {
@@ -108,7 +108,7 @@ describe('HttpIdentityStateAdapter', () => {
   });
 
   it('should deny when service token acquisition fails', async () => {
-    (mockTokenClient.getToken as ReturnType<typeof vi.fn>).mockRejectedValue(
+    (mockCredentialProvider.getCredential as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error('Key unavailable'),
     );
 
@@ -136,7 +136,7 @@ describe('HttpIdentityStateAdapter', () => {
       }),
     );
 
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
+    const body = JSON.parse(mockFetch.mock.calls[0]![1].body as string);
     expect(body.subject).toBe('user-1');
     expect(body.sessionId).toBe('session-1');
     expect(body.selectedTenantId).toBe('tenant-1');

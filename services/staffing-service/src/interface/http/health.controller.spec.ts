@@ -17,10 +17,9 @@ describe('HealthController', () => {
     it('should return unhealthy when module not initialized', async () => {
       const mockTenantDb = { execute: vi.fn() } as never;
       const controller = new HealthController(mockTenantDb);
-      // Note: onModuleInit NOT called — module not ready
       const result = await controller.readiness();
       expect(result.status).toBe('unhealthy');
-      expect(result.checks.module).toBe('not initialized');
+      expect(result.checks['module']).toBe('not initialized');
     });
 
     it('should return unhealthy when database is unavailable', async () => {
@@ -28,10 +27,10 @@ describe('HealthController', () => {
         execute: vi.fn().mockRejectedValue(new Error('connection refused')),
       } as never;
       const controller = new HealthController(mockTenantDb);
-      controller.onModuleInit(); // simulate initialization
+      controller.onModuleInit();
       const result = await controller.readiness();
       expect(result.status).toBe('unhealthy');
-      expect(result.checks.database).toBe('unavailable');
+      expect(result.checks['database']).toBe('unavailable');
     });
 
     it('should return healthy when database responds', async () => {
@@ -42,7 +41,7 @@ describe('HealthController', () => {
       controller.onModuleInit();
       const result = await controller.readiness();
       expect(result.status).toBe('healthy');
-      expect(result.checks.database).toBe('ok');
+      expect(result.checks['database']).toBe('ok');
     });
   });
 });

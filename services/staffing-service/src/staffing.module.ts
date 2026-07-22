@@ -12,7 +12,7 @@ import {
 import { LocalJwksTokenValidator } from './infrastructure/local-jwks-token-validator.js';
 import { PostgresStaffingRepository } from './infrastructure/postgres-staffing-repository.js';
 import { RemoteJwksTokenValidator } from './infrastructure/remote-jwks-token-validator.js';
-import { ServiceTokenClient } from './infrastructure/service-token-client.js';
+import { LocalClientCredentialsProvider } from './infrastructure/service-token-client.js';
 import { StaffingAuthGuard } from './infrastructure/staffing-auth.guard.js';
 import { StaffingPermissionGuard } from './infrastructure/staffing-permission.guard.js';
 import { FacilityController } from './interface/http/facility.controller.js';
@@ -55,13 +55,13 @@ import { WorkerController } from './interface/http/worker.controller.js';
       provide: 'IDENTITY_STATE_ADAPTER',
       useFactory: (): IdentityStateAdapter | undefined => {
         const identityUrl = process.env['IDENTITY_SERVICE_URL'];
-        const serviceKeyPem = process.env['SERVICE_PRIVATE_KEY_PEM'];
-        const serviceKeyId = process.env['SERVICE_KEY_ID'];
-        if (!identityUrl || !serviceKeyPem || !serviceKeyId) return undefined;
-        const tokenClient = new ServiceTokenClient({
-          privateKeyPem: serviceKeyPem, keyId: serviceKeyId, serviceId: 'staffing-service',
+        const clientId = process.env['SERVICE_CLIENT_ID'] ?? 'staffing-service';
+        const clientSecret = process.env['SERVICE_CLIENT_SECRET'];
+        if (!identityUrl || !clientSecret) return undefined;
+        const credentialProvider = new LocalClientCredentialsProvider({
+          identityServiceUrl: identityUrl, clientId, clientSecret,
         });
-        return new HttpIdentityStateAdapter(identityUrl, tokenClient);
+        return new HttpIdentityStateAdapter(identityUrl, credentialProvider);
       },
     },
     {
@@ -79,13 +79,13 @@ import { WorkerController } from './interface/http/worker.controller.js';
       provide: 'PERMISSION_ADAPTER',
       useFactory: (): PermissionAdapter | null => {
         const authUrl = process.env['AUTHORIZATION_SERVICE_URL'] ?? process.env['IDENTITY_SERVICE_URL'];
-        const serviceKeyPem = process.env['SERVICE_PRIVATE_KEY_PEM'];
-        const serviceKeyId = process.env['SERVICE_KEY_ID'];
-        if (!authUrl || !serviceKeyPem || !serviceKeyId) return null;
-        const tokenClient = new ServiceTokenClient({
-          privateKeyPem: serviceKeyPem, keyId: serviceKeyId, serviceId: 'staffing-service',
+        const clientId = process.env['SERVICE_CLIENT_ID'] ?? 'staffing-service';
+        const clientSecret = process.env['SERVICE_CLIENT_SECRET'];
+        if (!authUrl || !clientSecret) return null;
+        const credentialProvider = new LocalClientCredentialsProvider({
+          identityServiceUrl: authUrl, clientId, clientSecret,
         });
-        return new HttpAuthorizationAdapter(authUrl, tokenClient);
+        return new HttpAuthorizationAdapter(authUrl, credentialProvider);
       },
     },
     {

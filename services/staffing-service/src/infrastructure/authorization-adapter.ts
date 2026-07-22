@@ -1,4 +1,4 @@
-import type { ServiceTokenClient } from './service-token-client.js';
+import type { ServiceCredentialProvider } from './service-token-client.js';
 
 /**
  * Authorization Decision Adapter — calls the authorization decision service.
@@ -49,17 +49,18 @@ interface AuthorizationDecisionResponse {
  */
 export class HttpAuthorizationAdapter implements PermissionAdapter {
   private readonly baseUrl: string;
-  private readonly tokenClient: ServiceTokenClient;
+  private readonly credentialProvider: ServiceCredentialProvider;
 
-  constructor(authorizationServiceBaseUrl: string, tokenClient: ServiceTokenClient) {
+  constructor(authorizationServiceBaseUrl: string, credentialProvider: ServiceCredentialProvider) {
     this.baseUrl = authorizationServiceBaseUrl.replace(/\/$/, '');
-    this.tokenClient = tokenClient;
+    this.credentialProvider = credentialProvider;
   }
 
   async hasPermission(params: PermissionCheckInput): Promise<PermissionCheckResult> {
     let serviceToken: string;
     try {
-      serviceToken = await this.tokenClient.getToken();
+      const credential = await this.credentialProvider.getCredential();
+      serviceToken = credential.token;
     } catch {
       return { allowed: false, reason: 'Cannot acquire service token' };
     }
@@ -92,7 +93,7 @@ export class HttpAuthorizationAdapter implements PermissionAdapter {
       );
 
       if (response.status === 401) {
-        this.tokenClient.invalidate();
+        this.credentialProvider.invalidate();
         return { allowed: false, reason: 'Service authentication failed' };
       }
 

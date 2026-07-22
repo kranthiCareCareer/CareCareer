@@ -1,14 +1,14 @@
-import type { ServiceTokenClient } from './service-token-client.js';
+import type { ServiceCredentialProvider } from './service-token-client.js';
 
 /**
  * Identity State Adapter — validates current session, user, and membership state.
  *
  * Calls: POST /internal/v1/identity/state-validations
- * Auth: Service JWT (staffing-service identity)
+ * Auth: Service JWT obtained via token-exchange (identity-service signs it)
  * User context: validated principal fields in request body
  *
  * Fail-closed: deny on ANY of:
- * - Missing service token
+ * - Missing service credential
  * - Identity service unavailable
  * - Timeout (3 seconds)
  * - Malformed response
@@ -54,17 +54,18 @@ interface StateValidationResponse {
  */
 export class HttpIdentityStateAdapter implements IdentityStateAdapter {
   private readonly baseUrl: string;
-  private readonly tokenClient: ServiceTokenClient;
+  private readonly credentialProvider: ServiceCredentialProvider;
 
-  constructor(identityServiceBaseUrl: string, tokenClient: ServiceTokenClient) {
+  constructor(identityServiceBaseUrl: string, credentialProvider: ServiceCredentialProvider) {
     this.baseUrl = identityServiceBaseUrl.replace(/\/$/, '');
-    this.tokenClient = tokenClient;
+    this.credentialProvider = credentialProvider;
   }
 
   async validate(input: IdentityStateValidationInput): Promise<IdentityStateValidationResult> {
     let serviceToken: string;
     try {
-      serviceToken = await this.tokenClient.getToken();
+      const credential = await this.credentialProvider.getCredential();
+      serviceToken = credential.token;
     } catch {
       return {
         valid: false,
@@ -97,7 +98,7 @@ export class HttpIdentityStateAdapter implements IdentityStateAdapter {
 
       if (response.status === 401) {
         // Service token rejected — invalidate and deny
-        this.tokenClient.invalidate();
+        this.credentialProvider.invalidate();
         return { valid: false, code: 'SERVICE_AUTH_FAILED', message: 'Service authentication failed' };
       }
 

@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { HttpAuthorizationAdapter } from './authorization-adapter.js';
-import type { ServiceTokenClient } from './service-token-client.js';
+import type { ServiceCredentialProvider } from './service-token-client.js';
 
 describe('HttpAuthorizationAdapter', () => {
-  const mockTokenClient: ServiceTokenClient = {
-    getToken: vi.fn().mockResolvedValue('service-jwt'),
+  const mockCredentialProvider: ServiceCredentialProvider = {
+    getCredential: vi.fn().mockResolvedValue({ token: 'service-jwt', expiresAt: 9999999999 }),
     invalidate: vi.fn(),
-  } as unknown as ServiceTokenClient;
+  };
 
-  const adapter = new HttpAuthorizationAdapter('http://auth:3100', mockTokenClient);
+  const adapter = new HttpAuthorizationAdapter('http://auth:3100', mockCredentialProvider);
 
   const validParams = {
     userId: 'user-1',
@@ -20,7 +20,7 @@ describe('HttpAuthorizationAdapter', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    (mockTokenClient.getToken as ReturnType<typeof vi.fn>).mockResolvedValue('service-jwt');
+    (mockCredentialProvider.getCredential as ReturnType<typeof vi.fn>).mockResolvedValue({ token: 'service-jwt', expiresAt: 9999999999 });
   });
 
   afterEach(() => { vi.restoreAllMocks(); });
@@ -84,7 +84,7 @@ describe('HttpAuthorizationAdapter', () => {
 
     const result = await adapter.hasPermission(validParams);
     expect(result.allowed).toBe(false);
-    expect(mockTokenClient.invalidate).toHaveBeenCalled();
+    expect(mockCredentialProvider.invalidate).toHaveBeenCalled();
   });
 
   it('should deny on HTTP 5xx', async () => {
@@ -114,7 +114,7 @@ describe('HttpAuthorizationAdapter', () => {
   });
 
   it('should deny when service token acquisition fails', async () => {
-    (mockTokenClient.getToken as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('no key'));
+    (mockCredentialProvider.getCredential as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('no key'));
 
     const result = await adapter.hasPermission(validParams);
     expect(result.allowed).toBe(false);
@@ -148,7 +148,7 @@ describe('HttpAuthorizationAdapter', () => {
 
     await adapter.hasPermission(validParams);
 
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
+    const body = JSON.parse(mockFetch.mock.calls[0]![1].body as string);
     expect(body.principal.subject).toBe('user-1');
     expect(body.principal.tenantId).toBe('tenant-1');
     expect(body.action).toBe('facility.create');
