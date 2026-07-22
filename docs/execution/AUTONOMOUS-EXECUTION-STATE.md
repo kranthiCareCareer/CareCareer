@@ -1,71 +1,71 @@
 # Autonomous Execution State
 
-## Last Updated: 2026-07-22T14:30:00Z
+## Last Updated: 2026-07-22T23:20:00Z
 
 ## Repository State
 
-| Field         | Value                                               |
-| ------------- | --------------------------------------------------- |
-| Branch        | agent/gp-05-gp-06-v2                                |
-| HEAD          | a0523df                                             |
-| Origin master | e2f6ec6                                             |
-| Commits ahead | 1 (single squash commit)                            |
-| Old branch    | agent/gp-05-gp-06-enterprise-closure (TO BE CLOSED) |
+| Field         | Value                              |
+| ------------- | ---------------------------------- |
+| Branch        | agent/gha-cicd-stabilization-v2    |
+| HEAD          | 72956ed                            |
+| Origin master | 9d86c7b                            |
+| Commits ahead | 3                                  |
+| PR            | Open (draft) on GitHub             |
 
-## Why v2 Branch
+## CI/CD Status — ALL GREEN ✅
 
-Branch `agent/gp-05-gp-06-enterprise-closure` contained a SHA-256 hash of a
-test credential in commit `f5db6f8`. This triggered Gitleaks CI failure.
-Per explicit user decision (Option B), all changes were squash-merged into
-a clean branch `agent/gp-05-gp-06-v2` with no credential in history.
+| Workflow           | Status  | Run SHA  |
+| ------------------ | ------- | -------- |
+| CI                 | SUCCESS | 72956ed  |
+| Secret Scanning    | SUCCESS | 72956ed  |
+| Code Security      | SUCCESS | 72956ed  |
+| Dependency Review  | SUCCESS | 72956ed  |
+| Container Security | SUCCESS | 72956ed  |
+| DEMO-01 E2E       | SUCCESS | 72956ed  |
 
-The original test credential was LOCAL DEV ONLY and never used in production.
-It must still be treated as compromised and rotated per the decision.
+## Fixes Applied (This Session)
 
-## PR Status
+### Container Security (Trivy) — Fixed
 
-- PR #1: SUPERSEDED (old branch, to be closed)
-- PR #2: Create at https://github.com/kranthiCareCareer/CareCareer/pull/new/agent/gp-05-gp-06-v2
-- PR #2 title: wip(gp-05-gp-06): enterprise security hardening checkpoint
+Root causes and fixes:
+1. **multer CVEs** (CVE-2025-7338, CVE-2026-2359, CVE-2026-3304):
+   Upgraded `@nestjs/platform-express` from 11.1.3 → 11.1.28 across all services.
+   NestJS 11.1.28 ships with multer 2.2.0 (patched).
 
-## 6 P0 Items Status in v2 Branch
+2. **path-to-regexp** (CVE-2026-4926):
+   Upgraded `@nestjs/core` in `packages/service-core` from 11.1.3 → 11.1.28.
+   NestJS 11.1.28 uses path-to-regexp 8.4.2 (patched).
 
-| #   | Finding                                   | Status                                                          |
-| --- | ----------------------------------------- | --------------------------------------------------------------- |
-| 1   | @InternalService fail-open risk           | FIXED: route-security.spec.ts proves guard chain at test time   |
-| 2   | Session-to-membership binding             | FIXED: verifies session.selectedTenantId + session.membershipId |
-| 3   | Authorization ignores resource/membership | FIXED: cross-tenant resource check + membershipId forwarded     |
-| 4   | SHA-256 secret verification               | FIXED: scrypt (N=16384, r=8, p=1) with per-credential salt      |
-| 5   | Credential in git history                 | FIXED: new clean branch, no credential in any commit            |
-| 6   | No end-to-end integration test            | PARTIAL: route-security test proves compile-time invariants     |
+3. **tar-fs** (CVE-2024-12905, CVE-2025-48387, CVE-2025-59343):
+   `.pnpmfile.cjs` hook overrides transitive dep from dockerode (testcontainers).
+   Resolved to 3.1.3 (patched). Dev-only, never deployed.
 
-## Test Counts (local, pre-CI)
+4. **undici** (CVE-2026-12151, CVE-2026-1526, CVE-2026-2229):
+   `.pnpmfile.cjs` hook overrides transitive dep from testcontainers.
+   Resolved to 7.28.0 (patched). Dev-only, never deployed.
 
-| Service       | Unit | Integration            | Total |
-| ------------- | ---- | ---------------------- | ----- |
-| Identity      | 237  | (not run this session) | 237+  |
-| Staffing      | 129  | 86                     | 215   |
-| Admin Console | 103  | —                      | 103   |
+### DEMO-01 E2E — Fixed
 
-## NOT YET VERIFIED (CI Required)
+Root causes and fixes:
+1. **Backend startup failure**: Changed from `node dist/main.js` to `npx tsx src/main.ts`.
+   Workspace packages expose TypeScript source (`main: ./src/index.ts`), so plain
+   Node.js cannot resolve them at runtime. `tsx` handles TS natively.
 
-- [ ] Gitleaks scan on clean history
-- [ ] Full CI pipeline (lint, typecheck, tests, build)
-- [ ] GitHub Actions green
-- [ ] End-to-end service auth integration test (identity → staffing)
-- [ ] Coverage at 95/90 for ALL security-critical files
-- [ ] Node 24 compatibility verified
+2. **Health check URL wrong**: Changed `/health` → `/health/live` (matching
+   the actual PlatformHealthController endpoint).
 
-## PR Must NOT Be Submitted for Re-review Until
+## Test Counts (CI verified)
 
-- [ ] All CI workflows green
-- [ ] Gitleaks passes without suppression
-- [ ] Full end-to-end service auth test passes
-- [ ] Coverage 95/90 without exclusions
-- [ ] GP-05/GP-06 IN PROGRESS markers correct
+All tests pass in CI pipeline (unit + integration).
 
 ## GP-05: IN PROGRESS
 
 ## GP-06: IN PROGRESS
 
 ## GP-07: NOT STARTED — BLOCKED
+
+## Next Steps
+
+1. PR is ready for review (all 6 workflows green)
+2. After merge: resume GP-05/GP-06 closure work
+3. Do NOT start GP-07 until CI stabilization PR is merged
