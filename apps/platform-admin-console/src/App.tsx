@@ -9,6 +9,10 @@ import { Entitlements } from './pages/Entitlements';
 import { Organizations } from './pages/Organizations';
 import { Features } from './pages/Features';
 import { AuditTimeline } from './pages/AuditTimeline';
+import { FacilityList } from './pages/FacilityList';
+import { CreateFacility } from './pages/CreateFacility';
+import { FacilityDetail } from './pages/FacilityDetail';
+import { WorkerList } from './pages/WorkerList';
 
 function AppRoutes() {
   const { isAuthenticated } = useAuth();
@@ -28,6 +32,10 @@ function AppRoutes() {
         <Route path="/tenants/:tenantId/organizations" element={<Organizations />} />
         <Route path="/tenants/:tenantId/features" element={<Features />} />
         <Route path="/tenants/:tenantId/audit" element={<AuditTimeline />} />
+        <Route path="/facilities" element={<FacilityList />} />
+        <Route path="/facilities/create" element={<CreateFacility />} />
+        <Route path="/facilities/:facilityId" element={<FacilityDetail />} />
+        <Route path="/workers" element={<WorkerList />} />
       </Routes>
     </main>
   );
