@@ -1000,6 +1000,27 @@ describe('Facility HTTP Integration (GP-05)', () => {
       expect(res.status).toBe(HttpStatus.BAD_REQUEST);
     });
 
+    it('should accept credential requirement with effectiveFrom date', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'FutureCred', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/credential-requirements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          role: 'RN',
+          credentialType: 'ADVANCED_CARDIAC',
+          effectiveFrom: '2027-01-01T00:00:00Z',
+        });
+      expect(res.status).toBe(HttpStatus.CREATED);
+    });
+
     it('should reject department creation with empty name', async () => {
       mockIdentityResult = { valid: true };
       mockPermissionResult = { allowed: true };
