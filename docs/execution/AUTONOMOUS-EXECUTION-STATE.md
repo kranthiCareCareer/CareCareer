@@ -1,71 +1,43 @@
 # Autonomous Execution State
 
-## Last Updated: 2026-07-21T20:10:00Z
+## Last Updated: 2026-07-21T20:25:00Z
 
 ## Repository State
 
 | Field | Value |
 |-------|-------|
 | Branch | master |
-| HEAD | 8b6e9ac (+ uncommitted Dockerfile) |
-| Working tree | Dockerfile added |
-| Current milestone | GP-05 (Facilities and Departments) |
-| Current objective | Backend complete — remaining: UI/Playwright/Demo |
+| HEAD | 20579b5 |
+| Working tree | GP-06 closure doc (uncommitted) |
+| Current milestone | GP-06 COMPLETE (backend) |
+| Next milestone | GP-07 (Credentials and Eligibility) |
 | Authoritative source | docs/decisions/golden-path-backlog.md |
-
-## GP-05 Backend Status: COMPLETE
-
-### Proven
-
-| Item | Evidence |
-|------|----------|
-| RS256 authentication boundary | 11 denial tests, real jose verification |
-| Facility CRUD (create/read/list/update) | HTTP integration tests |
-| Facility lifecycle (activate/deactivate/suspend) | State machine + tests |
-| Department CRUD (create/read/list) | HTTP integration tests |
-| Department lifecycle (activate/deactivate) | State machine + tests |
-| Credential requirements (create/query by role+dept) | HTTP tests |
-| Geofence version increment on update | Unit + integration tests |
-| Optimistic concurrency (409 on version conflict) | Integration tests |
-| Application commands (CreateFacility, CreateDepartment) | Tested |
-| Audit/outbox atomicity | Audit + outbox proven in same tx |
-| Tenant isolation (RLS) | 10 schema + HTTP cross-tenant tests |
-| Timezone mandatory | Domain + schema + HTTP validation |
-| Authorization: tenant-wide by product decision | ADR documented |
-| Dockerfile (multi-stage, non-root) | Created |
-| Three consecutive integration runs | 41/41 × 3 |
-
-### Remaining (lower priority)
-
-| Item | Status |
-|------|--------|
-| Admin UI routes | NOT IMPLEMENTED — UI vertical slice |
-| Playwright workflows | NOT IMPLEMENTED — UI vertical slice |
-| GP-05 demo scenario | NOT IMPLEMENTED |
-| Docker image build verification | Dockerfile created, not built |
-
-## Test Summary
-
-| Layer | Count |
-|-------|-------|
-| Unit tests | 35 |
-| Integration tests | 41 |
-| Total | 76 |
-| Determinism | 41/41 × 3 consecutive |
 
 ## Completed Milestones
 
-| Milestone | Closure Commit | Status |
-|-----------|---------------|--------|
-| GP-00–GP-03.4 | Various | COMPLETE |
-| Investor Demo | e74d76a | COMPLETE |
-| Chromium 64/64 | c113b5a | COMPLETE |
+| Milestone | Status | Tests |
+|-----------|--------|-------|
+| GP-00–GP-03.4 | COMPLETE | 228 unit + 126 integration |
+| GP-05 Facilities | BACKEND COMPLETE | 35 unit + 41 integration |
+| GP-06 Workers | BACKEND COMPLETE | 18 unit + 12 integration |
+| Investor Demo | COMPLETE | 20 E2E |
+| Chromium 64/64 | COMPLETE | 64 browser |
 
-## Next Steps
+## Current Test Totals (staffing-service)
 
-GP-05 backend is production-ready. The remaining items (Admin UI, Playwright,
-Demo) are UI-layer work that can proceed in parallel or be deferred to GP-04
-formalization.
+| Layer | Count |
+|-------|-------|
+| Unit tests | 53 |
+| Integration tests | 53 |
+| Total | 106 |
+| Determinism | 53/53 × 3 consecutive |
 
-Recommend proceeding to GP-06 (Worker Minimum Profile) for maximum
-workforce-product velocity.
+## Next Milestone: GP-07 (Credentials and Eligibility)
+
+Key requirements:
+- Credential types (RN_LICENSE, BLS, CNA_CERT, etc.)
+- Credential record CRUD
+- Verification lifecycle (UPLOADED → VERIFIED → EXPIRED)
+- Facility requirement matrix evaluation
+- Eligibility determination (deterministic)
+- Worker blocking on credential expiry
