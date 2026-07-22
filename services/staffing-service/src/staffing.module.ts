@@ -9,6 +9,7 @@ import { PostgresStaffingRepository } from './infrastructure/postgres-staffing-r
 import { StaffingAuthGuard } from './infrastructure/staffing-auth.guard.js';
 import { FacilityController } from './interface/http/facility.controller.js';
 import { HealthController } from './interface/http/health.controller.js';
+import { WorkerController } from './interface/http/worker.controller.js';
 
 /**
  * Staffing service root module.
@@ -19,7 +20,7 @@ import { HealthController } from './interface/http/health.controller.js';
  * In tests, keys are provided directly.
  */
 @Module({
-  controllers: [HealthController, FacilityController],
+  controllers: [HealthController, FacilityController, WorkerController],
   providers: [
     {
       provide: 'TOKEN_VALIDATOR',
