@@ -6,7 +6,7 @@ import type { PermissionAdapter } from './authorization-adapter.js';
 import { StaffingPermissionGuard } from './staffing-permission.guard.js';
 
 describe('StaffingPermissionGuard', () => {
-  function createContext(principal?: Record<string, unknown>) {
+  function createContext(principal?: Record<string, unknown>): unknown {
     const req = { principal };
     return {
       getHandler: () => ({}),

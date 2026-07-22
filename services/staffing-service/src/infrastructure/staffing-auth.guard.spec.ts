@@ -14,7 +14,7 @@ describe('StaffingAuthGuard', () => {
     getAllAndOverride: vi.fn().mockReturnValue(false),
   } as unknown as Reflector;
 
-  function createContext(headers: Record<string, string> = {}) {
+  function createContext(headers: Record<string, string> = {}): unknown {
     const req = { headers, principal: undefined };
     return {
       getHandler: () => ({}),

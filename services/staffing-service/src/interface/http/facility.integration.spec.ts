@@ -446,6 +446,22 @@ describe('Facility HTTP Integration (GP-05)', () => {
     });
   });
 
+  describe('Health endpoints (public, no auth)', () => {
+    it('should return 200 from /health without authentication', async () => {
+      const res = await request(app.getHttpServer()).get('/health');
+      expect(res.status).toBe(HttpStatus.OK);
+      expect(res.body.status).toBe('healthy');
+      expect(res.body.service).toBe('staffing-service');
+    });
+
+    it('should return 200 from /ready with database check', async () => {
+      const res = await request(app.getHttpServer()).get('/ready');
+      expect(res.status).toBe(HttpStatus.OK);
+      expect(res.body.status).toBe('healthy');
+      expect(res.body.checks.database).toBe('ok');
+    });
+  });
+
   describe('POST /v1/facilities', () => {
     it('should create a facility with valid input and return 201', async () => {
       mockIdentityResult = { valid: true }; // Reset for non-auth tests
