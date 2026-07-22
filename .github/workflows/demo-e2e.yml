@@ -36,9 +36,9 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: carecareer_admin
-          POSTGRES_PASSWORD: demo_password_not_for_production
-          POSTGRES_DB: carecareer_demo
+          POSTGRES_USER: ci_admin
+          POSTGRES_PASSWORD: ${{ github.run_id }}_${{ github.run_attempt }}
+          POSTGRES_DB: carecareer_ci
         ports:
           - 5432:5432
         options: >-
@@ -48,10 +48,10 @@ jobs:
           --health-retries 10
 
     env:
-      DATABASE_URL: postgresql://carecareer_admin:demo_password_not_for_production@localhost:5432/carecareer_demo
+      DATABASE_URL: postgresql://ci_admin:${{ github.run_id }}_${{ github.run_attempt }}@localhost:5432/carecareer_ci
       NODE_ENV: development
       DEMO_MODE: 'true'
-      DEMO_AUTH_SECRET: carecareer-demo-secret-for-testing-only-do-not-use-in-production
+      DEMO_AUTH_SECRET: ${{ github.sha }}_${{ github.run_id }}_demo_ci_only
       PORT: '3001'
       HOST: '0.0.0.0'
 
@@ -74,19 +74,19 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright Chromium
-        run: npx playwright install chromium --with-deps
+        run: pnpm --filter @carecareer/platform-admin-console exec playwright install --with-deps chromium
 
       - name: Apply migrations
         run: |
           if [ -f services/platform-service/prisma/migrations/001_initial_schema.sql ]; then
-            PGPASSWORD=demo_password_not_for_production psql -h localhost -U carecareer_admin -d carecareer_demo \
+            PGPASSWORD="${{ github.run_id }}_${{ github.run_attempt }}" psql -h localhost -U ci_admin -d carecareer_ci \
               -f services/platform-service/prisma/migrations/001_initial_schema.sql
           fi
 
       - name: Seed demo data
         run: |
           if [ -f services/platform-service/prisma/seed-demo.sql ]; then
-            PGPASSWORD=demo_password_not_for_production psql -h localhost -U carecareer_admin -d carecareer_demo \
+            PGPASSWORD="${{ github.run_id }}_${{ github.run_attempt }}" psql -h localhost -U ci_admin -d carecareer_ci \
               -f services/platform-service/prisma/seed-demo.sql
           fi
 
@@ -96,7 +96,7 @@ jobs:
       - name: Start backend
         run: |
           cd services/platform-service
-          printf "DATABASE_URL=%s\nPORT=3001\nHOST=0.0.0.0\nNODE_ENV=development\nDEMO_MODE=true\nDEMO_AUTH_SECRET=carecareer-demo-secret-for-testing-only-do-not-use-in-production\n" "$DATABASE_URL" > .env
+          printf "DATABASE_URL=%s\nPORT=3001\nHOST=0.0.0.0\nNODE_ENV=development\nDEMO_MODE=true\nDEMO_AUTH_SECRET=%s\n" "$DATABASE_URL" "$DEMO_AUTH_SECRET" > .env
           nohup node dist/main.js > /tmp/backend.log 2>&1 &
           echo $! > /tmp/backend.pid
 

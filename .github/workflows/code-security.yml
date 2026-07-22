@@ -6,7 +6,7 @@ on:
   push:
     branches: [main, master]
   schedule:
-    - cron: '0 6 * * 1'
+    - cron: "0 6 * * 1"
 
 permissions:
   security-events: write
@@ -17,6 +17,11 @@ jobs:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # CodeQL requires GitHub Advanced Security (GHAS) for private repos.
+    # If this fails due to GHAS not being enabled, the workflow will report
+    # the issue clearly. Enable GHAS in Settings → Security → Code security
+    # when the repository moves to a GitHub Team/Enterprise plan.
+    continue-on-error: false
 
     steps:
       - name: Checkout
