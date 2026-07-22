@@ -42,20 +42,33 @@ function createPoolPrisma(uri: string): PrismaLikeClient {
         const tx: TransactionClient = {
           async $executeRaw(s: TemplateStringsArray, ...v: unknown[]): Promise<number> {
             let q = '';
-            for (let i = 0; i < s.length; i++) { q += s[i]; if (i < v.length) q += `$${i + 1}`; }
+            for (let i = 0; i < s.length; i++) {
+              q += s[i];
+              if (i < v.length) q += `$${i + 1}`;
+            }
             return (await conn.query(q, v)).rowCount ?? 0;
           },
-          async $queryRaw<R = Record<string, unknown>>(s: TemplateStringsArray, ...v: unknown[]): Promise<R[]> {
+          async $queryRaw<R = Record<string, unknown>>(
+            s: TemplateStringsArray,
+            ...v: unknown[]
+          ): Promise<R[]> {
             let q = '';
-            for (let i = 0; i < s.length; i++) { q += s[i]; if (i < v.length) q += `$${i + 1}`; }
+            for (let i = 0; i < s.length; i++) {
+              q += s[i];
+              if (i < v.length) q += `$${i + 1}`;
+            }
             return (await conn.query(q, v)).rows as R[];
           },
         };
         const result = await fn(tx);
         await conn.query('COMMIT');
         return result;
-      } catch (e) { await conn.query('ROLLBACK'); throw e; }
-      finally { conn.release(); }
+      } catch (e) {
+        await conn.query('ROLLBACK');
+        throw e;
+      } finally {
+        conn.release();
+      }
     },
   };
 }
@@ -98,9 +111,12 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
     const currentDir = dirname(fileURLToPath(import.meta.url));
     const migrationsDir = resolve(currentDir, '..', '..', '..', 'prisma', 'migrations');
     for (const f of [
-      '001_identity_schema.sql', '002_rls_and_grants.sql',
-      '003_seed_roles_permissions.sql', '004_sessions_and_signing_keys.sql',
-      '005_refresh_token_lineage.sql', '006_authorization_decisions.sql',
+      '001_identity_schema.sql',
+      '002_rls_and_grants.sql',
+      '003_seed_roles_permissions.sql',
+      '004_sessions_and_signing_keys.sql',
+      '005_refresh_token_lineage.sql',
+      '006_authorization_decisions.sql',
     ]) {
       await rawClient.query(readFileSync(resolve(migrationsDir, f), 'utf-8'));
     }
@@ -120,28 +136,39 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
     // Seed users
     await rawClient.query(
       `INSERT INTO identity.users (id, display_name, primary_email, status, authorization_version, created_at, updated_at, version)
-       VALUES ($1, 'User A', 'a@test.com', 'ACTIVE', 1, NOW(), NOW(), 1)`, [userAId]);
+       VALUES ($1, 'User A', 'a@test.com', 'ACTIVE', 1, NOW(), NOW(), 1)`,
+      [userAId],
+    );
     await rawClient.query(
       `INSERT INTO identity.users (id, display_name, primary_email, status, authorization_version, created_at, updated_at, version)
-       VALUES ($1, 'User B', 'b@test.com', 'ACTIVE', 1, NOW(), NOW(), 1)`, [userBId]);
+       VALUES ($1, 'User B', 'b@test.com', 'ACTIVE', 1, NOW(), NOW(), 1)`,
+      [userBId],
+    );
 
     // Seed memberships
     await rawClient.query(
       `INSERT INTO identity.tenant_memberships (id, user_id, tenant_id, status, authorization_version, joined_at, created_at, updated_at)
-       VALUES ($1, $2, $3, 'ACTIVE', 1, NOW(), NOW(), NOW())`, [membershipAId, userAId, tenantAId]);
+       VALUES ($1, $2, $3, 'ACTIVE', 1, NOW(), NOW(), NOW())`,
+      [membershipAId, userAId, tenantAId],
+    );
     await rawClient.query(
       `INSERT INTO identity.tenant_memberships (id, user_id, tenant_id, status, authorization_version, joined_at, created_at, updated_at)
-       VALUES ($1, $2, $3, 'ACTIVE', 1, NOW(), NOW(), NOW())`, [membershipBId, userBId, tenantBId]);
+       VALUES ($1, $2, $3, 'ACTIVE', 1, NOW(), NOW(), NOW())`,
+      [membershipBId, userBId, tenantBId],
+    );
 
     // Assign TENANT_ADMIN role to User A
     await rawClient.query(
-      `INSERT INTO identity.membership_roles (membership_id, role_id) VALUES ($1, $2)`, [membershipAId, roleAdminId]);
+      `INSERT INTO identity.membership_roles (membership_id, role_id) VALUES ($1, $2)`,
+      [membershipAId, roleAdminId],
+    );
 
     // Seed session for User A
     await rawClient.query(
       `INSERT INTO identity.auth_sessions (id, user_id, status, refresh_token_hash, token_family, selected_tenant_id, membership_id, user_authorization_version, last_used_at, expires_at, created_at)
        VALUES ($1, $2, 'ACTIVE', 'hash', gen_random_uuid(), $3, $4, 1, NOW(), NOW() + INTERVAL '7 days', NOW())`,
-      [sessionAId, userAId, tenantAId, membershipAId]);
+      [sessionAId, userAId, tenantAId, membershipAId],
+    );
 
     // Build NestJS app
     const sessionRepo = new PostgresSessionRepository();
@@ -150,7 +177,8 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
     const authzRepo = new PostgresAuthorizationRepository();
     const tokenValidator = new PlatformTokenValidator(
       { issuer: 'carecareer-identity', audience: 'carecareer-api', clockToleranceSec: 30 },
-      prisma, signingKeyRepo,
+      prisma,
+      signingKeyRepo,
     );
     const sessionValidator = new SessionStateValidator(prisma, sessionRepo);
 
@@ -158,7 +186,11 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
       controllers: [HealthController, AuthorizationController],
       providers: [
         { provide: TOKEN_VALIDATOR, useValue: tokenValidator },
-        { provide: APP_GUARD, useFactory: (r: Reflector) => new IdentityAuthGuard(tokenValidator, r, sessionValidator), inject: [Reflector] },
+        {
+          provide: APP_GUARD,
+          useFactory: (r: Reflector) => new IdentityAuthGuard(tokenValidator, r, sessionValidator),
+          inject: [Reflector],
+        },
         { provide: IDENTITY_REPOSITORY, useValue: identityRepo },
         { provide: ADMINISTRATIVE_DATABASE, useValue: new AdministrativeDatabase(prisma) },
         { provide: 'AUTHORIZATION_PRISMA', useValue: prisma },
@@ -177,16 +209,20 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
   });
 
   function issueToken(overrides: Record<string, unknown> = {}): Promise<string> {
-    return signPlatformJwt({
-      sub: userAId,
-      user_authorization_version: 1,
-      platform_roles: [],
-      tenant_roles: ['TENANT_ADMIN'],
-      permissions: [],
-      sid: sessionAId,
-      active_tenant_id: tenantAId,
-      ...overrides,
-    }, privateKeyPem, keyId);
+    return signPlatformJwt(
+      {
+        sub: userAId,
+        user_authorization_version: 1,
+        platform_roles: [],
+        tenant_roles: ['TENANT_ADMIN'],
+        permissions: [],
+        sid: sessionAId,
+        active_tenant_id: tenantAId,
+        ...overrides,
+      },
+      privateKeyPem,
+      keyId,
+    );
   }
 
   // ─── Successful decisions ───────────────────────────────────────────────────
@@ -220,7 +256,9 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
 
     it('should deny when membership has no roles assigned', async () => {
       // Remove all roles (exercises getPermissionsForRoles with empty roleIds)
-      await rawClient.query(`DELETE FROM identity.membership_roles WHERE membership_id = $1`, [membershipAId]);
+      await rawClient.query(`DELETE FROM identity.membership_roles WHERE membership_id = $1`, [
+        membershipAId,
+      ]);
       const token = await issueToken();
       const res = await request(app.getHttpServer())
         .post('/v1/authorization/decisions')
@@ -232,7 +270,10 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
       expect(res.body.reasonCode).toBe('NO_MATCHING_GRANT');
 
       // Restore roles
-      await rawClient.query(`INSERT INTO identity.membership_roles (membership_id, role_id) VALUES ($1, $2)`, [membershipAId, roleAdminId]);
+      await rawClient.query(
+        `INSERT INTO identity.membership_roles (membership_id, role_id) VALUES ($1, $2)`,
+        [membershipAId, roleAdminId],
+      );
     });
   });
 
@@ -258,7 +299,9 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
       expect(res.body.reasonCode).toBe('EXPLICIT_DENY');
 
       // Clean up
-      await rawClient.query(`DELETE FROM identity.explicit_denials WHERE tenant_id = $1`, [tenantAId]);
+      await rawClient.query(`DELETE FROM identity.explicit_denials WHERE tenant_id = $1`, [
+        tenantAId,
+      ]);
     });
   });
 
@@ -267,8 +310,9 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
   describe('Authorization version enforcement', () => {
     it('should deny when user authorization version is stale', async () => {
       // Increment user version in DB (simulates role change)
-      await rawClient.query(
-        `UPDATE identity.users SET authorization_version = 2 WHERE id = $1`, [userAId]);
+      await rawClient.query(`UPDATE identity.users SET authorization_version = 2 WHERE id = $1`, [
+        userAId,
+      ]);
 
       // Token still has version 1
       const token = await issueToken({ user_authorization_version: 1 });
@@ -282,8 +326,9 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
       expect(res.body.reasonCode).toBe('VERSION_STALE');
 
       // Restore
-      await rawClient.query(
-        `UPDATE identity.users SET authorization_version = 1 WHERE id = $1`, [userAId]);
+      await rawClient.query(`UPDATE identity.users SET authorization_version = 1 WHERE id = $1`, [
+        userAId,
+      ]);
     });
   });
 
@@ -291,7 +336,9 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
 
   describe('User and membership state enforcement', () => {
     it('should deny when user is suspended', async () => {
-      await rawClient.query(`UPDATE identity.users SET status = 'SUSPENDED' WHERE id = $1`, [userAId]);
+      await rawClient.query(`UPDATE identity.users SET status = 'SUSPENDED' WHERE id = $1`, [
+        userAId,
+      ]);
 
       const token = await issueToken();
       const res = await request(app.getHttpServer())
@@ -307,7 +354,10 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
     });
 
     it('should deny when membership is suspended', async () => {
-      await rawClient.query(`UPDATE identity.tenant_memberships SET status = 'SUSPENDED' WHERE id = $1`, [membershipAId]);
+      await rawClient.query(
+        `UPDATE identity.tenant_memberships SET status = 'SUSPENDED' WHERE id = $1`,
+        [membershipAId],
+      );
 
       const token = await issueToken();
       const res = await request(app.getHttpServer())
@@ -319,7 +369,10 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
       expect(res.body.allowed).toBe(false);
       expect(res.body.reasonCode).toBe('MEMBERSHIP_INVALID');
 
-      await rawClient.query(`UPDATE identity.tenant_memberships SET status = 'ACTIVE' WHERE id = $1`, [membershipAId]);
+      await rawClient.query(
+        `UPDATE identity.tenant_memberships SET status = 'ACTIVE' WHERE id = $1`,
+        [membershipAId],
+      );
     });
   });
 
@@ -398,15 +451,19 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
   describe('Tenant isolation', () => {
     it('should deny when user has no membership in the selected tenant', async () => {
       // User A authenticated but tries to evaluate for Tenant B
-      const token = await signPlatformJwt({
-        sub: userAId,
-        user_authorization_version: 1,
-        platform_roles: [],
-        tenant_roles: [],
-        permissions: [],
-        sid: sessionAId,
-        active_tenant_id: tenantBId,
-      }, privateKeyPem, keyId);
+      const token = await signPlatformJwt(
+        {
+          sub: userAId,
+          user_authorization_version: 1,
+          platform_roles: [],
+          tenant_roles: [],
+          permissions: [],
+          sid: sessionAId,
+          active_tenant_id: tenantBId,
+        },
+        privateKeyPem,
+        keyId,
+      );
 
       const res = await request(app.getHttpServer())
         .post('/v1/authorization/decisions')
@@ -422,7 +479,8 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
       await rawClient.query(
         `INSERT INTO identity.explicit_denials (tenant_id, principal_type, principal_id, action, active, reason, created_by)
          VALUES ($1, 'USER', $2, 'secret.action', true, 'b-only', 'test')`,
-        [tenantBId, userBId]);
+        [tenantBId, userBId],
+      );
       const token = await issueToken();
       const res = await request(app.getHttpServer())
         .post('/v1/authorization/decisions')
@@ -431,28 +489,38 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
         .expect(HttpStatus.OK);
       expect(res.body.allowed).toBe(false);
       expect(res.body.reasonCode).toBe('NO_MATCHING_GRANT');
-      await rawClient.query(`DELETE FROM identity.explicit_denials WHERE tenant_id = $1`, [tenantBId]);
+      await rawClient.query(`DELETE FROM identity.explicit_denials WHERE tenant_id = $1`, [
+        tenantBId,
+      ]);
     });
   });
 
   describe('Database role security', () => {
     it('should confirm RLS enabled and forced on explicit_denials', async () => {
-      const r = await rawClient.query(`SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = 'identity.explicit_denials'::regclass`);
+      const r = await rawClient.query(
+        `SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = 'identity.explicit_denials'::regclass`,
+      );
       expect(r.rows[0]).toEqual({ relrowsecurity: true, relforcerowsecurity: true });
     });
     it('should confirm RLS enabled and forced on authorization_decisions', async () => {
-      const r = await rawClient.query(`SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = 'identity.authorization_decisions'::regclass`);
+      const r = await rawClient.query(
+        `SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = 'identity.authorization_decisions'::regclass`,
+      );
       expect(r.rows[0]).toEqual({ relrowsecurity: true, relforcerowsecurity: true });
     });
     it('should confirm carecareer_app has no superuser or bypassrls', async () => {
-      const r = await rawClient.query(`SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = 'carecareer_app'`);
+      const r = await rawClient.query(
+        `SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = 'carecareer_app'`,
+      );
       expect(r.rows[0]).toEqual({ rolsuper: false, rolbypassrls: false });
     });
   });
 
   describe('Deactivated user', () => {
     it('should deny deactivated user', async () => {
-      await rawClient.query(`UPDATE identity.users SET status = 'DEACTIVATED' WHERE id = $1`, [userAId]);
+      await rawClient.query(`UPDATE identity.users SET status = 'DEACTIVATED' WHERE id = $1`, [
+        userAId,
+      ]);
       const token = await issueToken();
       const res = await request(app.getHttpServer())
         .post('/v1/authorization/decisions')
@@ -470,7 +538,8 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
       await rawClient.query(
         `INSERT INTO identity.explicit_denials (tenant_id, principal_type, principal_id, action, active, reason, created_by)
          VALUES ($1, 'MEMBERSHIP', $2, 'tenant.members.invite', true, 'membership-scoped', 'test')`,
-        [tenantAId, membershipAId]);
+        [tenantAId, membershipAId],
+      );
       const token = await issueToken();
       const res = await request(app.getHttpServer())
         .post('/v1/authorization/decisions')
@@ -479,14 +548,17 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
         .expect(HttpStatus.OK);
       expect(res.body.allowed).toBe(false);
       expect(res.body.reasonCode).toBe('EXPLICIT_DENY');
-      await rawClient.query(`DELETE FROM identity.explicit_denials WHERE tenant_id = $1`, [tenantAId]);
+      await rawClient.query(`DELETE FROM identity.explicit_denials WHERE tenant_id = $1`, [
+        tenantAId,
+      ]);
     });
 
     it('should allow after denial is revoked', async () => {
       await rawClient.query(
         `INSERT INTO identity.explicit_denials (tenant_id, principal_type, principal_id, action, active, reason, created_by)
          VALUES ($1, 'USER', $2, 'tenant.members.read', false, 'revoked', 'test')`,
-        [tenantAId, userAId]);
+        [tenantAId, userAId],
+      );
       const token = await issueToken();
       const res = await request(app.getHttpServer())
         .post('/v1/authorization/decisions')
@@ -495,7 +567,9 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
         .expect(HttpStatus.OK);
       expect(res.body.allowed).toBe(true);
       expect(res.body.reasonCode).toBe('GRANTED');
-      await rawClient.query(`DELETE FROM identity.explicit_denials WHERE tenant_id = $1`, [tenantAId]);
+      await rawClient.query(`DELETE FROM identity.explicit_denials WHERE tenant_id = $1`, [
+        tenantAId,
+      ]);
     });
   });
 
@@ -528,13 +602,15 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
   describe('Table ownership enforcement', () => {
     it('should confirm carecareer_app is not owner of explicit_denials', async () => {
       const r = await rawClient.query(
-        `SELECT tableowner FROM pg_tables WHERE schemaname='identity' AND tablename='explicit_denials'`);
+        `SELECT tableowner FROM pg_tables WHERE schemaname='identity' AND tablename='explicit_denials'`,
+      );
       expect(r.rows[0]?.tableowner).not.toBe('carecareer_app');
     });
 
     it('should confirm carecareer_app is not owner of authorization_decisions', async () => {
       const r = await rawClient.query(
-        `SELECT tableowner FROM pg_tables WHERE schemaname='identity' AND tablename='authorization_decisions'`);
+        `SELECT tableowner FROM pg_tables WHERE schemaname='identity' AND tablename='authorization_decisions'`,
+      );
       expect(r.rows[0]?.tableowner).not.toBe('carecareer_app');
     });
   });
@@ -558,17 +634,27 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
         `INSERT INTO identity.auth_sessions (id, user_id, status, refresh_token_hash, token_family, selected_tenant_id, membership_id, user_authorization_version, last_used_at, expires_at, created_at)
          VALUES ($1, $2, 'ACTIVE', 'hash_b', gen_random_uuid(), $3, $4, 1, NOW(), NOW() + INTERVAL '7 days', NOW())
          ON CONFLICT DO NOTHING`,
-        [sessionBId, userBId, tenantBId, membershipBId]);
+        [sessionBId, userBId, tenantBId, membershipBId],
+      );
       // Assign TENANT_ADMIN to user B's membership
       await rawClient.query(
         `INSERT INTO identity.membership_roles (membership_id, role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-        [membershipBId, roleAdminId]);
+        [membershipBId, roleAdminId],
+      );
 
-      const tokenB = await signPlatformJwt({
-        sub: userBId, user_authorization_version: 1,
-        platform_roles: [], tenant_roles: ['TENANT_ADMIN'], permissions: [],
-        sid: sessionBId, active_tenant_id: tenantBId,
-      }, privateKeyPem, keyId);
+      const tokenB = await signPlatformJwt(
+        {
+          sub: userBId,
+          user_authorization_version: 1,
+          platform_roles: [],
+          tenant_roles: ['TENANT_ADMIN'],
+          permissions: [],
+          sid: sessionBId,
+          active_tenant_id: tenantBId,
+        },
+        privateKeyPem,
+        keyId,
+      );
       const resB = await request(app.getHttpServer())
         .post('/v1/authorization/decisions')
         .set('Authorization', `Bearer ${tokenB}`)
@@ -590,7 +676,10 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
 
   describe('Deactivated membership', () => {
     it('should deny when membership is deactivated', async () => {
-      await rawClient.query(`UPDATE identity.tenant_memberships SET status = 'DEACTIVATED' WHERE id = $1`, [membershipAId]);
+      await rawClient.query(
+        `UPDATE identity.tenant_memberships SET status = 'DEACTIVATED' WHERE id = $1`,
+        [membershipAId],
+      );
       const token = await issueToken();
       const res = await request(app.getHttpServer())
         .post('/v1/authorization/decisions')
@@ -599,7 +688,10 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
         .expect(HttpStatus.OK);
       expect(res.body.allowed).toBe(false);
       expect(res.body.reasonCode).toBe('MEMBERSHIP_INVALID');
-      await rawClient.query(`UPDATE identity.tenant_memberships SET status = 'ACTIVE' WHERE id = $1`, [membershipAId]);
+      await rawClient.query(
+        `UPDATE identity.tenant_memberships SET status = 'ACTIVE' WHERE id = $1`,
+        [membershipAId],
+      );
     });
   });
 
@@ -607,14 +699,25 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
 
   describe('Stale membership authorization version', () => {
     it('should deny when membership authorization version is stale', async () => {
-      await rawClient.query(`UPDATE identity.tenant_memberships SET authorization_version = 2 WHERE id = $1`, [membershipAId]);
+      await rawClient.query(
+        `UPDATE identity.tenant_memberships SET authorization_version = 2 WHERE id = $1`,
+        [membershipAId],
+      );
       // Token has membership_authorization_version = 1 (default from issueToken not setting it)
-      const token = await signPlatformJwt({
-        sub: userAId, user_authorization_version: 1,
-        platform_roles: [], tenant_roles: ['TENANT_ADMIN'], permissions: [],
-        sid: sessionAId, active_tenant_id: tenantAId,
-        membership_authorization_version: 1,
-      }, privateKeyPem, keyId);
+      const token = await signPlatformJwt(
+        {
+          sub: userAId,
+          user_authorization_version: 1,
+          platform_roles: [],
+          tenant_roles: ['TENANT_ADMIN'],
+          permissions: [],
+          sid: sessionAId,
+          active_tenant_id: tenantAId,
+          membership_authorization_version: 1,
+        },
+        privateKeyPem,
+        keyId,
+      );
       const res = await request(app.getHttpServer())
         .post('/v1/authorization/decisions')
         .set('Authorization', `Bearer ${token}`)
@@ -622,7 +725,10 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
         .expect(HttpStatus.OK);
       expect(res.body.allowed).toBe(false);
       expect(res.body.reasonCode).toBe('VERSION_STALE');
-      await rawClient.query(`UPDATE identity.tenant_memberships SET authorization_version = 1 WHERE id = $1`, [membershipAId]);
+      await rawClient.query(
+        `UPDATE identity.tenant_memberships SET authorization_version = 1 WHERE id = $1`,
+        [membershipAId],
+      );
     });
   });
 
@@ -631,9 +737,13 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
   describe('Role and permission removal after token issuance', () => {
     it('should deny after role is removed even with valid token', async () => {
       // Remove the TENANT_ADMIN role from membership
-      await rawClient.query(`DELETE FROM identity.membership_roles WHERE membership_id = $1`, [membershipAId]);
+      await rawClient.query(`DELETE FROM identity.membership_roles WHERE membership_id = $1`, [
+        membershipAId,
+      ]);
       // Increment authorization version to reflect the change
-      await rawClient.query(`UPDATE identity.users SET authorization_version = 2 WHERE id = $1`, [userAId]);
+      await rawClient.query(`UPDATE identity.users SET authorization_version = 2 WHERE id = $1`, [
+        userAId,
+      ]);
 
       const token = await issueToken({ user_authorization_version: 1 });
       const res = await request(app.getHttpServer())
@@ -646,8 +756,13 @@ describe('Authorization Decision HTTP Integration (GP-03.4)', () => {
       expect(res.body.reasonCode).toBe('VERSION_STALE');
 
       // Restore
-      await rawClient.query(`INSERT INTO identity.membership_roles (membership_id, role_id) VALUES ($1, $2)`, [membershipAId, roleAdminId]);
-      await rawClient.query(`UPDATE identity.users SET authorization_version = 1 WHERE id = $1`, [userAId]);
+      await rawClient.query(
+        `INSERT INTO identity.membership_roles (membership_id, role_id) VALUES ($1, $2)`,
+        [membershipAId, roleAdminId],
+      );
+      await rawClient.query(`UPDATE identity.users SET authorization_version = 1 WHERE id = $1`, [
+        userAId,
+      ]);
     });
   });
 

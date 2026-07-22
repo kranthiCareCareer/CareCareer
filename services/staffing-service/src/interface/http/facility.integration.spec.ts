@@ -15,9 +15,15 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { PrismaLikeClient, TransactionClient } from '@carecareer/database';
 import { TenantAwareTransaction } from '@carecareer/database';
 
+import type { PermissionAdapter } from '../../infrastructure/authorization-adapter.js';
+import type {
+  IdentityStateAdapter,
+  IdentityStateValidationResult,
+} from '../../infrastructure/identity-state-adapter.js';
 import { LocalJwksTokenValidator } from '../../infrastructure/local-jwks-token-validator.js';
 import { PostgresStaffingRepository } from '../../infrastructure/postgres-staffing-repository.js';
 import { StaffingAuthGuard } from '../../infrastructure/staffing-auth.guard.js';
+import { StaffingPermissionGuard } from '../../infrastructure/staffing-permission.guard.js';
 
 import { FacilityController } from './facility.controller.js';
 import { HealthController } from './health.controller.js';
@@ -53,6 +59,18 @@ describe('Facility HTTP Integration (GP-05)', () => {
   const userBId = '00000000-0000-0000-0000-000000000b01';
   const clientAId = '00000000-0000-0000-0000-000000000c01';
   const clientBId = '00000000-0000-0000-0000-000000000c02';
+
+  /** Configurable identity state mock — defaults to "valid" */
+  let mockIdentityResult: IdentityStateValidationResult = { valid: true };
+  const mockIdentityAdapter: IdentityStateAdapter = {
+    validate: async () => mockIdentityResult,
+  };
+
+  /** Configurable permission mock — defaults to "allowed" */
+  let mockPermissionResult: { allowed: boolean; reason?: string } = { allowed: true };
+  const mockPermissionAdapter: PermissionAdapter = {
+    hasPermission: async () => mockPermissionResult,
+  };
 
   /**
    * Sign a real RS256 JWT using the test private key.
@@ -156,12 +174,19 @@ describe('Facility HTTP Integration (GP-05)', () => {
     // Apply migration
     const currentDir = dirname(fileURLToPath(import.meta.url));
     const migrationPath = resolve(
-      currentDir, '..', '..', '..', 'prisma', 'migrations', '001_facilities_schema.sql',
+      currentDir,
+      '..',
+      '..',
+      '..',
+      'prisma',
+      'migrations',
+      '001_facilities_schema.sql',
     );
     await superClient.query(readFileSync(migrationPath, 'utf-8'));
 
     // Seed client data (required for facility FK)
     await superClient.query(`
+      ALTER ROLE staffing_app PASSWORD 'staffing_app_test';
       INSERT INTO staffing.clients (id, tenant_id, name) VALUES
         ('${clientAId}', '${tenantAId}', 'Client Alpha'),
         ('${clientBId}', '${tenantBId}', 'Client Beta');
@@ -170,7 +195,7 @@ describe('Facility HTTP Integration (GP-05)', () => {
     // Create app pool using staffing_app role (subject to RLS)
     const host = container.getHost();
     const port = container.getMappedPort(5432);
-    const appUri = `postgresql://staffing_app:staffing_app_dev@${host}:${port}/staffing_test`;
+    const appUri = `postgresql://staffing_app:staffing_app_test@${host}:${port}/staffing_test`;
     const prisma = createPoolPrisma(appUri);
     const tenantDb = new TenantAwareTransaction(prisma);
 
@@ -182,20 +207,27 @@ describe('Facility HTTP Integration (GP-05)', () => {
       publicKeys: [{ kid: TEST_KID, publicKeyPem: publicKeyPem }],
     });
 
-    // Build NestJS test module with REAL auth guard (RS256 validation)
+    // Build NestJS test module with REAL auth guard (RS256 + identity state)
     const moduleRef = await Test.createTestingModule({
       controllers: [HealthController, FacilityController],
       providers: [
         { provide: 'STAFFING_TENANT_DB', useValue: tenantDb },
         { provide: 'STAFFING_REPOSITORY', useClass: PostgresStaffingRepository },
         { provide: 'TOKEN_VALIDATOR', useValue: tokenValidator },
+        { provide: 'IDENTITY_STATE_ADAPTER', useValue: mockIdentityAdapter },
+        { provide: 'PERMISSION_ADAPTER', useValue: mockPermissionAdapter },
         {
           provide: APP_GUARD,
-          useFactory: (tv: unknown, ref: Reflector) => {
-            const guard = new StaffingAuthGuard(tv as never, ref);
-            return guard;
+          useFactory: (tv: unknown, ref: Reflector, adapter: IdentityStateAdapter) => {
+            return new StaffingAuthGuard(tv as never, ref, adapter);
           },
-          inject: ['TOKEN_VALIDATOR', Reflector],
+          inject: ['TOKEN_VALIDATOR', Reflector, 'IDENTITY_STATE_ADAPTER'],
+        },
+        {
+          provide: APP_GUARD,
+          useFactory: (ref: Reflector, pa: PermissionAdapter) =>
+            new StaffingPermissionGuard(ref, pa),
+          inject: [Reflector, 'PERMISSION_ADAPTER'],
         },
       ],
     }).compile();
@@ -228,12 +260,22 @@ describe('Facility HTTP Integration (GP-05)', () => {
 
     it('should reject unsigned/fabricated token (401)', async () => {
       // Manually construct a token without valid RS256 signature
-      const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: TEST_KID })).toString('base64url');
-      const payload = Buffer.from(JSON.stringify({
-        sub: userAId, active_tenant_id: tenantAId, sid: 'fake', jti: 'fake',
-        user_authorization_version: 1, iss: ISSUER, aud: AUDIENCE,
-        iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 900,
-      })).toString('base64url');
+      const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: TEST_KID })).toString(
+        'base64url',
+      );
+      const payload = Buffer.from(
+        JSON.stringify({
+          sub: userAId,
+          active_tenant_id: tenantAId,
+          sid: 'fake',
+          jti: 'fake',
+          user_authorization_version: 1,
+          iss: ISSUER,
+          aud: AUDIENCE,
+          iat: Math.floor(Date.now() / 1000),
+          exp: Math.floor(Date.now() / 1000) + 900,
+        }),
+      ).toString('base64url');
       const fakeToken = `${header}.${payload}.invalid-signature`;
 
       const res = await request(app.getHttpServer())
@@ -245,13 +287,25 @@ describe('Facility HTTP Integration (GP-05)', () => {
     it('should reject HS256 token (401 — algorithm not allowed)', async () => {
       // Create an HS256 token (not RS256)
       const { createHmac } = await import('node:crypto');
-      const header = Buffer.from(JSON.stringify({ alg: 'HS256', kid: TEST_KID })).toString('base64url');
-      const payload = Buffer.from(JSON.stringify({
-        sub: userAId, active_tenant_id: tenantAId, sid: 'hs256-session', jti: 'hs256-jti',
-        user_authorization_version: 1, iss: ISSUER, aud: AUDIENCE,
-        iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 900,
-      })).toString('base64url');
-      const hmac = createHmac('sha256', 'some-secret-key').update(`${header}.${payload}`).digest('base64url');
+      const header = Buffer.from(JSON.stringify({ alg: 'HS256', kid: TEST_KID })).toString(
+        'base64url',
+      );
+      const payload = Buffer.from(
+        JSON.stringify({
+          sub: userAId,
+          active_tenant_id: tenantAId,
+          sid: 'hs256-session',
+          jti: 'hs256-jti',
+          user_authorization_version: 1,
+          iss: ISSUER,
+          aud: AUDIENCE,
+          iat: Math.floor(Date.now() / 1000),
+          exp: Math.floor(Date.now() / 1000) + 900,
+        }),
+      ).toString('base64url');
+      const hmac = createHmac('sha256', 'some-secret-key')
+        .update(`${header}.${payload}`)
+        .digest('base64url');
       const hs256Token = `${header}.${payload}.${hmac}`;
 
       const res = await request(app.getHttpServer())
@@ -262,7 +316,9 @@ describe('Facility HTTP Integration (GP-05)', () => {
 
     it('should reject token with wrong issuer (401)', async () => {
       const token = await signValidJwt({
-        sub: userAId, tenantId: tenantAId, issuer: 'wrong-issuer',
+        sub: userAId,
+        tenantId: tenantAId,
+        issuer: 'wrong-issuer',
       });
       const res = await request(app.getHttpServer())
         .get('/v1/facilities')
@@ -272,7 +328,9 @@ describe('Facility HTTP Integration (GP-05)', () => {
 
     it('should reject token with wrong audience (401)', async () => {
       const token = await signValidJwt({
-        sub: userAId, tenantId: tenantAId, audience: 'wrong-audience',
+        sub: userAId,
+        tenantId: tenantAId,
+        audience: 'wrong-audience',
       });
       const res = await request(app.getHttpServer())
         .get('/v1/facilities')
@@ -282,7 +340,9 @@ describe('Facility HTTP Integration (GP-05)', () => {
 
     it('should reject expired token (401)', async () => {
       const token = await signValidJwt({
-        sub: userAId, tenantId: tenantAId, expiresIn: '-5m',
+        sub: userAId,
+        tenantId: tenantAId,
+        expiresIn: '-5m',
       });
       const res = await request(app.getHttpServer())
         .get('/v1/facilities')
@@ -293,7 +353,9 @@ describe('Facility HTTP Integration (GP-05)', () => {
 
     it('should reject token with unknown kid (401)', async () => {
       const token = await signValidJwt({
-        sub: userAId, tenantId: tenantAId, kid: 'unknown-key-id-999',
+        sub: userAId,
+        tenantId: tenantAId,
+        kid: 'unknown-key-id-999',
       });
       const res = await request(app.getHttpServer())
         .get('/v1/facilities')
@@ -310,8 +372,12 @@ describe('Facility HTTP Integration (GP-05)', () => {
       });
       const otherPk = await importPKCS8(otherKeys.privateKey as string, 'RS256');
       const token = await new SignJWT({
-        active_tenant_id: tenantAId, sid: 'other-session', user_authorization_version: 1,
-        membership_id: 'mem-other', platform_roles: [], tenant_roles: ['TENANT_ADMIN'],
+        active_tenant_id: tenantAId,
+        sid: 'other-session',
+        user_authorization_version: 1,
+        membership_id: 'mem-other',
+        platform_roles: [],
+        tenant_roles: ['TENANT_ADMIN'],
         permissions: ['facilities:read'],
       })
         .setProtectedHeader({ alg: 'RS256', kid: TEST_KID })
@@ -330,6 +396,7 @@ describe('Facility HTTP Integration (GP-05)', () => {
     });
 
     it('should accept valid RS256 token and return 200', async () => {
+      mockIdentityResult = { valid: true };
       const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
       const res = await request(app.getHttpServer())
         .get('/v1/facilities')
@@ -338,20 +405,126 @@ describe('Facility HTTP Integration (GP-05)', () => {
     });
 
     it('should ignore malicious role claims — tenant derives from validated token only', async () => {
-      // Token claims tenantB but is valid RS256 — principal gets tenantB
-      // The test proves the controller uses principal.selectedTenantId from validated token
+      mockIdentityResult = { valid: true };
       const token = await signValidJwt({ sub: userAId, tenantId: tenantBId });
       const res = await request(app.getHttpServer())
         .get('/v1/facilities')
         .set('Authorization', `Bearer ${token}`);
-      // Should succeed but return Tenant B's empty facility list
       expect(res.status).toBe(HttpStatus.OK);
       expect(res.body.data).toEqual([]);
+    });
+
+    it('should deny when session is revoked', async () => {
+      mockIdentityResult = {
+        valid: false,
+        code: 'AUTH_SESSION_REVOKED',
+        message: 'Session revoked',
+      };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .get('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(HttpStatus.UNAUTHORIZED);
+      expect(res.body.code).toBe('AUTH_SESSION_REVOKED');
+    });
+
+    it('should deny when user is inactive', async () => {
+      mockIdentityResult = { valid: false, code: 'USER_INACTIVE', message: 'User inactive' };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .get('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(HttpStatus.UNAUTHORIZED);
+      expect(res.body.code).toBe('USER_INACTIVE');
+    });
+
+    it('should deny when membership is inactive', async () => {
+      mockIdentityResult = {
+        valid: false,
+        code: 'MEMBERSHIP_INACTIVE',
+        message: 'Membership inactive',
+      };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .get('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(HttpStatus.UNAUTHORIZED);
+      expect(res.body.code).toBe('MEMBERSHIP_INACTIVE');
+    });
+
+    it('should deny when user authorization version is stale', async () => {
+      mockIdentityResult = {
+        valid: false,
+        code: 'AUTH_VERSION_STALE',
+        message: 'Stale auth version',
+      };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .get('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(HttpStatus.UNAUTHORIZED);
+      expect(res.body.code).toBe('AUTH_VERSION_STALE');
+    });
+
+    it('should deny when identity service is unavailable (fail closed)', async () => {
+      mockIdentityResult = {
+        valid: false,
+        code: 'IDENTITY_SERVICE_UNAVAILABLE',
+        message: 'Cannot validate',
+      };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .get('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(HttpStatus.UNAUTHORIZED);
+      expect(res.body.code).toBe('IDENTITY_SERVICE_UNAVAILABLE');
+    });
+  });
+
+  describe('Permission enforcement', () => {
+    it('should deny when permission adapter rejects (403)', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: false, reason: 'No facility.create permission' };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'Denied Fac', timezone: 'US/Eastern' });
+      expect(res.status).toBe(HttpStatus.FORBIDDEN);
+      expect(res.body.code).toBe('INSUFFICIENT_PERMISSIONS');
+    });
+
+    it('should allow when permission adapter grants', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .get('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(HttpStatus.OK);
+    });
+  });
+
+  describe('Health endpoints (public, no auth)', () => {
+    it('should return 200 from /health without authentication', async () => {
+      const res = await request(app.getHttpServer()).get('/health');
+      expect(res.status).toBe(HttpStatus.OK);
+      expect(res.body.status).toBe('healthy');
+      expect(res.body.service).toBe('staffing-service');
+    });
+
+    it('should return 200 from /ready with database check', async () => {
+      const res = await request(app.getHttpServer()).get('/ready');
+      expect(res.status).toBe(HttpStatus.OK);
+      expect(res.body.status).toBe('healthy');
+      expect(res.body.checks.database).toBe('ok');
     });
   });
 
   describe('POST /v1/facilities', () => {
     it('should create a facility with valid input and return 201', async () => {
+      mockIdentityResult = { valid: true }; // Reset for non-auth tests
+      mockPermissionResult = { allowed: true };
       const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
       const res = await request(app.getHttpServer())
         .post('/v1/facilities')
@@ -392,7 +565,9 @@ describe('Facility HTTP Integration (GP-05)', () => {
         .post('/v1/facilities')
         .set('Authorization', `Bearer ${token}`)
         .send({
-          clientId: clientAId, name: 'Extra', timezone: 'US/Eastern',
+          clientId: clientAId,
+          name: 'Extra',
+          timezone: 'US/Eastern',
           tenantId: tenantBId, // Attempted tenant spoof
         });
       expect(res.status).toBe(HttpStatus.BAD_REQUEST);
@@ -652,8 +827,14 @@ describe('Facility HTTP Integration (GP-05)', () => {
       const facRes = await request(app.getHttpServer())
         .post('/v1/facilities')
         .set('Authorization', `Bearer ${token}`)
-        .send({ clientId: clientAId, name: 'Geofence Test', timezone: 'US/Eastern',
-          latitude: 47.0, longitude: -122.0, geofenceRadiusMeters: 100 });
+        .send({
+          clientId: clientAId,
+          name: 'Geofence Test',
+          timezone: 'US/Eastern',
+          latitude: 47.0,
+          longitude: -122.0,
+          geofenceRadiusMeters: 100,
+        });
       const facilityId = facRes.body.data.facilityId;
 
       const res = await request(app.getHttpServer())
@@ -782,6 +963,165 @@ describe('Facility HTTP Integration (GP-05)', () => {
         .send({ status: 'ACTIVE', expectedVersion: 2 });
       expect(react.status).toBe(HttpStatus.OK);
       expect(react.body.data.status).toBe('ACTIVE');
+    });
+  });
+
+  describe('Additional error paths (coverage)', () => {
+    it('should reject facility update on non-existent facility (404)', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .patch('/v1/facilities/00000000-0000-0000-0000-ffffffffffff')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Ghost', expectedVersion: 1 });
+      expect(res.status).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('should reject facility status change on non-existent facility (404)', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .post('/v1/facilities/00000000-0000-0000-0000-ffffffffffff/status')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'INACTIVE', expectedVersion: 1 });
+      expect(res.status).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('should reject facility status change with version conflict (409)', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'StatusConflict', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/status`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'INACTIVE', expectedVersion: 99 });
+      expect(res.status).toBe(HttpStatus.CONFLICT);
+    });
+
+    it('should reject department status change on non-existent department (404)', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'DeptNotFound', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .post(
+          `/v1/facilities/${facilityId}/departments/00000000-0000-0000-0000-ffffffffffff/status`,
+        )
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'INACTIVE', expectedVersion: 1 });
+      expect(res.status).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('should reject credential requirement creation with invalid body', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'CredValidation', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/credential-requirements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ role: 'INVALID_ROLE', credentialType: 'BLS' });
+      expect(res.status).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should reject credential requirement on non-existent facility (404)', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .post('/v1/facilities/00000000-0000-0000-0000-ffffffffffff/credential-requirements')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ role: 'RN', credentialType: 'BLS' });
+      expect(res.status).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('should reject invalid role in credential requirements query', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'RoleFilter', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/facilities/${facilityId}/credential-requirements?role=INVALID`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should accept credential requirement with effectiveFrom date', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'FutureCred', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/credential-requirements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          role: 'RN',
+          credentialType: 'ADVANCED_CARDIAC',
+          effectiveFrom: '2027-01-01T00:00:00Z',
+        });
+      expect(res.status).toBe(HttpStatus.CREATED);
+    });
+
+    it('should reject department creation with empty name', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'EmptyDeptName', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/departments`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: '' });
+      expect(res.status).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should reject facility update with invalid body (missing expectedVersion)', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'NoVersion', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/facilities/${facilityId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Updated' }); // missing expectedVersion
+      expect(res.status).toBe(HttpStatus.BAD_REQUEST);
     });
   });
 });

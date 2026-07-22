@@ -10,7 +10,12 @@
  * - Historical replay of A → AUTH_REFRESH_REPLAY
  * - Family compromise (C becomes unusable after replay)
  */
-import { startPostgres, runMigrations, seedUser, startIdentityService } from './phase-a-orchestration.mjs';
+import {
+  startPostgres,
+  runMigrations,
+  seedUser,
+  startIdentityService,
+} from './phase-a-orchestration.mjs';
 
 const TEST_USER_ID = '10000000-0000-0000-0000-000000000001';
 
@@ -21,7 +26,9 @@ async function assert(condition, message) {
 async function assertStatus(res, expected, context) {
   if (res.status !== expected) {
     const body = await res.text().catch(() => '');
-    throw new Error(`${context}: expected ${expected}, got ${res.status}. Body: ${body.slice(0, 200)}`);
+    throw new Error(
+      `${context}: expected ${expected}, got ${res.status}. Body: ${body.slice(0, 200)}`,
+    );
   }
 }
 

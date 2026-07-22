@@ -82,9 +82,7 @@ export function Entitlements() {
         capabilities for this tenant.
       </p>
 
-      {loading && !entitlements && (
-        <div className="page-loading">Loading entitlements...</div>
-      )}
+      {loading && !entitlements && <div className="page-loading">Loading entitlements...</div>}
 
       {entitlements && (
         <>

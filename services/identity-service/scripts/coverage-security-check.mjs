@@ -31,13 +31,37 @@ const SECURITY_THRESHOLDS = [
   { pattern: 'session-state-validator.ts', lines: 95, branches: 90, functions: 95, stmts: 95 },
   { pattern: 'session-commands.ts', lines: 95, branches: 90, functions: 95, stmts: 95 },
   { pattern: 'postgres-session-repository.ts', lines: 95, branches: 85, functions: 95, stmts: 95 },
-  { pattern: 'postgres-refresh-token-repository.ts', lines: 95, branches: 85, functions: 95, stmts: 95 },
-  { pattern: 'postgres-signing-key-repository.ts', lines: 95, branches: 90, functions: 95, stmts: 95 },
+  {
+    pattern: 'postgres-refresh-token-repository.ts',
+    lines: 95,
+    branches: 85,
+    functions: 95,
+    stmts: 95,
+  },
+  {
+    pattern: 'postgres-signing-key-repository.ts',
+    lines: 95,
+    branches: 90,
+    functions: 95,
+    stmts: 95,
+  },
   { pattern: 'identity-config.ts', lines: 95, branches: 90, functions: 95, stmts: 95 },
   // GP-03.4 Authorization Decision
   { pattern: 'authorization-decision.ts', lines: 95, branches: 90, functions: 95, stmts: 95 },
-  { pattern: 'authorization-decision.command.ts', lines: 95, branches: 90, functions: 95, stmts: 95 },
-  { pattern: 'postgres-authorization-repository.ts', lines: 95, branches: 85, functions: 95, stmts: 95 },
+  {
+    pattern: 'authorization-decision.command.ts',
+    lines: 95,
+    branches: 90,
+    functions: 95,
+    stmts: 95,
+  },
+  {
+    pattern: 'postgres-authorization-repository.ts',
+    lines: 95,
+    branches: 85,
+    functions: 95,
+    stmts: 95,
+  },
   { pattern: 'authorization.controller.ts', lines: 95, branches: 90, functions: 95, stmts: 95 },
 ];
 
@@ -87,9 +111,7 @@ for (const threshold of SECURITY_THRESHOLDS) {
 
   for (const check of checks) {
     if (check.pct < check.required) {
-      console.error(
-        `FAIL ${file} ${check.metric}: ${check.pct}% < ${check.required}% required`,
-      );
+      console.error(`FAIL ${file} ${check.metric}: ${check.pct}% < ${check.required}% required`);
       exitCode = 1;
     }
   }

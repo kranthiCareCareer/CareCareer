@@ -8,14 +8,21 @@
  * - Logout all (revoke all sessions)
  * - Immediate denial after revocation
  */
-import { startPostgres, runMigrations, seedUser, startIdentityService } from './phase-a-orchestration.mjs';
+import {
+  startPostgres,
+  runMigrations,
+  seedUser,
+  startIdentityService,
+} from './phase-a-orchestration.mjs';
 
 const TEST_USER_ID = '10000000-0000-0000-0000-000000000002';
 
 async function assertStatus(res, expected, context) {
   if (res.status !== expected) {
     const body = await res.text().catch(() => '');
-    throw new Error(`${context}: expected ${expected}, got ${res.status}. Body: ${body.slice(0, 200)}`);
+    throw new Error(
+      `${context}: expected ${expected}, got ${res.status}. Body: ${body.slice(0, 200)}`,
+    );
   }
 }
 
@@ -56,7 +63,10 @@ export async function runPhaseC() {
       });
       await assertStatus(listRes, 200, 'List sessions');
       const sessions = await listRes.json();
-      assert(sessions.data.length >= 2, `Should have at least 2 sessions, got ${sessions.data.length}`);
+      assert(
+        sessions.data.length >= 2,
+        `Should have at least 2 sessions, got ${sessions.data.length}`,
+      );
       console.log(`    ✓ Listed ${sessions.data.length} sessions`);
 
       // Revoke session 2
@@ -88,7 +98,10 @@ export async function runPhaseC() {
       });
       await assertStatus(logoutAllRes, 200, 'Logout all');
       const logoutAll = await logoutAllRes.json();
-      assert(logoutAll.revokedCount >= 1, `Should revoke at least 1 session, got ${logoutAll.revokedCount}`);
+      assert(
+        logoutAll.revokedCount >= 1,
+        `Should revoke at least 1 session, got ${logoutAll.revokedCount}`,
+      );
       console.log(`    ✓ Logout-all revoked ${logoutAll.revokedCount} sessions`);
 
       // Session 1 refresh should now fail

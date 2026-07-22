@@ -37,11 +37,13 @@ import {
  * - Never returns tokens, secrets or sensitive context
  */
 
-const DecisionRequestSchema = z.object({
-  action: z.string().min(1).max(200),
-  resourceType: z.string().min(1).max(100),
-  resourceId: z.string().uuid().optional(),
-}).strict();
+const DecisionRequestSchema = z
+  .object({
+    action: z.string().min(1).max(200),
+    resourceType: z.string().min(1).max(100),
+    resourceId: z.string().uuid().optional(),
+  })
+  .strict();
 
 @Controller()
 export class AuthorizationController {

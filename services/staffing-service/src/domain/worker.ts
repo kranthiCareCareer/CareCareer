@@ -25,6 +25,8 @@ export type WorkerProfession = 'RN' | 'LPN' | 'CNA' | 'RT' | 'ALLIED';
 export interface Worker {
   readonly id: string;
   readonly tenantId: string;
+  /** Canonical link to identity-service user. Null if not yet bound. */
+  readonly userId?: string | undefined;
   readonly firstName: string;
   readonly lastName: string;
   readonly email: string;
@@ -46,17 +48,27 @@ export interface ExternalReference {
   readonly id: string;
   readonly tenantId: string;
   readonly workerId: string;
-  readonly systemName: string;
+  readonly systemName: ExternalSystemName;
   readonly externalId: string;
   readonly createdAt: Date;
 }
 
-export const VALID_PROFESSIONS: readonly WorkerProfession[] = [
-  'RN', 'LPN', 'CNA', 'RT', 'ALLIED',
+/** Approved external system names for identity reconciliation */
+export type ExternalSystemName = 'symplr' | 'bullhorn' | 'labor-edge' | 'maestra' | 'auth0';
+
+export const VALID_EXTERNAL_SYSTEMS: readonly ExternalSystemName[] = [
+  'symplr',
+  'bullhorn',
+  'labor-edge',
+  'maestra',
+  'auth0',
 ];
+
+export const VALID_PROFESSIONS: readonly WorkerProfession[] = ['RN', 'LPN', 'CNA', 'RT', 'ALLIED'];
 
 export interface CreateWorkerInput {
   readonly tenantId: string;
+  readonly userId?: string | undefined;
   readonly firstName: string;
   readonly lastName: string;
   readonly email: string;
@@ -90,6 +102,7 @@ export function createWorker(input: CreateWorkerInput): Worker {
   return {
     id: crypto.randomUUID(),
     tenantId: input.tenantId,
+    userId: input.userId,
     firstName: input.firstName.trim(),
     lastName: input.lastName.trim(),
     email: input.email.trim().toLowerCase(),
@@ -130,9 +143,7 @@ const VALID_WORKER_STATUS_TRANSITIONS: Record<WorkerStatus, WorkerStatus[]> = {
 export function changeWorkerStatus(worker: Worker, newStatus: WorkerStatus): Worker {
   const allowed = VALID_WORKER_STATUS_TRANSITIONS[worker.status];
   if (!allowed.includes(newStatus)) {
-    throw new Error(
-      `Invalid worker status transition: ${worker.status} → ${newStatus}`,
-    );
+    throw new Error(`Invalid worker status transition: ${worker.status} → ${newStatus}`);
   }
 
   return {

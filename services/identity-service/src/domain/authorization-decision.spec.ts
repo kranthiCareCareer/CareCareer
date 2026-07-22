@@ -27,19 +27,27 @@ describe('Authorization Decision', () => {
 
   describe('Default deny', () => {
     it('should deny when no matching permission exists', () => {
-      const result = evaluateDecision(activePrincipal, {
-        action: 'payroll.process',
-        resourceType: 'payroll',
-      }, 'dec-1');
+      const result = evaluateDecision(
+        activePrincipal,
+        {
+          action: 'payroll.process',
+          resourceType: 'payroll',
+        },
+        'dec-1',
+      );
       expect(result.outcome).toBe('DENIED');
       expect(result.reasonCode).toBe('NO_MATCHING_GRANT');
     });
 
     it('should deny for unknown action', () => {
-      const result = evaluateDecision(activePrincipal, {
-        action: 'unknown.action',
-        resourceType: 'unknown',
-      }, 'dec-2');
+      const result = evaluateDecision(
+        activePrincipal,
+        {
+          action: 'unknown.action',
+          resourceType: 'unknown',
+        },
+        'dec-2',
+      );
       expect(result.outcome).toBe('DENIED');
       expect(result.reasonCode).toBe('NO_MATCHING_GRANT');
     });
@@ -64,11 +72,15 @@ describe('Authorization Decision', () => {
   describe('Explicit deny overrides grants', () => {
     it('should deny when action is explicitly denied even if permission exists', () => {
       // facility.delete is in explicitDenials
-      const result = evaluateDecision(activePrincipal, {
-        action: 'facility.delete',
-        resourceType: 'facility',
-        resourceId: 'facility-123',
-      }, 'dec-5');
+      const result = evaluateDecision(
+        activePrincipal,
+        {
+          action: 'facility.delete',
+          resourceType: 'facility',
+          resourceId: 'facility-123',
+        },
+        'dec-5',
+      );
       expect(result.outcome).toBe('DENIED');
       expect(result.reasonCode).toBe('EXPLICIT_DENY');
     });
@@ -79,10 +91,14 @@ describe('Authorization Decision', () => {
         permissions: ['facility.delete', 'facility.read', 'facility.create'],
         explicitDenials: ['facility.delete'],
       };
-      const result = evaluateDecision(multiRolePrincipal, {
-        action: 'facility.delete',
-        resourceType: 'facility',
-      }, 'dec-6');
+      const result = evaluateDecision(
+        multiRolePrincipal,
+        {
+          action: 'facility.delete',
+          resourceType: 'facility',
+        },
+        'dec-6',
+      );
       expect(result.outcome).toBe('DENIED');
       expect(result.reasonCode).toBe('EXPLICIT_DENY');
     });
@@ -189,10 +205,14 @@ describe('Authorization Decision', () => {
         permissions: ['facility.delete'],
         explicitDenials: ['facility.delete'],
       };
-      const result = evaluateDecision(principal, {
-        action: 'facility.delete',
-        resourceType: 'facility',
-      }, 'dec-16');
+      const result = evaluateDecision(
+        principal,
+        {
+          action: 'facility.delete',
+          resourceType: 'facility',
+        },
+        'dec-16',
+      );
       expect(result.reasonCode).toBe('EXPLICIT_DENY');
     });
   });

@@ -15,19 +15,20 @@ forensic analysis and compliance.
 
 ## Category Matrix
 
-| Decision Category | Persistent Audit | Structured Telemetry | Failure Behavior |
-|-------------------|------------------|---------------------|------------------|
-| Allowed (normal) | NO | YES (metric + log) | N/A |
-| Default denial (NO_MATCHING_GRANT) | YES | YES | Remains denied |
-| Explicit denial (EXPLICIT_DENY) | YES | YES | Remains denied |
-| Inactive user (USER_SUSPENDED/DEACTIVATED) | YES | YES | Remains denied |
-| Inactive membership (MEMBERSHIP_INVALID) | YES | YES | Remains denied |
-| Stale authorization version (VERSION_STALE) | YES | YES | Remains denied |
-| Infrastructure failure | NOT PERSISTED | YES (error metric) | Never allows |
+| Decision Category                           | Persistent Audit | Structured Telemetry | Failure Behavior |
+| ------------------------------------------- | ---------------- | -------------------- | ---------------- |
+| Allowed (normal)                            | NO               | YES (metric + log)   | N/A              |
+| Default denial (NO_MATCHING_GRANT)          | YES              | YES                  | Remains denied   |
+| Explicit denial (EXPLICIT_DENY)             | YES              | YES                  | Remains denied   |
+| Inactive user (USER_SUSPENDED/DEACTIVATED)  | YES              | YES                  | Remains denied   |
+| Inactive membership (MEMBERSHIP_INVALID)    | YES              | YES                  | Remains denied   |
+| Stale authorization version (VERSION_STALE) | YES              | YES                  | Remains denied   |
+| Infrastructure failure                      | NOT PERSISTED    | YES (error metric)   | Never allows     |
 
 ## Evidence Fields (Persisted for Denials)
 
 Included:
+
 - Decision ID (UUID)
 - Tenant ID
 - Canonical user ID
@@ -44,6 +45,7 @@ Included:
 - Timestamp
 
 Excluded (NEVER recorded):
+
 - Authorization header
 - Access token
 - Refresh token
@@ -60,6 +62,7 @@ Excluded (NEVER recorded):
 **Authorization decisions do NOT emit domain outbox events.**
 
 Rationale:
+
 - Authorization decisions are not domain state changes
 - They are security observations, not business events
 - High-volume outbox events would overwhelm downstream consumers
@@ -71,6 +74,7 @@ Rationale:
 ## Monitoring Path
 
 Security operations receives authorization denial signals through:
+
 1. **Structured JSON log** at `info` level for every denial (immediate)
 2. **Persistent audit table** for forensic queries (durable)
 3. **Prometheus metric** `authorization_decisions_total{outcome=denied}` (alerting)

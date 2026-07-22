@@ -32,14 +32,24 @@ describe('Facilities Schema and RLS (GP-05)', () => {
 
     // Apply migration
     const currentDir = dirname(fileURLToPath(import.meta.url));
-    const migrationPath = resolve(currentDir, '..', '..', 'prisma', 'migrations', '001_facilities_schema.sql');
+    const migrationPath = resolve(
+      currentDir,
+      '..',
+      '..',
+      'prisma',
+      'migrations',
+      '001_facilities_schema.sql',
+    );
     await superClient.query(readFileSync(migrationPath, 'utf-8'));
+
+    // Set test password (not in migration — provisioned separately)
+    await superClient.query(`ALTER ROLE staffing_app PASSWORD 'staffing_app_test'`);
 
     // Create app-role connection pool (subject to RLS)
     const host = container.getHost();
     const port = container.getMappedPort(5432);
     appPool = new Pool({
-      connectionString: `postgresql://staffing_app:staffing_app_dev@${host}:${port}/staffing_test`,
+      connectionString: `postgresql://staffing_app:staffing_app_test@${host}:${port}/staffing_test`,
       max: 1,
     });
     appPool.on('error', () => {});
@@ -67,31 +77,36 @@ describe('Facilities Schema and RLS (GP-05)', () => {
   describe('Migration and RLS enforcement', () => {
     it('should confirm RLS enabled and forced on facilities', async () => {
       const r = await superClient.query(
-        `SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = 'staffing.facilities'::regclass`);
+        `SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = 'staffing.facilities'::regclass`,
+      );
       expect(r.rows[0]).toEqual({ relrowsecurity: true, relforcerowsecurity: true });
     });
 
     it('should confirm RLS enabled and forced on departments', async () => {
       const r = await superClient.query(
-        `SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = 'staffing.departments'::regclass`);
+        `SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = 'staffing.departments'::regclass`,
+      );
       expect(r.rows[0]).toEqual({ relrowsecurity: true, relforcerowsecurity: true });
     });
 
     it('should confirm staffing_app role has no superuser or bypassrls', async () => {
       const r = await superClient.query(
-        `SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = 'staffing_app'`);
+        `SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = 'staffing_app'`,
+      );
       expect(r.rows[0]).toEqual({ rolsuper: false, rolbypassrls: false });
     });
 
     it('should confirm staffing_app is not table owner of facilities', async () => {
       const r = await superClient.query(
-        `SELECT tableowner FROM pg_tables WHERE schemaname='staffing' AND tablename='facilities'`);
+        `SELECT tableowner FROM pg_tables WHERE schemaname='staffing' AND tablename='facilities'`,
+      );
       expect(r.rows[0]?.tableowner).not.toBe('staffing_app');
     });
 
     it('should confirm staffing_app is not table owner of departments', async () => {
       const r = await superClient.query(
-        `SELECT tableowner FROM pg_tables WHERE schemaname='staffing' AND tablename='departments'`);
+        `SELECT tableowner FROM pg_tables WHERE schemaname='staffing' AND tablename='departments'`,
+      );
       expect(r.rows[0]?.tableowner).not.toBe('staffing_app');
     });
   });

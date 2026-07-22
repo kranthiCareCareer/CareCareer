@@ -1,14 +1,16 @@
 # GP-05 — Facility and Department Management
 
-## Status: COMPLETE
+## Status: IN PROGRESS
+
+## Backend Status: Substantially Implemented
 
 ## Final Commits
 
-| Commit | Description |
-|--------|-------------|
+| Commit  | Description                                                            |
+| ------- | ---------------------------------------------------------------------- |
 | dee0a1c | Initial staffing service scaffold, domain models, migration, RLS tests |
-| 502a36d | Facility HTTP integration tests with audit/outbox emission |
-| 3f77b0b | Credential requirements endpoint with role+department query |
+| 502a36d | Facility HTTP integration tests with audit/outbox emission             |
+| 3f77b0b | Credential requirements endpoint with role+department query            |
 
 ## Acceptance Evidence
 
@@ -59,13 +61,13 @@
 
 ## Test Summary
 
-| Layer | Count | Status |
-|-------|-------|--------|
-| Unit (domain) | 21 | PASS |
-| Integration (RLS + HTTP) | 34 | PASS |
-| Determinism | 34/34 × 2 runs | PASS |
-| Lint | 0 errors, 0 warnings | PASS |
-| Typecheck | 0 errors | PASS |
+| Layer                    | Count                | Status |
+| ------------------------ | -------------------- | ------ |
+| Unit (domain)            | 21                   | PASS   |
+| Integration (RLS + HTTP) | 34                   | PASS   |
+| Determinism              | 34/34 × 2 runs       | PASS   |
+| Lint                     | 0 errors, 0 warnings | PASS   |
+| Typecheck                | 0 errors             | PASS   |
 
 ## Security Controls
 
@@ -77,15 +79,15 @@
 
 ## API Endpoints Delivered
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| POST | /v1/facilities | Create facility |
-| GET | /v1/facilities | List facilities (tenant-scoped) |
-| GET | /v1/facilities/:id | Get facility by ID |
-| POST | /v1/facilities/:id/departments | Create department |
-| GET | /v1/facilities/:id/departments | List departments |
-| POST | /v1/facilities/:id/credential-requirements | Create requirement |
-| GET | /v1/facilities/:id/credential-requirements | Query requirements |
+| Method | Path                                       | Purpose                         |
+| ------ | ------------------------------------------ | ------------------------------- |
+| POST   | /v1/facilities                             | Create facility                 |
+| GET    | /v1/facilities                             | List facilities (tenant-scoped) |
+| GET    | /v1/facilities/:id                         | Get facility by ID              |
+| POST   | /v1/facilities/:id/departments             | Create department               |
+| GET    | /v1/facilities/:id/departments             | List departments                |
+| POST   | /v1/facilities/:id/credential-requirements | Create requirement              |
+| GET    | /v1/facilities/:id/credential-requirements | Query requirements              |
 
 ## Events Published
 

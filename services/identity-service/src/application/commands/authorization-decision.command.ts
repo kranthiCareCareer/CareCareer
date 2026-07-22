@@ -31,12 +31,16 @@ export interface AuthorizationDecisionInput {
   readonly tokenUserAuthVersion: number;
   /** From validated token — membership authorization version at token issuance */
   readonly tokenMembershipAuthVersion?: number | undefined;
+  /** From validated principal — membership ID from session */
+  readonly membershipId?: string | undefined;
   /** From request body — the action to evaluate */
   readonly action: string;
   /** From request body — the resource type */
   readonly resourceType: string;
   /** From request body — optional resource ID */
   readonly resourceId?: string | undefined;
+  /** Resource tenant (must match principal tenant for cross-tenant check) */
+  readonly resourceTenantId?: string | undefined;
   /** Correlation ID for tracing */
   readonly correlationId: string;
 }
@@ -61,17 +65,10 @@ export interface AuthorizationRepository {
   } | null>;
 
   /** Load effective permissions from roles */
-  getPermissionsForRoles(
-    tx: TransactionClient,
-    roleIds: string[],
-  ): Promise<string[]>;
+  getPermissionsForRoles(tx: TransactionClient, roleIds: string[]): Promise<string[]>;
 
   /** Load active explicit denials for user in tenant */
-  getExplicitDenials(
-    tx: TransactionClient,
-    userId: string,
-    tenantId: string,
-  ): Promise<string[]>;
+  getExplicitDenials(tx: TransactionClient, userId: string, tenantId: string): Promise<string[]>;
 
   /** Persist a decision record for audit */
   recordDecision(
@@ -114,7 +111,13 @@ export async function evaluateAuthorizationDecision(
   // Version enforcement: reject stale tokens where authorization changed since issuance
   if (userState.authorizationVersion !== input.tokenUserAuthVersion) {
     const denied = failClosed(decisionId, input, 'VERSION_STALE');
-    await repo.recordDecision(tx, denied, input.sessionId, membership.authorizationVersion, input.correlationId);
+    await repo.recordDecision(
+      tx,
+      denied,
+      input.sessionId,
+      membership.authorizationVersion,
+      input.correlationId,
+    );
     return denied;
   }
   if (
@@ -122,7 +125,13 @@ export async function evaluateAuthorizationDecision(
     membership.authorizationVersion !== input.tokenMembershipAuthVersion
   ) {
     const denied = failClosed(decisionId, input, 'VERSION_STALE');
-    await repo.recordDecision(tx, denied, input.sessionId, membership.authorizationVersion, input.correlationId);
+    await repo.recordDecision(
+      tx,
+      denied,
+      input.sessionId,
+      membership.authorizationVersion,
+      input.correlationId,
+    );
     return denied;
   }
 
@@ -146,11 +155,15 @@ export async function evaluateAuthorizationDecision(
   };
 
   // Evaluate using the pure decision function
-  const decision = evaluateDecision(principal, {
-    action: input.action,
-    resourceType: input.resourceType,
-    resourceId: input.resourceId,
-  }, decisionId);
+  const decision = evaluateDecision(
+    principal,
+    {
+      action: input.action,
+      resourceType: input.resourceType,
+      resourceId: input.resourceId,
+    },
+    decisionId,
+  );
 
   // Record audit evidence for denials (and privileged allows in future)
   if (decision.outcome === 'DENIED') {

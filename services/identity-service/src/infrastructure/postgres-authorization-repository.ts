@@ -59,10 +59,7 @@ export class PostgresAuthorizationRepository implements AuthorizationRepository 
     };
   }
 
-  async getPermissionsForRoles(
-    tx: TransactionClient,
-    roleIds: string[],
-  ): Promise<string[]> {
+  async getPermissionsForRoles(tx: TransactionClient, roleIds: string[]): Promise<string[]> {
     if (roleIds.length === 0) return [];
 
     // Build a safe parameterized query for role IDs

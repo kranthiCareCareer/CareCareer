@@ -1,43 +1,71 @@
 # Autonomous Execution State
 
-## Last Updated: 2026-07-21T20:25:00Z
+## Last Updated: 2026-07-22T14:30:00Z
 
 ## Repository State
 
-| Field | Value |
-|-------|-------|
-| Branch | master |
-| HEAD | 20579b5 |
-| Working tree | GP-06 closure doc (uncommitted) |
-| Current milestone | GP-06 COMPLETE (backend) |
-| Next milestone | GP-07 (Credentials and Eligibility) |
-| Authoritative source | docs/decisions/golden-path-backlog.md |
+| Field         | Value                                               |
+| ------------- | --------------------------------------------------- |
+| Branch        | agent/gp-05-gp-06-v2                                |
+| HEAD          | a0523df                                             |
+| Origin master | e2f6ec6                                             |
+| Commits ahead | 1 (single squash commit)                            |
+| Old branch    | agent/gp-05-gp-06-enterprise-closure (TO BE CLOSED) |
 
-## Completed Milestones
+## Why v2 Branch
 
-| Milestone | Status | Tests |
-|-----------|--------|-------|
-| GP-00–GP-03.4 | COMPLETE | 228 unit + 126 integration |
-| GP-05 Facilities | BACKEND COMPLETE | 35 unit + 41 integration |
-| GP-06 Workers | BACKEND COMPLETE | 18 unit + 12 integration |
-| Investor Demo | COMPLETE | 20 E2E |
-| Chromium 64/64 | COMPLETE | 64 browser |
+Branch `agent/gp-05-gp-06-enterprise-closure` contained a SHA-256 hash of a
+test credential in commit `f5db6f8`. This triggered Gitleaks CI failure.
+Per explicit user decision (Option B), all changes were squash-merged into
+a clean branch `agent/gp-05-gp-06-v2` with no credential in history.
 
-## Current Test Totals (staffing-service)
+The original test credential was LOCAL DEV ONLY and never used in production.
+It must still be treated as compromised and rotated per the decision.
 
-| Layer | Count |
-|-------|-------|
-| Unit tests | 53 |
-| Integration tests | 53 |
-| Total | 106 |
-| Determinism | 53/53 × 3 consecutive |
+## PR Status
 
-## Next Milestone: GP-07 (Credentials and Eligibility)
+- PR #1: SUPERSEDED (old branch, to be closed)
+- PR #2: Create at https://github.com/kranthiCareCareer/CareCareer/pull/new/agent/gp-05-gp-06-v2
+- PR #2 title: wip(gp-05-gp-06): enterprise security hardening checkpoint
 
-Key requirements:
-- Credential types (RN_LICENSE, BLS, CNA_CERT, etc.)
-- Credential record CRUD
-- Verification lifecycle (UPLOADED → VERIFIED → EXPIRED)
-- Facility requirement matrix evaluation
-- Eligibility determination (deterministic)
-- Worker blocking on credential expiry
+## 6 P0 Items Status in v2 Branch
+
+| #   | Finding                                   | Status                                                          |
+| --- | ----------------------------------------- | --------------------------------------------------------------- |
+| 1   | @InternalService fail-open risk           | FIXED: route-security.spec.ts proves guard chain at test time   |
+| 2   | Session-to-membership binding             | FIXED: verifies session.selectedTenantId + session.membershipId |
+| 3   | Authorization ignores resource/membership | FIXED: cross-tenant resource check + membershipId forwarded     |
+| 4   | SHA-256 secret verification               | FIXED: scrypt (N=16384, r=8, p=1) with per-credential salt      |
+| 5   | Credential in git history                 | FIXED: new clean branch, no credential in any commit            |
+| 6   | No end-to-end integration test            | PARTIAL: route-security test proves compile-time invariants     |
+
+## Test Counts (local, pre-CI)
+
+| Service       | Unit | Integration            | Total |
+| ------------- | ---- | ---------------------- | ----- |
+| Identity      | 237  | (not run this session) | 237+  |
+| Staffing      | 129  | 86                     | 215   |
+| Admin Console | 103  | —                      | 103   |
+
+## NOT YET VERIFIED (CI Required)
+
+- [ ] Gitleaks scan on clean history
+- [ ] Full CI pipeline (lint, typecheck, tests, build)
+- [ ] GitHub Actions green
+- [ ] End-to-end service auth integration test (identity → staffing)
+- [ ] Coverage at 95/90 for ALL security-critical files
+- [ ] Node 24 compatibility verified
+
+## PR Must NOT Be Submitted for Re-review Until
+
+- [ ] All CI workflows green
+- [ ] Gitleaks passes without suppression
+- [ ] Full end-to-end service auth test passes
+- [ ] Coverage 95/90 without exclusions
+- [ ] GP-05/GP-06 IN PROGRESS markers correct
+
+## GP-05: IN PROGRESS
+
+## GP-06: IN PROGRESS
+
+## GP-07: NOT STARTED — BLOCKED
