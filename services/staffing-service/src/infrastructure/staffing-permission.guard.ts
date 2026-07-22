@@ -4,54 +4,41 @@ import {
   ForbiddenException,
   Injectable,
   Inject,
-  Optional,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
 import type { ValidatedTokenContext } from '@carecareer/auth';
 
+import type { PermissionAdapter } from './authorization-adapter.js';
 import { REQUIRED_PERMISSION_KEY } from './permission.decorator.js';
-
-/**
- * Authorization adapter port.
- *
- * Resolves whether a principal has a specific permission by querying
- * the authoritative identity state (NOT JWT claims).
- *
- * In production: calls the authorization decision service
- * In tests: uses a configurable mock
- *
- * Explicit deny overrides all grants.
- * Never authorize from JWT role or permission arrays — those are hints only.
- */
-export interface PermissionAdapter {
-  hasPermission(params: {
-    userId: string;
-    tenantId: string;
-    permission: string;
-    membershipId?: string | undefined;
-  }): Promise<{ allowed: boolean; reason?: string | undefined }>;
-}
 
 /**
  * Staffing-service permission guard.
  *
  * Runs AFTER StaffingAuthGuard (principal is already validated and attached).
  * Checks the @RequirePermission() metadata against the authoritative
- * permission adapter.
+ * authorization decision service via PermissionAdapter.
  *
- * If no @RequirePermission is declared, the endpoint is open to
- * all authenticated users (permission-free).
+ * FAIL-CLOSED BEHAVIOR:
+ * - Missing adapter in production → DENY (service must not start without it)
+ * - Adapter returns error → DENY
+ * - Timeout → DENY
+ * - Unknown response → DENY
  *
- * If the adapter is not configured, falls back to tenant-wide access
- * (any authenticated tenant member can access — for dev/early stages).
+ * The only case where a missing adapter is allowed is when
+ * STAFFING_AUTH_MODE=local (local development only, not production).
  */
 @Injectable()
 export class StaffingPermissionGuard implements CanActivate {
+  private readonly localDevMode: boolean;
+
   constructor(
     private readonly reflector: Reflector,
-    @Optional() @Inject('PERMISSION_ADAPTER') private readonly adapter?: PermissionAdapter,
-  ) {}
+    @Inject('PERMISSION_ADAPTER') private readonly adapter: PermissionAdapter | null,
+  ) {
+    // Local dev mode only — NEVER in production
+    this.localDevMode = process.env['STAFFING_AUTH_MODE'] === 'local';
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const requiredPermission = this.reflector.getAllAndOverride<string | undefined>(
@@ -74,8 +61,17 @@ export class StaffingPermissionGuard implements CanActivate {
       });
     }
 
-    // If no adapter configured, fall back to tenant-wide access
-    if (!this.adapter) return true;
+    // FAIL CLOSED: no adapter in production = deny
+    if (!this.adapter) {
+      if (this.localDevMode) {
+        // Local dev only — allow all authenticated users
+        return true;
+      }
+      throw new ForbiddenException({
+        code: 'AUTHORIZATION_UNAVAILABLE',
+        message: 'Authorization service not configured — access denied',
+      });
+    }
 
     const result = await this.adapter.hasPermission({
       userId: principal.subject,

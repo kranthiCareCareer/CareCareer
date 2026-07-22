@@ -1,14 +1,19 @@
+import type { ServiceTokenClient } from './service-token-client.js';
+
 /**
- * Identity State Adapter for the staffing service.
+ * Identity State Adapter — validates current session, user, and membership state.
  *
- * Validates current session, user, and membership state against the
- * identity service. This ensures that revoked sessions, inactive users,
- * and stale authorization versions are rejected immediately.
+ * Calls: POST /internal/v1/identity/state-validations
+ * Auth: Service JWT (staffing-service identity)
+ * User context: validated principal fields in request body
  *
- * In production: calls identity-service HTTP API
- * In tests: uses a configurable mock
- *
- * Fail-closed: if the identity service is unreachable, access is DENIED.
+ * Fail-closed: deny on ANY of:
+ * - Missing service token
+ * - Identity service unavailable
+ * - Timeout (3 seconds)
+ * - Malformed response
+ * - HTTP 4xx/5xx
+ * - Unknown response structure
  */
 
 export interface IdentityStateValidationInput {
@@ -34,47 +39,99 @@ export interface IdentityStateAdapter {
   validate(input: IdentityStateValidationInput): Promise<IdentityStateValidationResult>;
 }
 
+/** Expected response schema from identity service */
+interface StateValidationResponse {
+  valid: boolean;
+  code?: string;
+  user?: { status: string; authorizationVersion: number };
+  session?: { status: string; expiresAt: string };
+  membership?: { status: string; tenantId: string; authorizationVersion: number };
+}
+
 /**
- * Production adapter that calls identity-service HTTP API.
- * Fails closed on network errors or non-200 responses.
+ * Production adapter — authenticates as staffing-service via service JWT.
+ * Sends validated principal fields, NOT the raw user token.
  */
 export class HttpIdentityStateAdapter implements IdentityStateAdapter {
   private readonly baseUrl: string;
+  private readonly tokenClient: ServiceTokenClient;
 
-  constructor(identityServiceBaseUrl: string) {
+  constructor(identityServiceBaseUrl: string, tokenClient: ServiceTokenClient) {
     this.baseUrl = identityServiceBaseUrl.replace(/\/$/, '');
+    this.tokenClient = tokenClient;
   }
 
   async validate(input: IdentityStateValidationInput): Promise<IdentityStateValidationResult> {
+    let serviceToken: string;
     try {
-      const response = await fetch(`${this.baseUrl}/v1/identity/validate-state`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: input.sessionId,
-          userId: input.userId,
-          selectedTenantId: input.selectedTenantId,
-          membershipId: input.membershipId,
-          userAuthorizationVersion: input.userAuthorizationVersion,
-          membershipAuthorizationVersion: input.membershipAuthorizationVersion,
-        }),
-        signal: AbortSignal.timeout(3000),
-      });
+      serviceToken = await this.tokenClient.getToken();
+    } catch {
+      return {
+        valid: false,
+        code: 'SERVICE_TOKEN_UNAVAILABLE',
+        message: 'Cannot acquire service token — access denied',
+      };
+    }
+
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/internal/v1/identity/state-validations`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${serviceToken}`,
+            'X-Correlation-ID': crypto.randomUUID(),
+          },
+          body: JSON.stringify({
+            subject: input.userId,
+            sessionId: input.sessionId,
+            selectedTenantId: input.selectedTenantId,
+            membershipId: input.membershipId,
+            userAuthorizationVersion: input.userAuthorizationVersion,
+            membershipAuthorizationVersion: input.membershipAuthorizationVersion,
+          }),
+          signal: AbortSignal.timeout(3000),
+        },
+      );
+
+      if (response.status === 401) {
+        // Service token rejected — invalidate and deny
+        this.tokenClient.invalidate();
+        return { valid: false, code: 'SERVICE_AUTH_FAILED', message: 'Service authentication failed' };
+      }
 
       if (!response.ok) {
-        // Identity service rejected — deny access
-        const body = await response.json().catch(() => ({})) as Record<string, unknown>;
-        const code = typeof body['code'] === 'string' ? body['code'] : 'IDENTITY_STATE_INVALID';
-        const message = typeof body['message'] === 'string' ? body['message'] : 'Identity state validation failed';
-        return { valid: false, code, message };
+        const body = await response.json().catch(() => null) as StateValidationResponse | null;
+        return {
+          valid: false,
+          code: body?.code ?? 'IDENTITY_STATE_INVALID',
+          message: 'Identity state validation failed',
+        };
+      }
+
+      // Validate response schema
+      const body = await response.json() as unknown;
+      if (!body || typeof body !== 'object' || !('valid' in body)) {
+        return { valid: false, code: 'MALFORMED_RESPONSE', message: 'Unexpected identity response' };
+      }
+
+      const result = body as StateValidationResponse;
+      if (result.valid !== true) {
+        return {
+          valid: false,
+          code: result.code ?? 'IDENTITY_STATE_INVALID',
+          message: 'Identity state check failed',
+        };
       }
 
       return { valid: true };
-    } catch {
+    } catch (error: unknown) {
       // Network error, timeout, or identity service down — fail closed
+      const isTimeout = error instanceof Error && error.name === 'TimeoutError';
       return {
         valid: false,
-        code: 'IDENTITY_SERVICE_UNAVAILABLE',
+        code: isTimeout ? 'IDENTITY_SERVICE_TIMEOUT' : 'IDENTITY_SERVICE_UNAVAILABLE',
         message: 'Cannot validate identity state — access denied',
       };
     }

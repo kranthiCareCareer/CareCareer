@@ -15,11 +15,12 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { PrismaLikeClient, TransactionClient } from '@carecareer/database';
 import { TenantAwareTransaction } from '@carecareer/database';
 
+import type { PermissionAdapter } from '../../infrastructure/authorization-adapter.js';
 import type { IdentityStateAdapter, IdentityStateValidationResult } from '../../infrastructure/identity-state-adapter.js';
 import { LocalJwksTokenValidator } from '../../infrastructure/local-jwks-token-validator.js';
 import { PostgresStaffingRepository } from '../../infrastructure/postgres-staffing-repository.js';
 import { StaffingAuthGuard } from '../../infrastructure/staffing-auth.guard.js';
-import { StaffingPermissionGuard, type PermissionAdapter } from '../../infrastructure/staffing-permission.guard.js';
+import { StaffingPermissionGuard } from '../../infrastructure/staffing-permission.guard.js';
 
 import { FacilityController } from './facility.controller.js';
 import { HealthController } from './health.controller.js';

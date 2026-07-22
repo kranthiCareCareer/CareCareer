@@ -4,6 +4,7 @@ import { APP_GUARD, Reflector } from '@nestjs/core';
 import type { TokenValidator } from '@carecareer/auth';
 import { TenantAwareTransaction } from '@carecareer/database';
 
+import { HttpAuthorizationAdapter, type PermissionAdapter } from './infrastructure/authorization-adapter.js';
 import {
   HttpIdentityStateAdapter,
   type IdentityStateAdapter,
@@ -11,6 +12,7 @@ import {
 import { LocalJwksTokenValidator } from './infrastructure/local-jwks-token-validator.js';
 import { PostgresStaffingRepository } from './infrastructure/postgres-staffing-repository.js';
 import { RemoteJwksTokenValidator } from './infrastructure/remote-jwks-token-validator.js';
+import { ServiceTokenClient } from './infrastructure/service-token-client.js';
 import { StaffingAuthGuard } from './infrastructure/staffing-auth.guard.js';
 import { StaffingPermissionGuard } from './infrastructure/staffing-permission.guard.js';
 import { FacilityController } from './interface/http/facility.controller.js';
@@ -53,8 +55,13 @@ import { WorkerController } from './interface/http/worker.controller.js';
       provide: 'IDENTITY_STATE_ADAPTER',
       useFactory: (): IdentityStateAdapter | undefined => {
         const identityUrl = process.env['IDENTITY_SERVICE_URL'];
-        if (!identityUrl) return undefined; // Skip state validation in local dev without identity
-        return new HttpIdentityStateAdapter(identityUrl);
+        const serviceKeyPem = process.env['SERVICE_PRIVATE_KEY_PEM'];
+        const serviceKeyId = process.env['SERVICE_KEY_ID'];
+        if (!identityUrl || !serviceKeyPem || !serviceKeyId) return undefined;
+        const tokenClient = new ServiceTokenClient({
+          privateKeyPem: serviceKeyPem, keyId: serviceKeyId, serviceId: 'staffing-service',
+        });
+        return new HttpIdentityStateAdapter(identityUrl, tokenClient);
       },
     },
     {
@@ -70,7 +77,16 @@ import { WorkerController } from './interface/http/worker.controller.js';
     },
     {
       provide: 'PERMISSION_ADAPTER',
-      useValue: undefined, // Will be replaced when authorization service integration is complete
+      useFactory: (): PermissionAdapter | null => {
+        const authUrl = process.env['AUTHORIZATION_SERVICE_URL'] ?? process.env['IDENTITY_SERVICE_URL'];
+        const serviceKeyPem = process.env['SERVICE_PRIVATE_KEY_PEM'];
+        const serviceKeyId = process.env['SERVICE_KEY_ID'];
+        if (!authUrl || !serviceKeyPem || !serviceKeyId) return null;
+        const tokenClient = new ServiceTokenClient({
+          privateKeyPem: serviceKeyPem, keyId: serviceKeyId, serviceId: 'staffing-service',
+        });
+        return new HttpAuthorizationAdapter(authUrl, tokenClient);
+      },
     },
     {
       provide: APP_GUARD,

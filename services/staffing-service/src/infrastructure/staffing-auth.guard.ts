@@ -40,11 +40,15 @@ import { IS_PUBLIC_KEY } from './public.decorator.js';
  */
 @Injectable()
 export class StaffingAuthGuard implements CanActivate {
+  private readonly localDevMode: boolean;
+
   constructor(
     @Inject('TOKEN_VALIDATOR') private readonly tokenValidator: TokenValidator,
     private readonly reflector: Reflector,
     @Optional() @Inject('IDENTITY_STATE_ADAPTER') private readonly identityAdapter?: IdentityStateAdapter,
-  ) {}
+  ) {
+    this.localDevMode = process.env['STAFFING_AUTH_MODE'] === 'local';
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // Public route bypass (health/readiness)
@@ -63,7 +67,16 @@ export class StaffingAuthGuard implements CanActivate {
     const validatedToken = await this.validateToken(request.headers);
 
     // Phase 2: Validate current identity state (session, user, membership)
-    if (this.identityAdapter) {
+    // FAIL CLOSED: no adapter in production = deny
+    if (!this.identityAdapter) {
+      if (!this.localDevMode) {
+        throw new UnauthorizedException({
+          code: 'IDENTITY_VALIDATION_UNAVAILABLE',
+          message: 'Identity state validator not configured — access denied',
+        });
+      }
+      // Local dev mode — skip state validation (token signature still verified)
+    } else {
       const stateResult = await this.identityAdapter.validate({
         sessionId: validatedToken.sessionId,
         userId: validatedToken.subject,
