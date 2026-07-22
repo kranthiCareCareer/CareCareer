@@ -50,7 +50,7 @@ const CreateWorkerSchema = z.object({
   homeState: z.string().max(50).optional(),
   homeZip: z.string().max(20).optional(),
   externalReferences: z.array(z.object({
-    systemName: z.string().min(1).max(50),
+    systemName: z.enum(['symplr', 'bullhorn', 'labor-edge', 'maestra', 'auth0']),
     externalId: z.string().min(1).max(200),
   })).optional(),
 }).strict();

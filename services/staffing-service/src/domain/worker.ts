@@ -48,10 +48,17 @@ export interface ExternalReference {
   readonly id: string;
   readonly tenantId: string;
   readonly workerId: string;
-  readonly systemName: string;
+  readonly systemName: ExternalSystemName;
   readonly externalId: string;
   readonly createdAt: Date;
 }
+
+/** Approved external system names for identity reconciliation */
+export type ExternalSystemName = 'symplr' | 'bullhorn' | 'labor-edge' | 'maestra' | 'auth0';
+
+export const VALID_EXTERNAL_SYSTEMS: readonly ExternalSystemName[] = [
+  'symplr', 'bullhorn', 'labor-edge', 'maestra', 'auth0',
+];
 
 export const VALID_PROFESSIONS: readonly WorkerProfession[] = [
   'RN', 'LPN', 'CNA', 'RT', 'ALLIED',

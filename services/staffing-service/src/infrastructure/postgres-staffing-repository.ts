@@ -314,7 +314,8 @@ function mapWorker(r: WorkerRow): Worker {
 function mapExternalReference(r: ExternalReferenceRow): ExternalReference {
   return {
     id: r.id, tenantId: r.tenant_id, workerId: r.worker_id,
-    systemName: r.system_name, externalId: r.external_id,
+    systemName: r.system_name as ExternalReference['systemName'],
+    externalId: r.external_id,
     createdAt: new Date(r.created_at),
   };
 }

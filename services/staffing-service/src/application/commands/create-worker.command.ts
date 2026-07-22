@@ -1,6 +1,6 @@
 import type { TenantAwareTransaction, TransactionClient } from '@carecareer/database';
 
-import { createWorker, type Worker } from '../../domain/worker.js';
+import { createWorker, type Worker , ExternalReference } from '../../domain/worker.js';
 import type { StaffingRepository } from '../ports/staffing-repository.js';
 
 export interface CreateWorkerInput {
@@ -49,7 +49,7 @@ export class CreateWorkerHandler {
             id: crypto.randomUUID(),
             tenantId: input.tenantId,
             workerId: worker.id,
-            systemName: ref.systemName,
+            systemName: ref.systemName as ExternalReference['systemName'],
             externalId: ref.externalId,
             createdAt: new Date(),
           });
