@@ -96,8 +96,7 @@ jobs:
       - name: Start backend
         run: |
           cd services/platform-service
-          printf "DATABASE_URL=%s\nPORT=3001\nHOST=0.0.0.0\nNODE_ENV=development\nDEMO_MODE=true\nDEMO_AUTH_SECRET=%s\n" "$DATABASE_URL" "$DEMO_AUTH_SECRET" > .env
-          nohup node dist/main.js > /tmp/backend.log 2>&1 &
+          nohup npx tsx src/main.ts > /tmp/backend.log 2>&1 &
           echo $! > /tmp/backend.pid
 
       - name: Start frontend
@@ -110,7 +109,7 @@ jobs:
         run: |
           echo "Waiting for backend..."
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
+            if curl -sf http://localhost:3001/health/live > /dev/null 2>&1; then
               echo "Backend ready"
               break
             fi
