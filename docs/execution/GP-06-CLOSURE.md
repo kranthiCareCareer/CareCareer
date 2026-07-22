@@ -1,6 +1,8 @@
 # GP-06 — Worker Minimum Profile
 
-## Status: COMPLETE (backend)
+## Status: IN PROGRESS
+
+## Backend Status: Partial
 
 ## Commits
 

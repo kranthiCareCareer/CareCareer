@@ -1,6 +1,8 @@
 # GP-05 — Facility and Department Management
 
-## Status: COMPLETE
+## Status: IN PROGRESS
+
+## Backend Status: Substantially Implemented
 
 ## Final Commits
 
