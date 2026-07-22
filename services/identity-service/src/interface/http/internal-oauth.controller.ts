@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Inject,
+  Post,
   UnauthorizedException,
 } from '@nestjs/common';
 import { z } from 'zod';
@@ -110,12 +111,12 @@ export class InternalOAuthController {
   private async loadClient(clientId: string): Promise<RegisteredClient | null> {
     // Load from database (service_clients table)
     const rows = await this.prisma.$transaction(async (tx: TransactionClient) => {
-      return tx.$queryRaw<Array<{
+      return tx.$queryRaw<{
         client_id: string;
         secret_hash: string;
         allowed_scopes: string;
         active: boolean;
-      }>>`
+      }>`
         SELECT client_id, secret_hash, allowed_scopes, active
         FROM identity.service_clients
         WHERE client_id = ${clientId}`;
@@ -132,11 +133,12 @@ export class InternalOAuthController {
   }
 
   private verifySecret(provided: string, storedHash: string): boolean {
-    // In production: use bcrypt or argon2 for constant-time comparison
-    // For initial implementation: direct comparison of SHA-256 hash
-    const { createHash } = require('node:crypto') as typeof import('node:crypto');
-    const hash = createHash('sha256').update(provided).digest('hex');
-    return hash === storedHash;
+    // Timing-safe comparison using Node.js crypto
+    const { createHash, timingSafeEqual } = require('node:crypto') as typeof import('node:crypto');
+    const providedHash = createHash('sha256').update(provided).digest('hex');
+    // Both must be the same length for timingSafeEqual
+    if (providedHash.length !== storedHash.length) return false;
+    return timingSafeEqual(Buffer.from(providedHash), Buffer.from(storedHash));
   }
 
   private async signServiceToken(clientId: string, scopes: string[]): Promise<string> {

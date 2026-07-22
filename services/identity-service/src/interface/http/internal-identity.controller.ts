@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Inject,
+  Post,
   UseGuards,
 } from '@nestjs/common';
 import { z } from 'zod';
@@ -61,10 +62,13 @@ export class InternalIdentityController {
       });
     }
 
-    const { subject, sessionId, userAuthorizationVersion, membershipAuthorizationVersion } = parsed.data;
+    const {
+      subject, sessionId, selectedTenantId, membershipId,
+      userAuthorizationVersion, membershipAuthorizationVersion,
+    } = parsed.data;
 
     return this.prisma.$transaction(async (tx: TransactionClient) => {
-      // 1. Check session
+      // 1. Check session exists and is active
       const session = await this.sessionRepo.getSessionById(tx, sessionId);
       if (!session) {
         return { valid: false, code: 'SESSION_NOT_FOUND' };
@@ -82,26 +86,53 @@ export class InternalIdentityController {
         return { valid: false, code: 'SESSION_EXPIRED' };
       }
 
-      // 2. Check user authorization version
-      if (session.userAuthorizationVersion !== userAuthorizationVersion) {
+      // 2. Check user is active
+      const userRows = await tx.$queryRaw<{ status: string; authorization_version: number }>`
+        SELECT status, authorization_version FROM identity.users WHERE id = ${subject}::uuid`;
+      if (userRows.length === 0) {
+        return { valid: false, code: 'USER_NOT_FOUND' };
+      }
+      const user = userRows[0]!;
+      if (user.status !== 'ACTIVE') {
+        return { valid: false, code: 'USER_INACTIVE' };
+      }
+
+      // 3. Check user authorization version is current
+      if (user.authorization_version !== userAuthorizationVersion) {
         return { valid: false, code: 'USER_AUTHORIZATION_VERSION_STALE' };
       }
 
-      // 3. Check membership authorization version if provided
-      if (
-        membershipAuthorizationVersion !== undefined &&
-        session.membershipAuthorizationVersion !== null &&
-        session.membershipAuthorizationVersion !== membershipAuthorizationVersion
-      ) {
-        return { valid: false, code: 'MEMBERSHIP_AUTHORIZATION_VERSION_STALE' };
+      // 4. Check membership if tenant context provided
+      if (selectedTenantId && membershipId) {
+        const memberRows = await tx.$queryRaw<{
+          status: string; tenant_id: string; authorization_version: number;
+        }>`
+          SELECT status, tenant_id, authorization_version
+          FROM identity.tenant_memberships
+          WHERE id = ${membershipId}::uuid AND user_id = ${subject}::uuid`;
+
+        if (memberRows.length === 0) {
+          return { valid: false, code: 'MEMBERSHIP_NOT_FOUND' };
+        }
+        const membership = memberRows[0]!;
+        if (membership.status !== 'ACTIVE') {
+          return { valid: false, code: 'MEMBERSHIP_INACTIVE' };
+        }
+        if (membership.tenant_id !== selectedTenantId) {
+          return { valid: false, code: 'MEMBERSHIP_TENANT_MISMATCH' };
+        }
+        if (
+          membershipAuthorizationVersion !== undefined &&
+          membership.authorization_version !== membershipAuthorizationVersion
+        ) {
+          return { valid: false, code: 'MEMBERSHIP_AUTHORIZATION_VERSION_STALE' };
+        }
       }
 
       return {
         valid: true,
-        session: {
-          status: session.status,
-          expiresAt: session.expiresAt.toISOString(),
-        },
+        user: { status: user.status, authorizationVersion: user.authorization_version },
+        session: { status: session.status, expiresAt: session.expiresAt.toISOString() },
       };
     });
   }

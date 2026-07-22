@@ -120,19 +120,27 @@ export class ServiceIdentityGuard implements CanActivate {
       throw new UnauthorizedException({ error: 'invalid_token', error_description: 'Missing client_id' });
     }
 
+    // Verify sub exactly matches service:{client_id}
+    if (sub !== `service:${clientId}`) {
+      throw new UnauthorizedException({ error: 'invalid_token', error_description: 'Subject/client_id mismatch' });
+    }
+
     // Verify client still active
     const clientActive = await this.isClientActive(clientId);
     if (!clientActive) {
       throw new UnauthorizedException({ error: 'invalid_client', error_description: 'Client disabled' });
     }
 
-    // Check required scope
+    // Check required scope — validate scopes is an array of strings
     const requiredScope = this.reflector.getAllAndOverride<string | undefined>(
       REQUIRED_SERVICE_SCOPE_KEY,
       [context.getHandler(), context.getClass()],
     );
 
-    const tokenScopes = (payload['scopes'] as string[]) ?? [];
+    const rawScopes = payload['scopes'];
+    const tokenScopes: string[] = Array.isArray(rawScopes) && rawScopes.every((s): s is string => typeof s === 'string')
+      ? rawScopes
+      : [];
     if (requiredScope && !tokenScopes.includes(requiredScope)) {
       throw new ForbiddenException({
         error: 'insufficient_scope',
@@ -147,7 +155,7 @@ export class ServiceIdentityGuard implements CanActivate {
 
   private async isClientActive(clientId: string): Promise<boolean> {
     const rows = await this.prisma.$transaction(async (tx: TransactionClient) => {
-      return tx.$queryRaw<Array<{ active: boolean }>>`
+      return tx.$queryRaw<{ active: boolean }>`
         SELECT active FROM identity.service_clients WHERE client_id = ${clientId}`;
     });
     return rows.length > 0 && rows[0]!.active;

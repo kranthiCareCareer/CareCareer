@@ -12,13 +12,6 @@ CREATE TABLE identity.service_clients (
 );
 
 -- Register the staffing-service client
--- Secret: 'staffing-service-dev-secret' → SHA-256 hash
--- In production, secrets are rotated via Secrets Manager
-INSERT INTO identity.service_clients (client_id, secret_hash, allowed_scopes, description)
-VALUES (
-    'staffing-service',
-    -- SHA-256 of 'staffing-service-dev-secret'
-    '483455756fbe6e8692095b2dc7fa8f6ebe5ba1de749bf2b98f8fba569e996f85',
-    'identity.state.validate,authorization.decide',
-    'CareCareer Staffing Service - manages facilities, departments, and workers'
-);
+-- In production, the secret is provisioned via Secrets Manager and rotated.
+-- For local development, run: scripts/seed-service-clients.sql
+-- DO NOT commit actual credentials to source control.

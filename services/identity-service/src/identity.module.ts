@@ -25,6 +25,9 @@ import { SessionStateValidator } from './infrastructure/session-state-validator.
 import { AuthController } from './interface/http/auth.controller.js';
 import { AuthorizationController } from './interface/http/authorization.controller.js';
 import { HealthController } from './interface/http/health.controller.js';
+import { InternalAuthorizationController } from './interface/http/internal-authorization.controller.js';
+import { InternalIdentityController } from './interface/http/internal-identity.controller.js';
+import { InternalOAuthController } from './interface/http/internal-oauth.controller.js';
 import { MembershipController } from './interface/http/membership.controller.js';
 import { UserController } from './interface/http/user.controller.js';
 
@@ -102,7 +105,11 @@ function resolveTokenValidator(): TokenValidator {
 }
 
 @Module({
-  controllers: [HealthController, UserController, MembershipController, AuthController, AuthorizationController],
+  controllers: [
+    HealthController, UserController, MembershipController, AuthController,
+    AuthorizationController, InternalOAuthController, InternalIdentityController,
+    InternalAuthorizationController,
+  ],
   providers: [
     {
       provide: TOKEN_VALIDATOR,
@@ -172,6 +179,24 @@ function resolveTokenValidator(): TokenValidator {
     {
       provide: 'AUTHORIZATION_REPOSITORY',
       useClass: PostgresAuthorizationRepository,
+    },
+    {
+      provide: 'IDENTITY_PRISMA',
+      useFactory: () => {
+        const dbUrl = process.env['DATABASE_URL'];
+        if (!dbUrl) {
+          return { $transaction: async () => { throw new Error('No database configured'); } };
+        }
+        return createPgPrismaClient(dbUrl);
+      },
+    },
+    {
+      provide: 'SIGNING_KEY_REPOSITORY',
+      useClass: PostgresSigningKeyRepository,
+    },
+    {
+      provide: 'SESSION_REPOSITORY',
+      useClass: PostgresSessionRepository,
     },
   ],
 })

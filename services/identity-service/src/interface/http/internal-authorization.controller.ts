@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Inject,
+  Post,
   UseGuards,
 } from '@nestjs/common';
 import { z } from 'zod';
@@ -34,11 +35,11 @@ import { RequireServiceScope, ServiceIdentityGuard } from '../../infrastructure/
 const InternalDecisionSchema = z.object({
   principal: z.object({
     subject: z.string().uuid(),
-    sessionId: z.string().uuid().optional(),
+    sessionId: z.string().uuid(),
     tenantId: z.string().uuid(),
-    membershipId: z.string().uuid().optional(),
-    userAuthorizationVersion: z.number().int().optional(),
-    membershipAuthorizationVersion: z.number().int().optional(),
+    membershipId: z.string().uuid(),
+    userAuthorizationVersion: z.number().int(),
+    membershipAuthorizationVersion: z.number().int(),
   }).strict(),
   action: z.string().min(1).max(200),
   resource: z.object({
@@ -90,8 +91,8 @@ export class InternalAuthorizationController {
       return evaluateAuthorizationDecision(tx, this.repo, {
         userId: principal.subject,
         tenantId: principal.tenantId,
-        sessionId: principal.sessionId ?? 'service-call',
-        tokenUserAuthVersion: principal.userAuthorizationVersion ?? 0,
+        sessionId: principal.sessionId,
+        tokenUserAuthVersion: principal.userAuthorizationVersion,
         tokenMembershipAuthVersion: principal.membershipAuthorizationVersion,
         action,
         resourceType: resource?.type ?? 'general',
