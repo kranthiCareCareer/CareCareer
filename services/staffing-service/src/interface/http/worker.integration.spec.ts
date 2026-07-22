@@ -363,6 +363,53 @@ describe('Worker HTTP Integration (GP-06)', () => {
     });
   });
 
+  describe('Outbox events', () => {
+    it('should emit carecareer.worker.created.v1 on creation', async () => {
+      const token = await signJwt(userAId, tenantAId);
+      const res = await request(app.getHttpServer())
+        .post('/v1/workers')
+        .set('Authorization', `Bearer ${token}`)
+        .set('X-Correlation-ID', 'outbox-worker-001')
+        .send({ firstName: 'Outbox', lastName: 'Test', email: 'outbox@t.com', profession: 'RN' });
+      expect(res.status).toBe(HttpStatus.CREATED);
+      const workerId = res.body.data.workerId;
+
+      const outbox = await superClient.query(
+        `SELECT * FROM staffing.event_outbox WHERE aggregate_id = $1::uuid AND event_type = 'carecareer.worker.created.v1'`,
+        [workerId],
+      );
+      expect(outbox.rows.length).toBe(1);
+      expect(outbox.rows[0].correlation_id).toBe('outbox-worker-001');
+      expect(outbox.rows[0].payload.profession).toBe('RN');
+      // NO PII in outbox
+      expect(outbox.rows[0].payload.firstName).toBeUndefined();
+      expect(outbox.rows[0].payload.email).toBeUndefined();
+    });
+
+    it('should emit carecareer.worker.status-changed.v1 on status change', async () => {
+      const token = await signJwt(userAId, tenantAId);
+      const createRes = await request(app.getHttpServer())
+        .post('/v1/workers')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ firstName: 'Status', lastName: 'Event', email: 'status-ev@t.com', profession: 'LPN' });
+      const workerId = createRes.body.data.workerId;
+
+      await request(app.getHttpServer())
+        .post(`/v1/workers/${workerId}/status`)
+        .set('Authorization', `Bearer ${token}`)
+        .set('X-Correlation-ID', 'status-change-001')
+        .send({ status: 'SCREENING', expectedVersion: 1 });
+
+      const outbox = await superClient.query(
+        `SELECT * FROM staffing.event_outbox WHERE aggregate_id = $1::uuid AND event_type = 'carecareer.worker.status-changed.v1'`,
+        [workerId],
+      );
+      expect(outbox.rows.length).toBe(1);
+      expect(outbox.rows[0].payload.newStatus).toBe('SCREENING');
+      expect(outbox.rows[0].correlation_id).toBe('status-change-001');
+    });
+  });
+
   describe('Worker self-service (GET/PATCH /v1/my-profile)', () => {
     const workerUserId = '00000000-0000-0000-0000-000000000a11';
     const otherUserId = '00000000-0000-0000-0000-000000000a12';

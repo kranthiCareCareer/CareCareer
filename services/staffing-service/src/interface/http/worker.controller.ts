@@ -19,12 +19,11 @@ import { z } from 'zod';
 
 import type { TenantAwareTransaction, TransactionClient } from '@carecareer/database';
 
+import { ChangeWorkerStatusHandler } from '../../application/commands/change-worker-status.command.js';
+import { CreateWorkerHandler } from '../../application/commands/create-worker.command.js';
 import type { StaffingRepository } from '../../application/ports/staffing-repository.js';
 import {
-  changeWorkerStatus,
-  createWorker,
   updateWorker,
-  type ExternalReference,
   type Worker,
   type WorkerStatus,
 } from '../../domain/worker.js';
@@ -84,10 +83,16 @@ const ChangeWorkerStatusSchema = z.object({
  */
 @Controller()
 export class WorkerController {
+  private readonly createWorkerHandler: CreateWorkerHandler;
+  private readonly changeStatusHandler: ChangeWorkerStatusHandler;
+
   constructor(
     @Inject(TENANT_DB) private readonly tenantDb: TenantAwareTransaction,
     @Inject(STAFFING_REPO) private readonly repo: StaffingRepository,
-  ) {}
+  ) {
+    this.createWorkerHandler = new CreateWorkerHandler(this.tenantDb, this.repo);
+    this.changeStatusHandler = new ChangeWorkerStatusHandler(this.tenantDb, this.repo);
+  }
 
   @Post('v1/workers')
   @HttpCode(HttpStatus.CREATED)
@@ -110,35 +115,14 @@ export class WorkerController {
       });
     }
 
-    const worker = createWorker({ tenantId, ...parsed.data });
-
-    await this.tenantDb.execute(tenantId, async (tx) => {
-      await this.repo.createWorker(tx, worker);
-
-      // Create external references if provided
-      if (parsed.data.externalReferences) {
-        for (const ref of parsed.data.externalReferences) {
-          const extRef: ExternalReference = {
-            id: crypto.randomUUID(),
-            tenantId,
-            workerId: worker.id,
-            systemName: ref.systemName,
-            externalId: ref.externalId,
-            createdAt: new Date(),
-          };
-          await this.repo.createExternalReference(tx, extRef);
-        }
-      }
-
-      await this.emitAudit(tx, {
-        tenantId, actorId, action: 'worker.created',
-        aggregateType: 'worker', aggregateId: worker.id,
-        afterSummary: { profession: worker.profession, status: worker.status },
-        correlationId: corrId,
-      });
+    const result = await this.createWorkerHandler.execute({
+      tenantId,
+      actorId,
+      correlationId: corrId,
+      ...parsed.data,
     });
 
-    return { data: { workerId: worker.id } };
+    return { data: { workerId: result.workerId } };
   }
 
   @Get('v1/workers/:workerId')
@@ -243,33 +227,30 @@ export class WorkerController {
       });
     }
 
-    const updated = await this.tenantDb.execute(tenantId, async (tx) => {
-      const worker = await this.repo.getWorkerById(tx, workerId);
-      if (!worker) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Worker not found' });
-      if (worker.version !== parsed.data.expectedVersion) {
-        throw new ConflictException({ code: 'VERSION_CONFLICT', message: 'Worker was modified' });
-      }
-
-      try {
-        const changed = changeWorkerStatus(worker, parsed.data.status as WorkerStatus);
-        await this.repo.updateWorker(tx, changed);
-        await this.emitAudit(tx, {
-          tenantId, actorId, action: `worker.${parsed.data.status.toLowerCase()}`,
-          aggregateType: 'worker', aggregateId: worker.id,
-          beforeSummary: { status: worker.status },
-          afterSummary: { status: changed.status },
-          correlationId: corrId,
-        });
-        return changed;
-      } catch (e: unknown) {
-        if (e instanceof Error && e.message.startsWith('Invalid worker status')) {
+    try {
+      const updated = await this.changeStatusHandler.execute({
+        tenantId,
+        actorId,
+        correlationId: corrId,
+        workerId,
+        newStatus: parsed.data.status as WorkerStatus,
+        expectedVersion: parsed.data.expectedVersion,
+      });
+      return { data: updated };
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        if (e.message === 'WORKER_NOT_FOUND') {
+          throw new NotFoundException({ code: 'NOT_FOUND', message: 'Worker not found' });
+        }
+        if (e.message === 'VERSION_CONFLICT') {
+          throw new ConflictException({ code: 'VERSION_CONFLICT', message: 'Worker was modified' });
+        }
+        if (e.message.startsWith('Invalid worker status')) {
           throw new BadRequestException({ code: 'INVALID_TRANSITION', message: e.message });
         }
-        throw e;
       }
-    });
-
-    return { data: updated };
+      throw e;
+    }
   }
 
   /**
