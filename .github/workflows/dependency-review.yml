@@ -24,3 +24,8 @@ jobs:
           fail-on-severity: high
           deny-licenses: GPL-3.0, AGPL-3.0
           comment-summary-in-pr: always
+        # Note: This action requires Dependency Graph + GHAS enabled for private repos.
+        # If it fails with "not supported on this repository", enable in Settings →
+        # Code security and analysis → Dependency graph.
+        # On free plans this may not be available — the workflow will report failure.
+        continue-on-error: false
