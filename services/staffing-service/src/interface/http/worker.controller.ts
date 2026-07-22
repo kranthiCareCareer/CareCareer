@@ -32,6 +32,29 @@ import { RequirePermission } from '../../infrastructure/permission.decorator.js'
 const TENANT_DB = 'STAFFING_TENANT_DB';
 const STAFFING_REPO = 'STAFFING_REPOSITORY';
 
+/** Public worker summary — strips PII (email, phone, home coords) */
+interface WorkerSummary {
+  id: string;
+  firstName: string;
+  lastName: string;
+  profession: string;
+  status: string;
+  specialty?: string | undefined;
+  version: number;
+}
+
+function toWorkerSummary(w: Worker): WorkerSummary {
+  return {
+    id: w.id,
+    firstName: w.firstName,
+    lastName: w.lastName,
+    profession: w.profession,
+    status: w.status,
+    specialty: w.specialty,
+    version: w.version,
+  };
+}
+
 interface AuthenticatedRequest {
   principal?: { subject: string; selectedTenantId?: string };
 }
@@ -144,12 +167,13 @@ export class WorkerController {
   async list(
     @Req() req: AuthenticatedRequest,
     @Query('status') status?: string,
-  ): Promise<{ data: Worker[] }> {
+  ): Promise<{ data: WorkerSummary[] }> {
     const tenantId = this.requireTenant(req);
     const workers = await this.tenantDb.execute(tenantId, async (tx) => {
       return this.repo.listWorkers(tx, { status });
     });
-    return { data: workers };
+    // Project to summary (strip PII: email, phone, home coordinates)
+    return { data: workers.map(toWorkerSummary) };
   }
 
   @Patch('v1/workers/:workerId')

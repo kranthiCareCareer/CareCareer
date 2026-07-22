@@ -10,6 +10,7 @@ import {
 } from './infrastructure/identity-state-adapter.js';
 import { LocalJwksTokenValidator } from './infrastructure/local-jwks-token-validator.js';
 import { PostgresStaffingRepository } from './infrastructure/postgres-staffing-repository.js';
+import { RemoteJwksTokenValidator } from './infrastructure/remote-jwks-token-validator.js';
 import { StaffingAuthGuard } from './infrastructure/staffing-auth.guard.js';
 import { StaffingPermissionGuard } from './infrastructure/staffing-permission.guard.js';
 import { FacilityController } from './interface/http/facility.controller.js';
@@ -29,12 +30,18 @@ import { WorkerController } from './interface/http/worker.controller.js';
   providers: [
     {
       provide: 'TOKEN_VALIDATOR',
-      useFactory: (): LocalJwksTokenValidator => {
-        const jwksKeys = process.env['JWKS_PUBLIC_KEYS'];
+      useFactory: (): TokenValidator => {
+        const jwksUri = process.env['JWKS_URI'];
         const issuer = process.env['JWT_ISSUER'] ?? 'carecareer-identity';
         const audience = process.env['JWT_AUDIENCE'] ?? 'carecareer-api';
 
-        // Parse public keys from environment (JSON array of {kid, publicKeyPem})
+        // Production: use remote JWKS with auto-refresh and key rotation
+        if (jwksUri) {
+          return new RemoteJwksTokenValidator({ issuer, audience, jwksUri });
+        }
+
+        // Local dev/test: use static keys from environment
+        const jwksKeys = process.env['JWKS_PUBLIC_KEYS'];
         const publicKeys: Array<{ kid: string; publicKeyPem: string }> = jwksKeys
           ? JSON.parse(jwksKeys) as Array<{ kid: string; publicKeyPem: string }>
           : [];
@@ -74,7 +81,7 @@ import { WorkerController } from './interface/http/worker.controller.js';
     },
     {
       provide: 'STAFFING_TENANT_DB',
-      useFactory: (): TenantAwareTransaction => {
+      useFactory: async (): Promise<TenantAwareTransaction> => {
         const dbUrl = process.env['DATABASE_URL'];
         if (!dbUrl) {
           return new TenantAwareTransaction({
@@ -83,8 +90,8 @@ import { WorkerController } from './interface/http/worker.controller.js';
             },
           } as never);
         }
-        const { Pool } = require('pg');
-        const pool = new Pool({ connectionString: dbUrl, max: 10 });
+        const { default: pg } = await import('pg');
+        const pool = new pg.Pool({ connectionString: dbUrl, max: 10 });
         return new TenantAwareTransaction({
           async $transaction(fn: (tx: unknown) => Promise<unknown>) {
             const conn = await pool.connect();
