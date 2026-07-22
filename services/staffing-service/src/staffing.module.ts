@@ -4,6 +4,10 @@ import { APP_GUARD, Reflector } from '@nestjs/core';
 import type { TokenValidator } from '@carecareer/auth';
 import { TenantAwareTransaction } from '@carecareer/database';
 
+import {
+  HttpIdentityStateAdapter,
+  type IdentityStateAdapter,
+} from './infrastructure/identity-state-adapter.js';
 import { LocalJwksTokenValidator } from './infrastructure/local-jwks-token-validator.js';
 import { PostgresStaffingRepository } from './infrastructure/postgres-staffing-repository.js';
 import { StaffingAuthGuard } from './infrastructure/staffing-auth.guard.js';
@@ -38,11 +42,23 @@ import { WorkerController } from './interface/http/worker.controller.js';
       },
     },
     {
-      provide: APP_GUARD,
-      useFactory: (tv: TokenValidator, reflector: Reflector): StaffingAuthGuard => {
-        return new StaffingAuthGuard(tv as never, reflector);
+      provide: 'IDENTITY_STATE_ADAPTER',
+      useFactory: (): IdentityStateAdapter | undefined => {
+        const identityUrl = process.env['IDENTITY_SERVICE_URL'];
+        if (!identityUrl) return undefined; // Skip state validation in local dev without identity
+        return new HttpIdentityStateAdapter(identityUrl);
       },
-      inject: ['TOKEN_VALIDATOR', Reflector],
+    },
+    {
+      provide: APP_GUARD,
+      useFactory: (
+        tv: TokenValidator,
+        reflector: Reflector,
+        adapter: IdentityStateAdapter | undefined,
+      ): StaffingAuthGuard => {
+        return new StaffingAuthGuard(tv as never, reflector, adapter);
+      },
+      inject: ['TOKEN_VALIDATOR', Reflector, 'IDENTITY_STATE_ADAPTER'],
     },
     {
       provide: 'STAFFING_TENANT_DB',

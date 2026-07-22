@@ -15,6 +15,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { PrismaLikeClient, TransactionClient } from '@carecareer/database';
 import { TenantAwareTransaction } from '@carecareer/database';
 
+import type { IdentityStateAdapter, IdentityStateValidationResult } from '../../infrastructure/identity-state-adapter.js';
 import { LocalJwksTokenValidator } from '../../infrastructure/local-jwks-token-validator.js';
 import { PostgresStaffingRepository } from '../../infrastructure/postgres-staffing-repository.js';
 import { StaffingAuthGuard } from '../../infrastructure/staffing-auth.guard.js';
@@ -53,6 +54,12 @@ describe('Facility HTTP Integration (GP-05)', () => {
   const userBId = '00000000-0000-0000-0000-000000000b01';
   const clientAId = '00000000-0000-0000-0000-000000000c01';
   const clientBId = '00000000-0000-0000-0000-000000000c02';
+
+  /** Configurable identity state mock — defaults to "valid" */
+  let mockIdentityResult: IdentityStateValidationResult = { valid: true };
+  const mockIdentityAdapter: IdentityStateAdapter = {
+    validate: async () => mockIdentityResult,
+  };
 
   /**
    * Sign a real RS256 JWT using the test private key.
@@ -182,20 +189,20 @@ describe('Facility HTTP Integration (GP-05)', () => {
       publicKeys: [{ kid: TEST_KID, publicKeyPem: publicKeyPem }],
     });
 
-    // Build NestJS test module with REAL auth guard (RS256 validation)
+    // Build NestJS test module with REAL auth guard (RS256 + identity state)
     const moduleRef = await Test.createTestingModule({
       controllers: [HealthController, FacilityController],
       providers: [
         { provide: 'STAFFING_TENANT_DB', useValue: tenantDb },
         { provide: 'STAFFING_REPOSITORY', useClass: PostgresStaffingRepository },
         { provide: 'TOKEN_VALIDATOR', useValue: tokenValidator },
+        { provide: 'IDENTITY_STATE_ADAPTER', useValue: mockIdentityAdapter },
         {
           provide: APP_GUARD,
-          useFactory: (tv: unknown, ref: Reflector) => {
-            const guard = new StaffingAuthGuard(tv as never, ref);
-            return guard;
+          useFactory: (tv: unknown, ref: Reflector, adapter: IdentityStateAdapter) => {
+            return new StaffingAuthGuard(tv as never, ref, adapter);
           },
-          inject: ['TOKEN_VALIDATOR', Reflector],
+          inject: ['TOKEN_VALIDATOR', Reflector, 'IDENTITY_STATE_ADAPTER'],
         },
       ],
     }).compile();
@@ -330,6 +337,7 @@ describe('Facility HTTP Integration (GP-05)', () => {
     });
 
     it('should accept valid RS256 token and return 200', async () => {
+      mockIdentityResult = { valid: true };
       const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
       const res = await request(app.getHttpServer())
         .get('/v1/facilities')
@@ -338,20 +346,69 @@ describe('Facility HTTP Integration (GP-05)', () => {
     });
 
     it('should ignore malicious role claims — tenant derives from validated token only', async () => {
-      // Token claims tenantB but is valid RS256 — principal gets tenantB
-      // The test proves the controller uses principal.selectedTenantId from validated token
+      mockIdentityResult = { valid: true };
       const token = await signValidJwt({ sub: userAId, tenantId: tenantBId });
       const res = await request(app.getHttpServer())
         .get('/v1/facilities')
         .set('Authorization', `Bearer ${token}`);
-      // Should succeed but return Tenant B's empty facility list
       expect(res.status).toBe(HttpStatus.OK);
       expect(res.body.data).toEqual([]);
+    });
+
+    it('should deny when session is revoked', async () => {
+      mockIdentityResult = { valid: false, code: 'AUTH_SESSION_REVOKED', message: 'Session revoked' };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .get('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(HttpStatus.UNAUTHORIZED);
+      expect(res.body.code).toBe('AUTH_SESSION_REVOKED');
+    });
+
+    it('should deny when user is inactive', async () => {
+      mockIdentityResult = { valid: false, code: 'USER_INACTIVE', message: 'User inactive' };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .get('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(HttpStatus.UNAUTHORIZED);
+      expect(res.body.code).toBe('USER_INACTIVE');
+    });
+
+    it('should deny when membership is inactive', async () => {
+      mockIdentityResult = { valid: false, code: 'MEMBERSHIP_INACTIVE', message: 'Membership inactive' };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .get('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(HttpStatus.UNAUTHORIZED);
+      expect(res.body.code).toBe('MEMBERSHIP_INACTIVE');
+    });
+
+    it('should deny when user authorization version is stale', async () => {
+      mockIdentityResult = { valid: false, code: 'AUTH_VERSION_STALE', message: 'Stale auth version' };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .get('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(HttpStatus.UNAUTHORIZED);
+      expect(res.body.code).toBe('AUTH_VERSION_STALE');
+    });
+
+    it('should deny when identity service is unavailable (fail closed)', async () => {
+      mockIdentityResult = { valid: false, code: 'IDENTITY_SERVICE_UNAVAILABLE', message: 'Cannot validate' };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .get('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(HttpStatus.UNAUTHORIZED);
+      expect(res.body.code).toBe('IDENTITY_SERVICE_UNAVAILABLE');
     });
   });
 
   describe('POST /v1/facilities', () => {
     it('should create a facility with valid input and return 201', async () => {
+      mockIdentityResult = { valid: true }; // Reset for non-auth tests
       const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
       const res = await request(app.getHttpServer())
         .post('/v1/facilities')
