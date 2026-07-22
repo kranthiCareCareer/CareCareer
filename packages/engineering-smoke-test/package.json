@@ -11,6 +11,6 @@
     "clean": "rimraf dist"
   },
   "devDependencies": {
-    "vitest": "3.2.3"
+    "vitest": "3.2.6"
   }
 }

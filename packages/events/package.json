@@ -12,13 +12,13 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@carecareer/request-context": "workspace:*",
     "@carecareer/database": "workspace:*",
+    "@carecareer/request-context": "workspace:*",
     "uuid": "11.1.0"
   },
   "devDependencies": {
     "@types/uuid": "10.0.0",
     "typescript": "5.8.3",
-    "vitest": "3.2.3"
+    "vitest": "3.2.6"
   }
 }

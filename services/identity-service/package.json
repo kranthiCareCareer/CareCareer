@@ -47,6 +47,6 @@
     "supertest": "7.1.0",
     "testcontainers": "10.18.0",
     "typescript": "5.8.3",
-    "vitest": "3.2.3"
+    "vitest": "3.2.6"
   }
 }
