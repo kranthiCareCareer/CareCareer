@@ -109,10 +109,13 @@ describe('Worker HTTP Integration (GP-06)', () => {
     await superClient.query(readFileSync(resolve(migrationsDir, '002_workers_schema.sql'), 'utf-8'));
     await superClient.query(readFileSync(resolve(migrationsDir, '003_worker_identity_link.sql'), 'utf-8'));
 
+    // Set test password for app role (not in migration — provisioned separately)
+    await superClient.query(`ALTER ROLE staffing_app PASSWORD 'staffing_app_test'`);
+
     const host = container.getHost();
     const port = container.getMappedPort(5432);
     const prisma = createPoolPrisma(
-      `postgresql://staffing_app:staffing_app_dev@${host}:${port}/worker_test`,
+      `postgresql://staffing_app:staffing_app_test@${host}:${port}/worker_test`,
     );
     const tenantDb = new TenantAwareTransaction(prisma);
     const tokenValidator = new LocalJwksTokenValidator({

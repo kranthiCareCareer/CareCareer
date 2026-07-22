@@ -176,6 +176,7 @@ describe('Facility HTTP Integration (GP-05)', () => {
 
     // Seed client data (required for facility FK)
     await superClient.query(`
+      ALTER ROLE staffing_app PASSWORD 'staffing_app_test';
       INSERT INTO staffing.clients (id, tenant_id, name) VALUES
         ('${clientAId}', '${tenantAId}', 'Client Alpha'),
         ('${clientBId}', '${tenantBId}', 'Client Beta');
@@ -184,7 +185,7 @@ describe('Facility HTTP Integration (GP-05)', () => {
     // Create app pool using staffing_app role (subject to RLS)
     const host = container.getHost();
     const port = container.getMappedPort(5432);
-    const appUri = `postgresql://staffing_app:staffing_app_dev@${host}:${port}/staffing_test`;
+    const appUri = `postgresql://staffing_app:staffing_app_test@${host}:${port}/staffing_test`;
     const prisma = createPoolPrisma(appUri);
     const tenantDb = new TenantAwareTransaction(prisma);
 

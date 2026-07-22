@@ -35,11 +35,14 @@ describe('Facilities Schema and RLS (GP-05)', () => {
     const migrationPath = resolve(currentDir, '..', '..', 'prisma', 'migrations', '001_facilities_schema.sql');
     await superClient.query(readFileSync(migrationPath, 'utf-8'));
 
+    // Set test password (not in migration — provisioned separately)
+    await superClient.query(`ALTER ROLE staffing_app PASSWORD 'staffing_app_test'`);
+
     // Create app-role connection pool (subject to RLS)
     const host = container.getHost();
     const port = container.getMappedPort(5432);
     appPool = new Pool({
-      connectionString: `postgresql://staffing_app:staffing_app_dev@${host}:${port}/staffing_test`,
+      connectionString: `postgresql://staffing_app:staffing_app_test@${host}:${port}/staffing_test`,
       max: 1,
     });
     appPool.on('error', () => {});
