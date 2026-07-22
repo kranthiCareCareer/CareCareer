@@ -31,12 +31,16 @@ export interface AuthorizationDecisionInput {
   readonly tokenUserAuthVersion: number;
   /** From validated token — membership authorization version at token issuance */
   readonly tokenMembershipAuthVersion?: number | undefined;
+  /** From validated principal — membership ID from session */
+  readonly membershipId?: string | undefined;
   /** From request body — the action to evaluate */
   readonly action: string;
   /** From request body — the resource type */
   readonly resourceType: string;
   /** From request body — optional resource ID */
   readonly resourceId?: string | undefined;
+  /** Resource tenant (must match principal tenant for cross-tenant check) */
+  readonly resourceTenantId?: string | undefined;
   /** Correlation ID for tracing */
   readonly correlationId: string;
 }

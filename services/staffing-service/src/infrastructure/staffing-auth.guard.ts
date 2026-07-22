@@ -4,6 +4,7 @@ import {
   Injectable,
   UnauthorizedException,
   Inject,
+  Optional,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
@@ -15,34 +16,39 @@ import {
   type ValidatedTokenContext,
 } from '@carecareer/auth';
 
+import type { IdentityStateAdapter } from './identity-state-adapter.js';
 import { IS_PUBLIC_KEY } from './public.decorator.js';
 
 /**
  * Staffing-service authentication guard.
  *
- * Validates Bearer tokens using the configured TokenValidator (RS256 JWKS).
- * Attaches the validated principal to the request.
+ * Two-phase validation:
+ * 1. RS256 cryptographic token validation (issuer, audience, expiry, kid, signature)
+ * 2. Current identity state validation (session active, user active, membership active,
+ *    authorization versions current)
  *
  * Security guarantees:
  * - Missing token → 401
- * - Malformed token → 401
- * - Unsigned/HS256 token → 401
- * - Wrong issuer → 401
- * - Wrong audience → 401
- * - Expired token → 401
- * - Unknown kid → 401
- * - Valid token → principal attached with selectedTenantId from claims
- *
- * This guard does NOT perform live session-state validation.
- * Revocation is bounded by the 15-minute access-token lifetime.
- * See ADR-staffing-authorization-boundary.md for rationale.
+ * - Malformed/unsigned/HS256/expired/wrong-issuer/wrong-audience → 401
+ * - Revoked session → 401 (immediate, not 15-minute delay)
+ * - Inactive user → 401
+ * - Inactive membership → 401
+ * - Stale user authorization version → 401
+ * - Stale membership authorization version → 401
+ * - Identity service unreachable → 401 (fail closed)
+ * - Valid token + active state → principal attached
  */
 @Injectable()
 export class StaffingAuthGuard implements CanActivate {
+  private readonly localDevMode: boolean;
+
   constructor(
     @Inject('TOKEN_VALIDATOR') private readonly tokenValidator: TokenValidator,
     private readonly reflector: Reflector,
-  ) {}
+    @Optional() @Inject('IDENTITY_STATE_ADAPTER') private readonly identityAdapter?: IdentityStateAdapter,
+  ) {
+    this.localDevMode = process.env['STAFFING_AUTH_MODE'] === 'local';
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     // Public route bypass (health/readiness)
@@ -57,8 +63,46 @@ export class StaffingAuthGuard implements CanActivate {
       principal?: ValidatedTokenContext;
     }>();
 
-    // Extract bearer token
-    const authHeader = request.headers['authorization'];
+    // Phase 1: Extract and validate bearer token (RS256)
+    const validatedToken = await this.validateToken(request.headers);
+
+    // Phase 2: Validate current identity state (session, user, membership)
+    // FAIL CLOSED: no adapter in production = deny
+    if (!this.identityAdapter) {
+      if (!this.localDevMode) {
+        throw new UnauthorizedException({
+          code: 'IDENTITY_VALIDATION_UNAVAILABLE',
+          message: 'Identity state validator not configured — access denied',
+        });
+      }
+      // Local dev mode — skip state validation (token signature still verified)
+    } else {
+      const stateResult = await this.identityAdapter.validate({
+        sessionId: validatedToken.sessionId,
+        userId: validatedToken.subject,
+        selectedTenantId: validatedToken.selectedTenantId,
+        membershipId: validatedToken.membershipId,
+        userAuthorizationVersion: validatedToken.userAuthorizationVersion,
+        membershipAuthorizationVersion: validatedToken.membershipAuthorizationVersion,
+      });
+
+      if (!stateResult.valid) {
+        throw new UnauthorizedException({
+          code: stateResult.code ?? 'IDENTITY_STATE_INVALID',
+          message: stateResult.message ?? 'Identity state validation failed',
+        });
+      }
+    }
+
+    // Attach validated principal to request
+    request.principal = validatedToken;
+    return true;
+  }
+
+  private async validateToken(
+    headers: Record<string, string | undefined>,
+  ): Promise<ValidatedTokenContext> {
+    const authHeader = headers['authorization'];
     if (!authHeader) {
       throw new UnauthorizedException({
         code: 'AUTH_REQUIRED',
@@ -82,38 +126,19 @@ export class StaffingAuthGuard implements CanActivate {
       });
     }
 
-    // Validate token cryptographically (RS256 signature + claims)
-    let validatedToken: ValidatedTokenContext;
     try {
-      validatedToken = await this.tokenValidator.validate(token);
+      return await this.tokenValidator.validate(token);
     } catch (error: unknown) {
       if (error instanceof TokenExpiredError) {
-        throw new UnauthorizedException({
-          code: 'TOKEN_EXPIRED',
-          message: 'Token expired',
-        });
+        throw new UnauthorizedException({ code: 'TOKEN_EXPIRED', message: 'Token expired' });
       }
       if (error instanceof InvalidTokenError) {
-        throw new UnauthorizedException({
-          code: 'INVALID_TOKEN',
-          message: 'Invalid token',
-        });
+        throw new UnauthorizedException({ code: 'INVALID_TOKEN', message: 'Invalid token' });
       }
       if (error instanceof AuthenticationError) {
-        throw new UnauthorizedException({
-          code: 'AUTH_FAILED',
-          message: 'Authentication failed',
-        });
+        throw new UnauthorizedException({ code: 'AUTH_FAILED', message: 'Authentication failed' });
       }
-      throw new UnauthorizedException({
-        code: 'AUTH_FAILED',
-        message: 'Authentication failed',
-      });
+      throw new UnauthorizedException({ code: 'AUTH_FAILED', message: 'Authentication failed' });
     }
-
-    // Attach validated principal to request
-    request.principal = validatedToken;
-
-    return true;
   }
 }

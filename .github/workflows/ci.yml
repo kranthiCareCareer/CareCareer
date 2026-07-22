@@ -2,37 +2,40 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, master]
   push:
-    branches: [main]
+    branches: [main, master]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '24'
   PNPM_VERSION: '9.15.4'
 
 jobs:
   quality:
     name: Lint, Type-check, Test, Build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        # actions/checkout@v4 pinned to commit SHA
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        # pnpm/action-setup@v4 pinned to commit SHA
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d534f2ed8388abd93613
         with:
           version: ${{ env.PNPM_VERSION }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        # actions/setup-node@v4 pinned to commit SHA
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
@@ -40,7 +43,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
+      - name: Lint (zero warnings)
         run: pnpm lint
 
       - name: Format check
@@ -59,3 +62,5 @@ jobs:
         run: |
           echo "Build completed at $(date -u)"
           echo "Commit: ${{ github.sha }}"
+          echo "Node: $(node --version)"
+          echo "pnpm: $(pnpm --version)"

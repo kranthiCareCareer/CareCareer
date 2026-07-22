@@ -6,7 +6,11 @@
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'staffing_app') THEN
-    CREATE ROLE staffing_app NOINHERIT LOGIN PASSWORD 'staffing_app_dev';
+    -- Role created without password. Password provisioned separately:
+    -- Production: ALTER ROLE staffing_app PASSWORD '<from-secrets-manager>'
+    -- Local dev: docker-compose init script sets the password
+    -- Tests: test setup sets the password after migration
+    CREATE ROLE staffing_app NOINHERIT LOGIN;
   END IF;
 END
 $$;

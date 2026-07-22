@@ -34,6 +34,7 @@ import {
   type Facility,
   type FacilityStatus,
 } from '../../domain/facility.js';
+import { RequirePermission } from '../../infrastructure/permission.decorator.js';
 
 const TENANT_DB = 'STAFFING_TENANT_DB';
 const STAFFING_REPO = 'STAFFING_REPOSITORY';
@@ -110,6 +111,7 @@ export class FacilityController {
 
   @Post('v1/facilities')
   @HttpCode(HttpStatus.CREATED)
+  @RequirePermission('facility.create')
   async create(
     @Body() body: unknown,
     @Req() req: AuthenticatedRequest,
@@ -148,6 +150,7 @@ export class FacilityController {
   }
 
   @Get('v1/facilities')
+  @RequirePermission('facility.list')
   async list(@Req() req: AuthenticatedRequest): Promise<{ data: Facility[] }> {
     const tenantId = this.requireTenant(req);
     const facilities = await this.tenantDb.execute(tenantId, async (tx) => {
@@ -157,6 +160,7 @@ export class FacilityController {
   }
 
   @Get('v1/facilities/:facilityId')
+  @RequirePermission('facility.read')
   async getById(
     @Param('facilityId') facilityId: string,
     @Req() req: AuthenticatedRequest,
@@ -170,6 +174,7 @@ export class FacilityController {
   }
 
   @Patch('v1/facilities/:facilityId')
+  @RequirePermission('facility.update')
   async update(
     @Param('facilityId') facilityId: string,
     @Body() body: unknown,
@@ -224,6 +229,7 @@ export class FacilityController {
 
   @Post('v1/facilities/:facilityId/status')
   @HttpCode(HttpStatus.OK)
+  @RequirePermission('facility.activate')
   async changeStatus(
     @Param('facilityId') facilityId: string,
     @Body() body: unknown,
@@ -274,6 +280,7 @@ export class FacilityController {
 
   @Post('v1/facilities/:facilityId/departments')
   @HttpCode(HttpStatus.CREATED)
+  @RequirePermission('department.create')
   async createDepartment(
     @Param('facilityId') facilityId: string,
     @Body() body: unknown,
@@ -311,6 +318,7 @@ export class FacilityController {
   }
 
   @Get('v1/facilities/:facilityId/departments')
+  @RequirePermission('department.list')
   async listDepartments(
     @Param('facilityId') facilityId: string,
     @Req() req: AuthenticatedRequest,
@@ -324,6 +332,7 @@ export class FacilityController {
 
   @Post('v1/facilities/:facilityId/departments/:departmentId/status')
   @HttpCode(HttpStatus.OK)
+  @RequirePermission('department.activate')
   async changeDepartmentStatus(
     @Param('facilityId') facilityId: string,
     @Param('departmentId') departmentId: string,
@@ -377,6 +386,7 @@ export class FacilityController {
 
   @Post('v1/facilities/:facilityId/credential-requirements')
   @HttpCode(HttpStatus.CREATED)
+  @RequirePermission('credential-requirement.manage')
   async createCredentialRequirement(
     @Param('facilityId') facilityId: string,
     @Body() body: unknown,
@@ -435,6 +445,7 @@ export class FacilityController {
   }
 
   @Get('v1/facilities/:facilityId/credential-requirements')
+  @RequirePermission('credential-requirement.read')
   async listCredentialRequirements(
     @Param('facilityId') facilityId: string,
     @Req() req: AuthenticatedRequest,

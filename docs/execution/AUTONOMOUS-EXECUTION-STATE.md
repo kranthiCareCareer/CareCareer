@@ -1,43 +1,57 @@
 # Autonomous Execution State
 
-## Last Updated: 2026-07-21T20:25:00Z
+## Last Updated: 2026-07-22T13:00:00Z
 
 ## Repository State
 
 | Field | Value |
 |-------|-------|
-| Branch | master |
-| HEAD | 20579b5 |
-| Working tree | GP-06 closure doc (uncommitted) |
-| Current milestone | GP-06 COMPLETE (backend) |
-| Next milestone | GP-07 (Credentials and Eligibility) |
-| Authoritative source | docs/decisions/golden-path-backlog.md |
+| Branch | agent/gp-05-gp-06-enterprise-closure |
+| HEAD | eb5afa1 |
+| Origin master | e2f6ec6 |
+| Commits ahead | 30 |
 
-## Completed Milestones
+## Critical Architecture Corrections Completed
 
-| Milestone | Status | Tests |
-|-----------|--------|-------|
-| GP-00–GP-03.4 | COMPLETE | 228 unit + 126 integration |
-| GP-05 Facilities | BACKEND COMPLETE | 35 unit + 41 integration |
-| GP-06 Workers | BACKEND COMPLETE | 18 unit + 12 integration |
-| Investor Demo | COMPLETE | 20 E2E |
-| Chromium 64/64 | COMPLETE | 64 browser |
+| # | Correction | Status |
+|---|-----------|--------|
+| 1 | Token exchange — identity-service is sole token issuer | ✅ DONE |
+| 2 | Internal endpoints implemented (oauth/token, state-validations, authorization/decisions) | ✅ DONE |
+| 3 | All composite tenant FKs repaired (departments, confirmation_policies) | ✅ DONE |
+| 4 | Security coverage 95/90 (global 93.58% — still needs improvement) | ⏳ IN PROGRESS |
+| 5 | Command/audit/outbox for every mutation | ⏳ PARTIAL |
+| 6 | GitHub/AWS deployment gate | ⏳ NOT STARTED |
 
-## Current Test Totals (staffing-service)
+## Service Architecture
+
+```
+staffing-service
+    → POST /internal/v1/oauth/token (client_id + client_secret)
+    ← service JWT (5 min, signed by identity-service)
+    
+    → POST /internal/v1/identity/state-validations (service JWT + principal)
+    ← { valid: true/false, code }
+    
+    → POST /internal/v1/authorization/decisions (service JWT + principal + action)
+    ← { decision: ALLOW/DENY, decisionId, policyVersion }
+```
+
+Key property: staffing-service NEVER holds the identity issuer's signing key.
+
+## Tests
 
 | Layer | Count |
 |-------|-------|
-| Unit tests | 53 |
-| Integration tests | 53 |
-| Total | 106 |
-| Determinism | 53/53 × 3 consecutive |
+| Staffing unit | 129 |
+| Staffing integration | 86 |
+| Total | 215 |
 
-## Next Milestone: GP-07 (Credentials and Eligibility)
+## PR Status
 
-Key requirements:
-- Credential types (RN_LICENSE, BLS, CNA_CERT, etc.)
-- Credential record CRUD
-- Verification lifecycle (UPLOADED → VERIFIED → EXPIRED)
-- Facility requirement matrix evaluation
-- Eligibility determination (deterministic)
-- Worker blocking on credential expiry
+Branch is pushed but PR title should be:
+`wip(gp-05-gp-06): enterprise security hardening checkpoint`
+
+NOT "enterprise closure" — this is a checkpoint, not closure.
+
+## GP-05 / GP-06: IN PROGRESS
+## GP-07: NOT STARTED — BLOCKED

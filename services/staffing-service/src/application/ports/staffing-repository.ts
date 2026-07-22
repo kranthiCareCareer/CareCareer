@@ -36,6 +36,7 @@ export interface StaffingRepository {
   // Workers
   createWorker(tx: TransactionClient, worker: Worker): Promise<void>;
   getWorkerById(tx: TransactionClient, workerId: string): Promise<Worker | null>;
+  getWorkerByUserId(tx: TransactionClient, userId: string): Promise<Worker | null>;
   updateWorker(tx: TransactionClient, worker: Worker): Promise<void>;
   listWorkers(tx: TransactionClient, filters?: { status?: string | undefined }): Promise<Worker[]>;
 

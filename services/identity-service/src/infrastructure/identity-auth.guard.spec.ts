@@ -169,6 +169,7 @@ describe('IdentityAuthGuard', () => {
       const guard = new IdentityAuthGuard(createMockValidator(noAdminToken), reflector);
       vi.spyOn(reflector, 'getAllAndOverride')
         .mockReturnValueOnce(false) // isPublic
+        .mockReturnValueOnce(false) // isInternalService
         .mockReturnValueOnce('platform.admin'); // requiredPermission
 
       const { context } = createMockContext({ authorization: 'Bearer real-token' });

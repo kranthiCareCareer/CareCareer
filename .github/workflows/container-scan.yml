@@ -2,12 +2,12 @@ name: Container Security
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, master]
     paths:
       - '**/Dockerfile'
       - '**/docker-compose*.yml'
   push:
-    branches: [main]
+    branches: [main, master]
     paths:
       - '**/Dockerfile'
       - '**/docker-compose*.yml'

@@ -2,9 +2,9 @@ name: Code Security
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, master]
   push:
-    branches: [main]
+    branches: [main, master]
   schedule:
     - cron: '0 6 * * 1'
 
@@ -20,15 +20,17 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        # actions/checkout@v4 pinned to commit SHA
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        # github/codeql-action/init@v3 pinned to commit SHA
+        uses: github/codeql-action/init@4e828ffe61b2ed4a37cfc3d8d474f3e4e2e5c7b0
         with:
           languages: javascript-typescript
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@4e828ffe61b2ed4a37cfc3d8d474f3e4e2e5c7b0
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@4e828ffe61b2ed4a37cfc3d8d474f3e4e2e5c7b0
