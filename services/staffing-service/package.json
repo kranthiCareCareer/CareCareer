@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "openapi:validate": "vitest run src/openapi/openapi-validate.spec.ts",
     "db:migrate": "node scripts/migrate.mjs",
     "clean": "rimraf dist"
   },
