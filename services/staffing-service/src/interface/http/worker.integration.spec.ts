@@ -493,4 +493,111 @@ describe('Worker HTTP Integration (GP-06)', () => {
       expect(res.body.data.id).not.toBe(workerBId);
     });
   });
+
+  describe('Additional error paths (coverage)', () => {
+    it('should reject worker update on non-existent worker (404)', async () => {
+      const token = await signJwt(userAId, tenantAId);
+      const res = await request(app.getHttpServer())
+        .patch('/v1/workers/00000000-0000-0000-0000-ffffffffffff')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ firstName: 'Ghost', expectedVersion: 1 });
+      expect(res.status).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('should reject worker status change on non-existent worker (404)', async () => {
+      const token = await signJwt(userAId, tenantAId);
+      const res = await request(app.getHttpServer())
+        .post('/v1/workers/00000000-0000-0000-0000-ffffffffffff/status')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'SCREENING', expectedVersion: 1 });
+      expect(res.status).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('should reject worker update with version conflict (409)', async () => {
+      const token = await signJwt(userAId, tenantAId);
+      const createRes = await request(app.getHttpServer())
+        .post('/v1/workers')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ firstName: 'Version', lastName: 'Conflict', email: 'vc@t.com', profession: 'RN' });
+      const workerId = createRes.body.data.workerId;
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/workers/${workerId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ firstName: 'Stale', expectedVersion: 99 });
+      expect(res.status).toBe(HttpStatus.CONFLICT);
+    });
+
+    it('should reject worker status change with version conflict (409)', async () => {
+      const token = await signJwt(userAId, tenantAId);
+      const createRes = await request(app.getHttpServer())
+        .post('/v1/workers')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ firstName: 'StatusVC', lastName: 'Test', email: 'svc@t.com', profession: 'LPN' });
+      const workerId = createRes.body.data.workerId;
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/workers/${workerId}/status`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'SCREENING', expectedVersion: 99 });
+      expect(res.status).toBe(HttpStatus.CONFLICT);
+    });
+
+    it('should reject self-profile update with invalid body', async () => {
+      // Create worker linked to a known user
+      const selfUserId = '00000000-0000-0000-0000-000000000a15';
+      const adminToken = await signJwt(userAId, tenantAId);
+      await request(app.getHttpServer())
+        .post('/v1/workers')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ firstName: 'SelfVal', lastName: 'Test', email: 'selfval@t.com', profession: 'CNA', userId: selfUserId });
+
+      const selfToken = await signJwt(selfUserId, tenantAId);
+      const res = await request(app.getHttpServer())
+        .patch('/v1/my-profile')
+        .set('Authorization', `Bearer ${selfToken}`)
+        .send({}); // missing expectedVersion
+      expect(res.status).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should reject self-profile update with version conflict', async () => {
+      const selfUserId = '00000000-0000-0000-0000-000000000a16';
+      const adminToken = await signJwt(userAId, tenantAId);
+      await request(app.getHttpServer())
+        .post('/v1/workers')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ firstName: 'SelfVC', lastName: 'Test', email: 'selfvc@t.com', profession: 'RT', userId: selfUserId });
+
+      const selfToken = await signJwt(selfUserId, tenantAId);
+      const res = await request(app.getHttpServer())
+        .patch('/v1/my-profile')
+        .set('Authorization', `Bearer ${selfToken}`)
+        .send({ firstName: 'Updated', expectedVersion: 99 });
+      expect(res.status).toBe(HttpStatus.CONFLICT);
+    });
+
+    it('should reject worker creation with invalid email format', async () => {
+      const token = await signJwt(userAId, tenantAId);
+      const res = await request(app.getHttpServer())
+        .post('/v1/workers')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ firstName: 'Bad', lastName: 'Email', email: 'not-an-email', profession: 'RN' });
+      expect(res.status).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should reject worker update with invalid body (unexpected field)', async () => {
+      const token = await signJwt(userAId, tenantAId);
+      const createRes = await request(app.getHttpServer())
+        .post('/v1/workers')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ firstName: 'Strict', lastName: 'Schema', email: 'strict@t.com', profession: 'CNA' });
+      const workerId = createRes.body.data.workerId;
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/workers/${workerId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ email: 'changed@t.com', expectedVersion: 1 }); // email not in UpdateWorkerSchema
+      expect(res.status).toBe(HttpStatus.BAD_REQUEST);
+    });
+  });
 });

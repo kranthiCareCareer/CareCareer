@@ -898,4 +898,140 @@ describe('Facility HTTP Integration (GP-05)', () => {
       expect(react.body.data.status).toBe('ACTIVE');
     });
   });
+
+  describe('Additional error paths (coverage)', () => {
+    it('should reject facility update on non-existent facility (404)', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .patch('/v1/facilities/00000000-0000-0000-0000-ffffffffffff')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Ghost', expectedVersion: 1 });
+      expect(res.status).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('should reject facility status change on non-existent facility (404)', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .post('/v1/facilities/00000000-0000-0000-0000-ffffffffffff/status')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'INACTIVE', expectedVersion: 1 });
+      expect(res.status).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('should reject facility status change with version conflict (409)', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'StatusConflict', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/status`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'INACTIVE', expectedVersion: 99 });
+      expect(res.status).toBe(HttpStatus.CONFLICT);
+    });
+
+    it('should reject department status change on non-existent department (404)', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'DeptNotFound', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/departments/00000000-0000-0000-0000-ffffffffffff/status`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'INACTIVE', expectedVersion: 1 });
+      expect(res.status).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('should reject credential requirement creation with invalid body', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'CredValidation', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/credential-requirements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ role: 'INVALID_ROLE', credentialType: 'BLS' });
+      expect(res.status).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should reject credential requirement on non-existent facility (404)', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const res = await request(app.getHttpServer())
+        .post('/v1/facilities/00000000-0000-0000-0000-ffffffffffff/credential-requirements')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ role: 'RN', credentialType: 'BLS' });
+      expect(res.status).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('should reject invalid role in credential requirements query', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'RoleFilter', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/facilities/${facilityId}/credential-requirements?role=INVALID`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.status).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should reject department creation with empty name', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'EmptyDeptName', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .post(`/v1/facilities/${facilityId}/departments`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: '' });
+      expect(res.status).toBe(HttpStatus.BAD_REQUEST);
+    });
+
+    it('should reject facility update with invalid body (missing expectedVersion)', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signValidJwt({ sub: userAId, tenantId: tenantAId });
+      const facRes = await request(app.getHttpServer())
+        .post('/v1/facilities')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ clientId: clientAId, name: 'NoVersion', timezone: 'US/Eastern' });
+      const facilityId = facRes.body.data.facilityId;
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/facilities/${facilityId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Updated' }); // missing expectedVersion
+      expect(res.status).toBe(HttpStatus.BAD_REQUEST);
+    });
+  });
 });
