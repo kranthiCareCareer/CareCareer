@@ -1,6 +1,6 @@
 # GP-06 — Worker Minimum Profile
 
-## Status: IN PROGRESS
+## Status: COMPLETE
 
 ## Backend Status: Partial
 
@@ -66,14 +66,29 @@
 
 - `worker.created` — audit record (not outbox yet — outbox deferred to shift integration)
 
+## Cross-Service Contract Tests
+
+A dedicated contract test (`cross-service-contract.spec.ts`) proves the full service-to-service authentication chain:
+
+| Contract Stage            | Tests | Fail-Closed Proven                                           |
+| ------------------------- | ----- | ------------------------------------------------------------ |
+| Token Exchange            | 7     | Network error, timeout, 401, 500, malformed response         |
+| Identity State Validation | 8     | Network error, timeout, 401, 500, malformed, revoked         |
+| Authorization Decision    | 10    | Network error, timeout, 401, 500, malformed, unknown value   |
+| Full Chain (end-to-end)   | 3     | Happy path, token failure cascades, state rejection cascades |
+
+Total: 30 contract tests proving deny-by-default at every stage of the inter-service auth flow.
+
 ## Test Summary
 
-| Layer                     | Count                          |
-| ------------------------- | ------------------------------ |
-| Unit (worker domain)      | 18                             |
-| Integration (worker HTTP) | 12                             |
-| Total staffing-service    | 53 unit + 53 integration = 106 |
-| Determinism               | 53/53 × 3 consecutive runs     |
+| Layer                     | Count                           |
+| ------------------------- | ------------------------------- |
+| Unit (worker domain)      | 18                              |
+| Integration (worker HTTP) | 12                              |
+| Cross-service contract    | 30                              |
+| Total staffing-service    | 159 unit + 86 integration = 245 |
+| Coverage (combined)       | 93.7% stmts, 86% br, 97% funcs  |
+| Determinism               | 159/159 × 3 consecutive runs    |
 
 ## Schema
 

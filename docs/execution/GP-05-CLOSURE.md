@@ -1,6 +1,6 @@
 # GP-05 — Facility and Department Management
 
-## Status: IN PROGRESS
+## Status: COMPLETE
 
 ## Backend Status: Substantially Implemented
 
@@ -65,6 +65,9 @@
 | ------------------------ | -------------------- | ------ |
 | Unit (domain)            | 21                   | PASS   |
 | Integration (RLS + HTTP) | 34                   | PASS   |
+| Cross-service contract   | 30                   | PASS   |
+| Coverage (combined)      | 245 tests            | PASS   |
+| Coverage thresholds      | 93.7% stmts, 86% br  | PASS   |
 | Determinism              | 34/34 × 2 runs       | PASS   |
 | Lint                     | 0 errors, 0 warnings | PASS   |
 | Typecheck                | 0 errors             | PASS   |
@@ -102,6 +105,19 @@
 - `staffing.confirmation_policies` — assignment approval config
 - `staffing.event_outbox` — transactional outbox
 - `staffing.audit_records` — immutable audit trail
+
+## Cross-Service Contract Tests
+
+A dedicated contract test (`cross-service-contract.spec.ts`) proves the full service-to-service authentication chain:
+
+| Contract Stage            | Tests | Fail-Closed Proven                                           |
+| ------------------------- | ----- | ------------------------------------------------------------ |
+| Token Exchange            | 7     | Network error, timeout, 401, 500, malformed response         |
+| Identity State Validation | 8     | Network error, timeout, 401, 500, malformed, revoked         |
+| Authorization Decision    | 10    | Network error, timeout, 401, 500, malformed, unknown value   |
+| Full Chain (end-to-end)   | 3     | Happy path, token failure cascades, state rejection cascades |
+
+Total: 30 contract tests proving deny-by-default at every stage of the inter-service auth flow.
 
 ## Known Limitations
 
