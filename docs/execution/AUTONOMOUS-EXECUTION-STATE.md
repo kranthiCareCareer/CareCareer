@@ -1,73 +1,60 @@
 # Autonomous Execution State
 
-## Last Updated: 2026-07-22T23:20:00Z
+## Last Updated: 2026-07-23T00:20:00Z
 
 ## Repository State
 
-| Field         | Value                           |
-| ------------- | ------------------------------- |
-| Branch        | agent/gha-cicd-stabilization-v2 |
-| HEAD          | 72956ed                         |
-| Origin master | 9d86c7b                         |
-| Commits ahead | 3                               |
-| PR            | Open (draft) on GitHub          |
+| Field         | Value                       |
+| ------------- | --------------------------- |
+| Branch        | feature/CC-gp09-marketplace |
+| HEAD          | fc909e2                     |
+| Origin master | 3927c1f                     |
+| Commits ahead | 1                           |
+| PR            | Pending creation            |
 
-## CI/CD Status — ALL GREEN ✅
+## GP-09: Marketplace and Shift Requests — COMPLETE
 
-| Workflow           | Status  | Run SHA |
-| ------------------ | ------- | ------- |
-| CI                 | SUCCESS | 72956ed |
-| Secret Scanning    | SUCCESS | 72956ed |
-| Code Security      | SUCCESS | 72956ed |
-| Dependency Review  | SUCCESS | 72956ed |
-| Container Security | SUCCESS | 72956ed |
-| DEMO-01 E2E        | SUCCESS | 72956ed |
+### What Was Built
 
-## Fixes Applied (This Session)
+1. **ShiftRequest domain model** — 6-state machine:
 
-### Container Security (Trivy) — Fixed
+   - REQUESTED → UNDER_REVIEW → CONFIRMED | REJECTED
+   - REQUESTED → WITHDRAWN | EXPIRED
+   - Business rules: duplicate prevention, TTL expiration, withdrawal
 
-Root causes and fixes:
+2. **Marketplace domain logic** — Pure filtering:
 
-1. **multer CVEs** (CVE-2025-7338, CVE-2026-2359, CVE-2026-3304):
-   Upgraded `@nestjs/platform-express` from 11.1.3 → 11.1.28 across all services.
-   NestJS 11.1.28 ships with multer 2.2.0 (patched).
+   - Published/partially-filled shifts with available capacity
+   - Filter by role, facility, date range
+   - Sort by date or facility
+   - Maps to safe public shape (no internal fields exposed)
 
-2. **path-to-regexp** (CVE-2026-4926):
-   Upgraded `@nestjs/core` in `packages/service-core` from 11.1.3 → 11.1.28.
-   NestJS 11.1.28 uses path-to-regexp 8.4.2 (patched).
+3. **Database migration 010** — shift_requests table:
 
-3. **tar-fs** (CVE-2024-12905, CVE-2025-48387, CVE-2025-59343):
-   `.pnpmfile.cjs` hook overrides transitive dep from dockerode (testcontainers).
-   Resolved to 3.1.3 (patched). Dev-only, never deployed.
+   - RLS enabled + forced
+   - Unique constraint (tenant_id, shift_id, worker_id) for deduplication
+   - Expiration index for TTL queries
 
-4. **undici** (CVE-2026-12151, CVE-2026-1526, CVE-2026-2229):
-   `.pnpmfile.cjs` hook overrides transitive dep from testcontainers.
-   Resolved to 7.28.0 (patched). Dev-only, never deployed.
+4. **Unit tests** — 51 new tests:
+   - 35 shift-request state machine tests
+   - 16 marketplace filtering tests
 
-### DEMO-01 E2E — Fixed
+### Test Counts
 
-Root causes and fixes:
+| Suite               | Count |
+| ------------------- | ----- |
+| Staffing unit tests | 322   |
+| All passing         | YES   |
+| Typecheck           | PASS  |
+| Lint (0 errors)     | PASS  |
 
-1. **Backend startup failure**: Changed from `node dist/main.js` to `npx tsx src/main.ts`.
-   Workspace packages expose TypeScript source (`main: ./src/index.ts`), so plain
-   Node.js cannot resolve them at runtime. `tsx` handles TS natively.
+## GP Status
 
-2. **Health check URL wrong**: Changed `/health` → `/health/live` (matching
-   the actual PlatformHealthController endpoint).
-
-## Test Counts (CI verified)
-
-All tests pass in CI pipeline (unit + integration).
-
-## GP-05: IN PROGRESS
-
-## GP-06: IN PROGRESS
-
-## GP-07: NOT STARTED — BLOCKED
-
-## Next Steps
-
-1. PR is ready for review (all 6 workflows green)
-2. After merge: resume GP-05/GP-06 closure work
-3. Do NOT start GP-07 until CI stabilization PR is merged
+| Milestone | Status      |
+| --------- | ----------- |
+| GP-05     | ✅ COMPLETE |
+| GP-06     | ✅ COMPLETE |
+| GP-07     | ✅ COMPLETE |
+| GP-08     | ✅ COMPLETE |
+| GP-09     | ✅ COMPLETE |
+| GP-10     | ⬜ NEXT     |
