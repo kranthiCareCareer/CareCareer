@@ -680,4 +680,38 @@ describe('Credential HTTP Integration (GP-07)', () => {
       expect(res.body.stack).toBeUndefined();
     });
   });
+
+  describe('Optimistic concurrency', () => {
+    it('should return 409 VERSION_CONFLICT when two submits race on same credential', async () => {
+      mockIdentityResult = { valid: true };
+      mockPermissionResult = { allowed: true };
+      const token = await signJwt(userAId, tenantAId);
+
+      // Create a credential
+      const createRes = await request(app.getHttpServer())
+        .post(`/v1/workers/${workerAId}/credentials`)
+        .set('Idempotency-Key', crypto.randomUUID())
+        .set('Authorization', `Bearer ${token}`)
+        .send({ credentialType: 'CONCURRENCY_TEST' });
+      const credId = createRes.body.data.credentialId;
+
+      // First submit succeeds
+      const first = await request(app.getHttpServer())
+        .post(`/v1/workers/${workerAId}/credentials/${credId}/submit`)
+        .set('Idempotency-Key', crypto.randomUUID())
+        .set('Authorization', `Bearer ${token}`);
+      expect(first.status).toBe(HttpStatus.OK);
+
+      // Second submit on the same credential with a different idempotency key
+      // should fail because status is no longer UPLOADED (it's PENDING_VERIFICATION)
+      const second = await request(app.getHttpServer())
+        .post(`/v1/workers/${workerAId}/credentials/${credId}/submit`)
+        .set('Idempotency-Key', crypto.randomUUID())
+        .set('Authorization', `Bearer ${token}`);
+
+      // Invalid transition (already PENDING_VERIFICATION, can't submit again)
+      expect(second.status).toBe(HttpStatus.BAD_REQUEST);
+      expect(second.body.code).toBe('INVALID_CREDENTIAL_TRANSITION');
+    });
+  });
 });
