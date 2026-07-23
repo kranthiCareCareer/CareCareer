@@ -72,6 +72,7 @@ export class CredentialController {
     @Body() body: unknown,
     @Req() req: AuthenticatedStaffingRequest,
     @Headers('x-correlation-id') correlationId?: string,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<{ data: { credentialId: string } }> {
     const principal = requirePrincipal(req);
 
@@ -95,6 +96,7 @@ export class CredentialController {
       credentialNumber: parsed.data.credentialNumber,
       issuedAt: parsed.data.issuedAt ? new Date(parsed.data.issuedAt) : undefined,
       expiresAt: parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : undefined,
+      idempotencyKey,
     });
 
     return { data: { credentialId: result.credentialId } };
