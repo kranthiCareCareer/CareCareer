@@ -1,5 +1,5 @@
 -- GP-07: Idempotency for credential mutations
--- Ensures exactly-once semantics for create, submit, verify, reject, revoke, renew
+-- Ensures exactly-once semantics using INSERT ON CONFLICT + claim token
 
 CREATE TABLE staffing.idempotency_records (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -7,17 +7,18 @@ CREATE TABLE staffing.idempotency_records (
     operation TEXT NOT NULL,
     idempotency_key TEXT NOT NULL,
     request_hash TEXT NOT NULL,
+    claim_token UUID NOT NULL,
     status TEXT NOT NULL DEFAULT 'IN_PROGRESS',
     http_status INTEGER,
     response_body JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '24 hours'),
     completed_at TIMESTAMPTZ,
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '24 hours'),
     CONSTRAINT valid_idempotency_status CHECK (status IN ('IN_PROGRESS', 'COMPLETED', 'FAILED')),
     CONSTRAINT unique_tenant_operation_key UNIQUE (tenant_id, operation, idempotency_key)
 );
 
-CREATE INDEX idx_idempotency_expires ON staffing.idempotency_records (expires_at)
+CREATE INDEX idx_idempotency_stale ON staffing.idempotency_records (created_at)
     WHERE status = 'IN_PROGRESS';
 
 ALTER TABLE staffing.idempotency_records ENABLE ROW LEVEL SECURITY;

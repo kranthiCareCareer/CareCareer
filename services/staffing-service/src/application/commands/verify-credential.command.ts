@@ -1,13 +1,18 @@
 import type { TenantAwareTransaction, TransactionClient } from '@carecareer/database';
 
 import { verifyCredential, type Credential } from '../../domain/credential.js';
-import { CredentialNotFoundError, InvalidCredentialTransitionError } from '../../domain/errors.js';
+import {
+  CredentialNotFoundError,
+  CredentialWorkerMismatchError,
+  InvalidCredentialTransitionError,
+} from '../../domain/errors.js';
 import type { CredentialRepository } from '../ports/credential-repository.js';
 
 export interface VerifyCredentialInput {
   readonly tenantId: string;
   readonly actorId: string;
   readonly correlationId: string;
+  readonly workerId: string;
   readonly credentialId: string;
   readonly verifiedBy: string;
 }
@@ -35,6 +40,11 @@ export class VerifyCredentialHandler {
       const existing = await this.repo.getCredentialById(tx, input.credentialId);
       if (!existing) {
         throw new CredentialNotFoundError(input.credentialId);
+      }
+
+      // Enforce credential belongs to the route worker
+      if (existing.workerId !== input.workerId) {
+        throw new CredentialWorkerMismatchError();
       }
 
       let verifiedCredential: Credential;

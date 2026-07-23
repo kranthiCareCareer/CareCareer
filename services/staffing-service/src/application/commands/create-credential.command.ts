@@ -63,6 +63,8 @@ export class CreateCredentialHandler {
           credentialType: input.credentialType,
           issuingAuthority: input.issuingAuthority,
           credentialNumber: input.credentialNumber,
+          issuedAt: input.issuedAt?.toISOString(),
+          expiresAt: input.expiresAt?.toISOString(),
         });
 
         const claim = await claimIdempotencyKey(
@@ -85,12 +87,13 @@ export class CreateCredentialHandler {
         await this.emitAudit(tx, credential, input);
         await this.emitOutboxEvent(tx, credential, input);
 
-        // Complete idempotency
+        // Complete idempotency (only this claim token can complete)
         await completeIdempotency(
           tx,
           input.tenantId,
           'credential.create',
           input.idempotencyKey,
+          claim.claimToken!,
           201,
           { credentialId: credential.id },
         );

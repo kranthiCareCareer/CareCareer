@@ -147,7 +147,7 @@ export class CredentialController {
   @HttpCode(HttpStatus.OK)
   @RequirePermission('credentials:verify')
   async verifyCredential(
-    @Param('workerId') _workerId: string,
+    @Param('workerId') workerId: string,
     @Param('credentialId') credentialId: string,
     @Req() req: AuthenticatedStaffingRequest,
     @Headers('x-correlation-id') correlationId?: string,
@@ -158,6 +158,7 @@ export class CredentialController {
       tenantId: principal.selectedTenantId,
       actorId: principal.subject,
       correlationId: correlationId ?? crypto.randomUUID(),
+      workerId,
       credentialId,
       verifiedBy: principal.subject,
     });

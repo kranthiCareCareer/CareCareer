@@ -1,30 +1,27 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import type { TransactionClient } from '@carecareer/database';
 
 /**
  * Credential mutation idempotency guard.
  *
- * Ensures exactly-once semantics for credential operations.
- * Scoped by: tenant_id + operation + idempotency_key
+ * Concurrency-safe design using INSERT ON CONFLICT:
+ *
+ * 1. INSERT ... ON CONFLICT DO NOTHING — atomic upsert attempt
+ * 2. SELECT FOR UPDATE — lock the winner row
+ * 3. Inspect status + claim_token + request_hash
+ * 4. Decide: claimed | replay | conflict | in-progress | reclaim
+ *
+ * This guarantees exactly one transaction executes the business mutation,
+ * even under concurrent duplicate requests.
  *
  * States:
- * - IN_PROGRESS: key claimed, mutation executing
+ * - IN_PROGRESS: key claimed, mutation executing, owned by claim_token
  * - COMPLETED: mutation succeeded, response stored
  * - FAILED: mutation failed, key can be retried
  *
- * Flow:
- * 1. claimIdempotencyKey() — atomic INSERT ... ON CONFLICT DO NOTHING
- *    - If no existing record: inserts IN_PROGRESS, returns { claimed: true }
- *    - If existing COMPLETED + same hash: returns { claimed: false, replay: response }
- *    - If existing COMPLETED + different hash: throws IdempotencyConflictError
- *    - If existing IN_PROGRESS + not expired: throws IdempotencyInProgressError
- *    - If existing IN_PROGRESS + expired: reclaims the key
- *    - If existing FAILED: reclaims the key
- * 2. Execute business mutation within same transaction
- * 3. completeIdempotency() — updates status to COMPLETED with response
- *
- * On transaction failure: record remains IN_PROGRESS and will expire/be reclaimed.
+ * Lease: IN_PROGRESS records older than STALE_THRESHOLD can be reclaimed.
+ * Completion: only the holder of the claim_token can complete.
  */
 
 export class IdempotencyConflictError extends Error {
@@ -49,6 +46,7 @@ export class IdempotencyInProgressError extends Error {
 
 export interface IdempotencyClaimResult {
   readonly claimed: boolean;
+  readonly claimToken?: string;
   readonly replay?: { httpStatus: number; response: unknown };
 }
 
@@ -57,7 +55,8 @@ const STALE_THRESHOLD_MS = 5 * 60 * 1000;
 
 /**
  * Attempt to claim an idempotency key atomically.
- * Must be called within a transaction BEFORE the business mutation.
+ * Uses INSERT ON CONFLICT to guarantee only one winner.
+ * Must be called within a serializable or at least a FOR UPDATE transaction.
  */
 export async function claimIdempotencyKey(
   tx: TransactionClient,
@@ -67,16 +66,32 @@ export async function claimIdempotencyKey(
   requestHash: string,
   now: Date = new Date(),
 ): Promise<IdempotencyClaimResult> {
-  // Check for existing record
+  const claimToken = randomUUID();
+
+  // Atomic INSERT attempt — only succeeds if no existing record
+  const inserted = await tx.$executeRaw`
+    INSERT INTO staffing.idempotency_records (
+      tenant_id, operation, idempotency_key, request_hash, status, claim_token
+    ) VALUES (
+      ${tenantId}::uuid, ${operation}, ${idempotencyKey},
+      ${requestHash}, ${'IN_PROGRESS'}, ${claimToken}
+    ) ON CONFLICT (tenant_id, operation, idempotency_key) DO NOTHING`;
+
+  if (inserted > 0) {
+    // We are the winner — key claimed successfully
+    return { claimed: true, claimToken };
+  }
+
+  // Record exists — lock it and inspect
   const existing = await tx.$queryRaw<{
     status: string;
     request_hash: string;
+    claim_token: string | null;
     http_status: number | null;
     response_body: unknown;
     created_at: string;
-    expires_at: string;
   }>`
-    SELECT status, request_hash, http_status, response_body, created_at, expires_at
+    SELECT status, request_hash, claim_token, http_status, response_body, created_at
     FROM staffing.idempotency_records
     WHERE tenant_id = ${tenantId}::uuid
       AND operation = ${operation}
@@ -84,14 +99,8 @@ export async function claimIdempotencyKey(
     FOR UPDATE`;
 
   if (existing.length === 0) {
-    // No existing record — claim the key
-    await tx.$executeRaw`
-      INSERT INTO staffing.idempotency_records (
-        tenant_id, operation, idempotency_key, request_hash, status
-      ) VALUES (
-        ${tenantId}::uuid, ${operation}, ${idempotencyKey}, ${requestHash}, ${'IN_PROGRESS'}
-      )`;
-    return { claimed: true };
+    // Shouldn't happen after ON CONFLICT — defensive
+    return { claimed: true, claimToken };
   }
 
   const record = existing[0]!;
@@ -112,46 +121,61 @@ export async function claimIdempotencyKey(
   }
 
   if (record.status === 'FAILED') {
-    // Failed records can be reclaimed — update to IN_PROGRESS
-    await tx.$executeRaw`
+    // Failed records can be reclaimed — update with new claim token
+    const reclaimed = await tx.$executeRaw`
       UPDATE staffing.idempotency_records
-      SET status = 'IN_PROGRESS', request_hash = ${requestHash}, created_at = NOW()
+      SET status = 'IN_PROGRESS',
+          request_hash = ${requestHash},
+          claim_token = ${claimToken},
+          created_at = NOW()
       WHERE tenant_id = ${tenantId}::uuid
         AND operation = ${operation}
-        AND idempotency_key = ${idempotencyKey}`;
-    return { claimed: true };
+        AND idempotency_key = ${idempotencyKey}
+        AND status = 'FAILED'`;
+    if (reclaimed > 0) {
+      return { claimed: true, claimToken };
+    }
+    throw new IdempotencyInProgressError();
   }
 
-  // IN_PROGRESS — check if stale
+  // IN_PROGRESS — check if stale (lease expired)
   const createdAt = new Date(record.created_at);
   if (now.getTime() - createdAt.getTime() > STALE_THRESHOLD_MS) {
-    // Stale IN_PROGRESS — reclaim
-    await tx.$executeRaw`
+    // Stale — reclaim with new token (conditional on current status)
+    const reclaimed = await tx.$executeRaw`
       UPDATE staffing.idempotency_records
-      SET status = 'IN_PROGRESS', request_hash = ${requestHash}, created_at = NOW()
+      SET status = 'IN_PROGRESS',
+          request_hash = ${requestHash},
+          claim_token = ${claimToken},
+          created_at = NOW()
       WHERE tenant_id = ${tenantId}::uuid
         AND operation = ${operation}
-        AND idempotency_key = ${idempotencyKey}`;
-    return { claimed: true };
+        AND idempotency_key = ${idempotencyKey}
+        AND status = 'IN_PROGRESS'`;
+    if (reclaimed > 0) {
+      return { claimed: true, claimToken };
+    }
   }
 
-  // Active IN_PROGRESS — another request is executing
+  // Active IN_PROGRESS by another request — reject
   throw new IdempotencyInProgressError();
 }
 
 /**
- * Mark an idempotency key as completed with the response.
- * Must be called within the same transaction after the business mutation.
+ * Mark an idempotency key as completed.
+ * Only the holder of the claim_token can complete.
+ * Returns true if completion succeeded, false if ownership was lost.
  */
 export async function completeIdempotency(
   tx: TransactionClient,
   tenantId: string,
   operation: string,
   idempotencyKey: string,
+  claimToken: string,
   httpStatus: number,
   response: unknown,
-): Promise<void> {
-  await tx.$executeRaw`
+): Promise<boolean> {
+  const affected = await tx.$executeRaw`
     UPDATE staffing.idempotency_records
     SET status = 'COMPLETED',
         http_status = ${httpStatus},
@@ -159,7 +183,10 @@ export async function completeIdempotency(
         completed_at = NOW()
     WHERE tenant_id = ${tenantId}::uuid
       AND operation = ${operation}
-      AND idempotency_key = ${idempotencyKey}`;
+      AND idempotency_key = ${idempotencyKey}
+      AND claim_token = ${claimToken}
+      AND status = 'IN_PROGRESS'`;
+  return affected > 0;
 }
 
 /**
