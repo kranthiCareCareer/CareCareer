@@ -22,13 +22,24 @@ import { SubmitCredentialHandler } from '../../application/commands/submit-crede
 import { VerifyCredentialHandler } from '../../application/commands/verify-credential.command.js';
 import type { CredentialRepository } from '../../application/ports/credential-repository.js';
 import type { StaffingRepository } from '../../application/ports/staffing-repository.js';
+import type { Credential } from '../../domain/credential.js';
 import type { EligibilityCheckpoint } from '../../domain/eligibility.js';
-import { InvalidRequestError, WorkerNotFoundError } from '../../domain/errors.js';
+import {
+  CredentialNotFoundError,
+  CredentialWorkerMismatchError,
+  InvalidRequestError,
+  WorkerNotFoundError,
+} from '../../domain/errors.js';
 import type { AuthenticatedStaffingRequest } from '../../infrastructure/authenticated-request.js';
 import { RequirePermission } from '../../infrastructure/permission.decorator.js';
 import { requirePrincipal } from '../../infrastructure/require-principal.js';
 
-import { toCredentialSummaryDto, type CredentialSummaryDto } from './dto/credential.dto.js';
+import {
+  toCredentialSummaryDto,
+  toCredentialDetailDto,
+  type CredentialSummaryDto,
+  type CredentialDetailDto,
+} from './dto/credential.dto.js';
 
 /**
  * Credential and Eligibility HTTP Controller
@@ -120,6 +131,23 @@ export class CredentialController {
     });
 
     return { data: credentials.map(toCredentialSummaryDto) };
+  }
+
+  @Get(':workerId/credentials/:credentialId')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermission('credentials:read')
+  async getCredentialDetail(
+    @Param('workerId') workerId: string,
+    @Param('credentialId') credentialId: string,
+    @Req() req: AuthenticatedStaffingRequest,
+  ): Promise<{ data: CredentialDetailDto }> {
+    const principal = requirePrincipal(req);
+    const credential = await this.loadAndValidateCredential(
+      principal.selectedTenantId,
+      workerId,
+      credentialId,
+    );
+    return { data: toCredentialDetailDto(credential) };
   }
 
   @Post(':workerId/credentials/:credentialId/submit')
@@ -298,6 +326,24 @@ export class CredentialController {
         evaluatedAt: result.evaluatedAt.toISOString(),
       },
     };
+  }
+
+  /** Load credential and validate it belongs to the correct tenant and worker */
+  private async loadAndValidateCredential(
+    tenantId: string,
+    workerId: string,
+    credentialId: string,
+  ): Promise<Credential> {
+    const credential = await this.tenantDb.execute(tenantId, async (tx) => {
+      return this.credentialRepo.getCredentialById(tx, credentialId);
+    });
+    if (!credential) {
+      throw new CredentialNotFoundError(credentialId);
+    }
+    if (credential.workerId !== workerId) {
+      throw new CredentialWorkerMismatchError();
+    }
+    return credential;
   }
 
   /** Verify worker exists in the authenticated tenant */

@@ -1,12 +1,8 @@
 import { generateKeyPairSync } from 'node:crypto';
 
-import { SignJWT, importPKCS8, exportJWK } from 'jose';
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 
-import {
-  HttpIdentityStateAdapter,
-  type IdentityStateValidationResult,
-} from './identity-state-adapter.js';
+import { HttpIdentityStateAdapter } from './identity-state-adapter.js';
 import { HttpAuthorizationAdapter } from './authorization-adapter.js';
 import { LocalClientCredentialsProvider } from './service-token-client.js';
 
@@ -30,15 +26,13 @@ import { LocalClientCredentialsProvider } from './service-token-client.js';
  * - Authorization decision flow
  */
 describe('Cross-Service Authentication Integration', () => {
-  let privateKeyPem: string;
-
   beforeAll(() => {
-    const keyPair = generateKeyPairSync('rsa', {
+    // Key generation validates crypto availability in the runtime
+    generateKeyPairSync('rsa', {
       modulusLength: 2048,
       publicKeyEncoding: { type: 'spki', format: 'pem' },
       privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
     });
-    privateKeyPem = keyPair.privateKey as string;
   });
 
   describe('Service Token Exchange (LocalClientCredentialsProvider)', () => {
