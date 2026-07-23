@@ -6,13 +6,25 @@ import type { TransactionClient } from '@carecareer/database';
  * Credential mutation idempotency guard.
  *
  * Ensures exactly-once semantics for credential operations.
- * Scoped by tenant_id + idempotency_key + request_hash.
+ * Scoped by: tenant_id + operation + idempotency_key
  *
- * Behavior:
- * - Same key + same request → returns original result (replay)
- * - Same key + different request → throws IdempotencyConflictError
- * - New key → executes operation and stores result
- * - Failed transaction → no idempotency record persisted
+ * States:
+ * - IN_PROGRESS: key claimed, mutation executing
+ * - COMPLETED: mutation succeeded, response stored
+ * - FAILED: mutation failed, key can be retried
+ *
+ * Flow:
+ * 1. claimIdempotencyKey() — atomic INSERT ... ON CONFLICT DO NOTHING
+ *    - If no existing record: inserts IN_PROGRESS, returns { claimed: true }
+ *    - If existing COMPLETED + same hash: returns { claimed: false, replay: response }
+ *    - If existing COMPLETED + different hash: throws IdempotencyConflictError
+ *    - If existing IN_PROGRESS + not expired: throws IdempotencyInProgressError
+ *    - If existing IN_PROGRESS + expired: reclaims the key
+ *    - If existing FAILED: reclaims the key
+ * 2. Execute business mutation within same transaction
+ * 3. completeIdempotency() — updates status to COMPLETED with response
+ *
+ * On transaction failure: record remains IN_PROGRESS and will expire/be reclaimed.
  */
 
 export class IdempotencyConflictError extends Error {
@@ -20,75 +32,158 @@ export class IdempotencyConflictError extends Error {
   readonly httpStatus = 409;
 
   constructor() {
-    super('Idempotency key exists with different request payload');
+    super('Idempotency key already used with different request payload');
     this.name = 'IdempotencyConflictError';
   }
 }
 
-export interface IdempotencyCheckResult {
-  readonly found: boolean;
-  readonly response?: unknown;
+export class IdempotencyInProgressError extends Error {
+  readonly code = 'IDEMPOTENCY_IN_PROGRESS';
+  readonly httpStatus = 409;
+
+  constructor() {
+    super('Request with this idempotency key is currently being processed');
+    this.name = 'IdempotencyInProgressError';
+  }
 }
 
+export interface IdempotencyClaimResult {
+  readonly claimed: boolean;
+  readonly replay?: { httpStatus: number; response: unknown };
+}
+
+/** Stale IN_PROGRESS threshold: 5 minutes */
+const STALE_THRESHOLD_MS = 5 * 60 * 1000;
+
 /**
- * Check if an idempotent request has already been processed.
- * Must be called within a transaction.
+ * Attempt to claim an idempotency key atomically.
+ * Must be called within a transaction BEFORE the business mutation.
  */
-export async function checkIdempotency(
+export async function claimIdempotencyKey(
   tx: TransactionClient,
   tenantId: string,
+  operation: string,
   idempotencyKey: string,
   requestHash: string,
-): Promise<IdempotencyCheckResult> {
-  const rows = await tx.$queryRaw<{
-    request_hash: string;
-    response_body: unknown;
+  now: Date = new Date(),
+): Promise<IdempotencyClaimResult> {
+  // Check for existing record
+  const existing = await tx.$queryRaw<{
     status: string;
+    request_hash: string;
+    http_status: number | null;
+    response_body: unknown;
+    created_at: string;
+    expires_at: string;
   }>`
-    SELECT request_hash, response_body, status
+    SELECT status, request_hash, http_status, response_body, created_at, expires_at
     FROM staffing.idempotency_records
-    WHERE tenant_id = ${tenantId}::uuid AND idempotency_key = ${idempotencyKey}`;
+    WHERE tenant_id = ${tenantId}::uuid
+      AND operation = ${operation}
+      AND idempotency_key = ${idempotencyKey}
+    FOR UPDATE`;
 
-  if (rows.length === 0) {
-    return { found: false };
+  if (existing.length === 0) {
+    // No existing record — claim the key
+    await tx.$executeRaw`
+      INSERT INTO staffing.idempotency_records (
+        tenant_id, operation, idempotency_key, request_hash, status
+      ) VALUES (
+        ${tenantId}::uuid, ${operation}, ${idempotencyKey}, ${requestHash}, ${'IN_PROGRESS'}
+      )`;
+    return { claimed: true };
   }
 
-  const existing = rows[0]!;
+  const record = existing[0]!;
 
-  // Same key but different request → conflict
-  if (existing.request_hash !== requestHash) {
+  if (record.status === 'COMPLETED') {
+    if (record.request_hash === requestHash) {
+      // Replay — return original response
+      return {
+        claimed: false,
+        replay: {
+          httpStatus: record.http_status ?? 200,
+          response: record.response_body,
+        },
+      };
+    }
+    // Different payload with same key
     throw new IdempotencyConflictError();
   }
 
-  // Same key and same request → replay
-  return { found: true, response: existing.response_body };
+  if (record.status === 'FAILED') {
+    // Failed records can be reclaimed — update to IN_PROGRESS
+    await tx.$executeRaw`
+      UPDATE staffing.idempotency_records
+      SET status = 'IN_PROGRESS', request_hash = ${requestHash}, created_at = NOW()
+      WHERE tenant_id = ${tenantId}::uuid
+        AND operation = ${operation}
+        AND idempotency_key = ${idempotencyKey}`;
+    return { claimed: true };
+  }
+
+  // IN_PROGRESS — check if stale
+  const createdAt = new Date(record.created_at);
+  if (now.getTime() - createdAt.getTime() > STALE_THRESHOLD_MS) {
+    // Stale IN_PROGRESS — reclaim
+    await tx.$executeRaw`
+      UPDATE staffing.idempotency_records
+      SET status = 'IN_PROGRESS', request_hash = ${requestHash}, created_at = NOW()
+      WHERE tenant_id = ${tenantId}::uuid
+        AND operation = ${operation}
+        AND idempotency_key = ${idempotencyKey}`;
+    return { claimed: true };
+  }
+
+  // Active IN_PROGRESS — another request is executing
+  throw new IdempotencyInProgressError();
 }
 
 /**
- * Record a completed idempotent operation.
- * Must be called within the same transaction as the mutation.
+ * Mark an idempotency key as completed with the response.
+ * Must be called within the same transaction after the business mutation.
  */
-export async function recordIdempotency(
+export async function completeIdempotency(
   tx: TransactionClient,
   tenantId: string,
-  idempotencyKey: string,
   operation: string,
-  requestHash: string,
+  idempotencyKey: string,
+  httpStatus: number,
   response: unknown,
 ): Promise<void> {
   await tx.$executeRaw`
-    INSERT INTO staffing.idempotency_records (
-      tenant_id, idempotency_key, operation, request_hash, response_body
-    ) VALUES (
-      ${tenantId}::uuid, ${idempotencyKey}, ${operation},
-      ${requestHash}, ${JSON.stringify(response)}::jsonb
-    )`;
+    UPDATE staffing.idempotency_records
+    SET status = 'COMPLETED',
+        http_status = ${httpStatus},
+        response_body = ${JSON.stringify(response)}::jsonb,
+        completed_at = NOW()
+    WHERE tenant_id = ${tenantId}::uuid
+      AND operation = ${operation}
+      AND idempotency_key = ${idempotencyKey}`;
 }
 
 /**
- * Compute a deterministic hash of the request payload for comparison.
+ * Compute a deterministic hash of the request payload.
+ * Uses recursive key sorting for nested objects.
  */
-export function hashRequest(payload: Record<string, unknown>): string {
-  const sorted = JSON.stringify(payload, Object.keys(payload).sort());
-  return createHash('sha256').update(sorted).digest('hex');
+export function hashRequest(payload: unknown): string {
+  return createHash('sha256').update(canonicalize(payload)).digest('hex');
+}
+
+/** Recursive canonical JSON serialization */
+function canonicalize(value: unknown): string {
+  if (value === null || value === undefined) return 'null';
+  if (typeof value === 'string') return JSON.stringify(value);
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value instanceof Date) return JSON.stringify(value.toISOString());
+  if (Array.isArray(value)) {
+    return '[' + value.map(canonicalize).join(',') + ']';
+  }
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    const keys = Object.keys(obj).sort();
+    const entries = keys.map((k) => JSON.stringify(k) + ':' + canonicalize(obj[k]));
+    return '{' + entries.join(',') + '}';
+  }
+  return String(value);
 }

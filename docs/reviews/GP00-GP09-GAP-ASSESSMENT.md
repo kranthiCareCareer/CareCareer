@@ -8,33 +8,35 @@ Many milestones were marked COMPLETE based on domain code and unit tests rather 
 
 ## Assessment Matrix
 
-| GP  | Capability              | Code | Module | DB  | RLS | Auth | Audit | Outbox | API | UI  | Int.Test | E2E | Status                               |
-| --- | ----------------------- | :--: | :----: | :-: | :-: | :--: | :---: | :----: | :-: | :-: | :------: | :-: | ------------------------------------ |
-| 00  | CI/CD pipelines         |  ✅  |  N/A   | N/A | N/A | N/A  |  N/A  |  N/A   | N/A | N/A |   N/A    | N/A | OPERATIONAL                          |
-| 01  | Service template        |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | N/A | N/A |    ✅    | N/A | OPERATIONAL                          |
-| 02  | Tenant provisioning     |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | ✅  | ✅  |    ✅    | ✅  | OPERATIONAL                          |
-| 03  | Identity/auth           |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | ✅  | N/A |    ✅    | N/A | OPERATIONAL                          |
-| 04  | Admin portal            |  ✅  |  N/A   | N/A | N/A |  ✅  |  N/A  |  N/A   | N/A | ✅  |   N/A    | ✅  | OPERATIONAL                          |
-| 05  | Facilities              |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | ✅  | ❌  |    ✅    | ❌  | API_OPERATIONAL                      |
-| 05  | Departments             |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | ✅  | ❌  |    ✅    | ❌  | API_OPERATIONAL                      |
-| 05  | Credential requirements |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ❌   |   ❌   | ✅  | ❌  |    ✅    | ❌  | API_PARTIAL                          |
-| 06  | Workers CRUD            |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | ✅  | ❌  |    ✅    | ❌  | API_OPERATIONAL                      |
-| 06  | Worker self-service     |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | ✅  | ❌  |    ✅    | ❌  | API_OPERATIONAL                      |
-| 07  | Credentials CRUD        |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | ✅  | ❌  |    ❌    | ❌  | API_REGISTERED / INTEGRATION_PENDING |
-| 07  | Eligibility eval        |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | ✅  | ❌  |    ❌    | ❌  | API_REGISTERED / INTEGRATION_PENDING |
-| 08  | Shift creation          |  ✅  |   ❌   | ✅  | ✅  |  ❌  |  ❌   |   ❌   | ❌  | ❌  |    ❌    | ❌  | DOMAIN_ONLY                          |
-| 08  | Shift publish/cancel    |  ✅  |   ❌   | ❌  | ❌  |  ❌  |  ❌   |   ❌   | ❌  | ❌  |    ❌    | ❌  | DOMAIN_ONLY                          |
-| 09  | Marketplace query       |  ✅  |   ❌   | ❌  | ❌  |  ❌  |  ❌   |   ❌   | ❌  | ❌  |    ❌    | ❌  | DOMAIN_ONLY                          |
-| 09  | Shift requests          |  ✅  |   ❌   | ✅  | ✅  |  ❌  |  ❌   |   ❌   | ❌  | ❌  |    ❌    | ❌  | DOMAIN_ONLY                          |
+| GP  | Capability              | Code | Module | DB  | RLS | Auth | Audit | Outbox | API | UI  | Int.Test | E2E | Status                          |
+| --- | ----------------------- | :--: | :----: | :-: | :-: | :--: | :---: | :----: | :-: | :-: | :------: | :-: | ------------------------------- |
+| 00  | CI/CD pipelines         |  ✅  |  N/A   | N/A | N/A | N/A  |  N/A  |  N/A   | N/A | N/A |   N/A    | N/A | OPERATIONAL                     |
+| 01  | Service template        |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | N/A | N/A |    ✅    | N/A | OPERATIONAL                     |
+| 02  | Tenant provisioning     |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | ✅  | ✅  |    ✅    | ✅  | OPERATIONAL                     |
+| 03  | Identity/auth           |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | ✅  | N/A |    ✅    | N/A | OPERATIONAL                     |
+| 04  | Admin portal            |  ✅  |  N/A   | N/A | N/A |  ✅  |  N/A  |  N/A   | N/A | ✅  |   N/A    | ✅  | OPERATIONAL                     |
+| 05  | Facilities              |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | ✅  | ❌  |    ✅    | ❌  | API_OPERATIONAL                 |
+| 05  | Departments             |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | ✅  | ❌  |    ✅    | ❌  | API_OPERATIONAL                 |
+| 05  | Credential requirements |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ❌   |   ❌   | ✅  | ❌  |    ✅    | ❌  | API_PARTIAL                     |
+| 06  | Workers CRUD            |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | ✅  | ❌  |    ✅    | ❌  | API_OPERATIONAL                 |
+| 06  | Worker self-service     |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | ✅  | ❌  |    ✅    | ❌  | API_OPERATIONAL                 |
+| 07  | Credentials CRUD        |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | ✅  | ❌  |    ✅    | ❌  | COMPONENT_INTEGRATION_VALIDATED |
+| 07  | Eligibility eval        |  ✅  |   ✅   | ✅  | ✅  |  ✅  |  ✅   |   ✅   | ✅  | ❌  |    ✅    | ❌  | COMPONENT_INTEGRATION_VALIDATED |
+| 08  | Shift creation          |  ✅  |   ❌   | ✅  | ✅  |  ❌  |  ❌   |   ❌   | ❌  | ❌  |    ❌    | ❌  | DOMAIN_ONLY                     |
+| 08  | Shift publish/cancel    |  ✅  |   ❌   | ❌  | ❌  |  ❌  |  ❌   |   ❌   | ❌  | ❌  |    ❌    | ❌  | DOMAIN_ONLY                     |
+| 09  | Marketplace query       |  ✅  |   ❌   | ❌  | ❌  |  ❌  |  ❌   |   ❌   | ❌  | ❌  |    ❌    | ❌  | DOMAIN_ONLY                     |
+| 09  | Shift requests          |  ✅  |   ❌   | ✅  | ✅  |  ❌  |  ❌   |   ❌   | ❌  | ❌  |    ❌    | ❌  | DOMAIN_ONLY                     |
 
 ## Critical Findings
 
-### 1. GP-07 Credentials: Complete code, NOT WIRED
+### 1. GP-07 Credentials: REGISTERED AND COMPONENT-TESTED (this branch)
 
-- `CredentialController` exists but is NOT registered in `StaffingModule.controllers`
-- `PostgresCredentialRepository` exists but no `CREDENTIAL_REPOSITORY` provider is registered
-- `listCredentials()` has a TODO and returns empty array
-- Fix: 2 lines in staffing.module.ts (register controller + add provider)
+- CredentialController registered in StaffingModule.controllers
+- PostgresCredentialRepository bound to CREDENTIAL_REPOSITORY
+- StaffingExceptionFilter registered as APP_FILTER
+- listCredentials returns real data from PostgreSQL
+- 21 credential integration tests prove HTTP + DB + RLS + auth
+- Remaining: real cross-service auth, production image proof, OpenAPI
 
 ### 2. GP-08 Shifts: Domain model only, NO operational code
 
@@ -55,9 +57,9 @@ Many milestones were marked COMPLETE based on domain code and unit tests rather 
 - `InMemoryAuthorizationService` — no real policy engine
 - Acceptable for DEMO-01, but NOT production-ready
 
-### 5. No OpenAPI spec for staffing-service endpoints
+### 5. No OpenAPI spec for staffing-service credential endpoints
 
-- `services/staffing-service/openapi.yaml` exists but has NOT been verified against current endpoints
+- `services/staffing-service/openapi.yaml` exists but does not include credential/eligibility ops
 - Credentials and shifts are missing from the spec
 
 ### 6. No UI for workforce features
