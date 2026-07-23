@@ -470,12 +470,18 @@ paths:
     post:
       operationId: submitCredentialForVerification
       summary: Submit credential for compliance review
-      description: Transitions UPLOADED -> PENDING_VERIFICATION
+      description: Transitions UPLOADED -> PENDING_VERIFICATION. Requires Idempotency-Key and expectedVersion.
       parameters:
         - $ref: '#/components/parameters/WorkerId'
         - $ref: '#/components/parameters/CredentialId'
         - $ref: '#/components/parameters/CorrelationId'
         - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VersionedMutation'
       responses:
         '200':
           description: Submitted for verification
@@ -490,12 +496,18 @@ paths:
     post:
       operationId: verifyCredential
       summary: Verify a credential (compliance officer action)
-      description: Transitions PENDING_VERIFICATION -> VERIFIED
+      description: Transitions PENDING_VERIFICATION -> VERIFIED. Requires Idempotency-Key and expectedVersion.
       parameters:
         - $ref: '#/components/parameters/WorkerId'
         - $ref: '#/components/parameters/CredentialId'
         - $ref: '#/components/parameters/CorrelationId'
         - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VersionedMutation'
       responses:
         '200':
           description: Credential verified
@@ -510,7 +522,7 @@ paths:
     post:
       operationId: rejectCredential
       summary: Reject a credential submission
-      description: Transitions PENDING_VERIFICATION -> REJECTED
+      description: Transitions PENDING_VERIFICATION -> REJECTED. Requires Idempotency-Key, expectedVersion, and reason.
       parameters:
         - $ref: '#/components/parameters/WorkerId'
         - $ref: '#/components/parameters/CredentialId'
@@ -521,7 +533,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ReasonRequest'
+              $ref: '#/components/schemas/VersionedReasonRequest'
       responses:
         '200':
           description: Credential rejected
@@ -536,7 +548,7 @@ paths:
     post:
       operationId: revokeCredential
       summary: Revoke a previously verified credential
-      description: Transitions VERIFIED/EXPIRING -> REVOKED
+      description: Transitions VERIFIED/EXPIRING -> REVOKED. Requires Idempotency-Key, expectedVersion, and reason.
       parameters:
         - $ref: '#/components/parameters/WorkerId'
         - $ref: '#/components/parameters/CredentialId'
@@ -547,7 +559,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ReasonRequest'
+              $ref: '#/components/schemas/VersionedReasonRequest'
       responses:
         '200':
           description: Credential revoked
@@ -889,6 +901,28 @@ components:
       required: [reason]
       additionalProperties: false
       properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+
+    VersionedMutation:
+      type: object
+      required: [expectedVersion]
+      additionalProperties: false
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 1
+
+    VersionedReasonRequest:
+      type: object
+      required: [expectedVersion, reason]
+      additionalProperties: false
+      properties:
+        expectedVersion:
+          type: integer
+          minimum: 1
         reason:
           type: string
           minLength: 1
