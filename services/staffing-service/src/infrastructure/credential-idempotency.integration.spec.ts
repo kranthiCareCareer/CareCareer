@@ -449,4 +449,67 @@ describe('Credential Idempotency (PostgreSQL Integration)', () => {
       expect(a).toBe(b);
     });
   });
+
+  describe('Transaction rollback proof', () => {
+    it('should roll back claim when subsequent operation throws', async () => {
+      const tx = getTx();
+
+      // Claim succeeds but then we simulate a failure
+      await expect(
+        tx.execute(async (t) => {
+          await claimIdempotencyKey(t, tenantAId, 'credential.create', 'rollback-key', 'hash-rb');
+          // Simulate audit/outbox/business failure
+          throw new Error('Simulated audit failure');
+        }),
+      ).rejects.toThrow('Simulated audit failure');
+
+      // The claim should have been rolled back (no record persisted)
+      const rows = await superClient.query(
+        `SELECT * FROM staffing.idempotency_records WHERE idempotency_key = 'rollback-key' AND tenant_id = $1`,
+        [tenantAId],
+      );
+      expect(rows.rows).toHaveLength(0);
+    });
+
+    it('should roll back completion when subsequent step throws', async () => {
+      const tx = getTx();
+      let claimToken = '';
+
+      // First: claim (in separate transaction that commits)
+      await tx.execute(async (t) => {
+        const claim = await claimIdempotencyKey(
+          t,
+          tenantAId,
+          'credential.create',
+          'rollback-complete-key',
+          'hash-rbc',
+        );
+        claimToken = claim.claimToken!;
+      });
+
+      // Second: try to complete but throw afterward (simulating post-completion failure)
+      await expect(
+        tx.execute(async (t) => {
+          await completeIdempotency(
+            t,
+            tenantAId,
+            'credential.create',
+            'rollback-complete-key',
+            claimToken,
+            201,
+            { id: 'should-rollback' },
+          );
+          // Simulate failure after completion write
+          throw new Error('Simulated post-completion failure');
+        }),
+      ).rejects.toThrow('Simulated post-completion failure');
+
+      // The completion should have rolled back — record stays IN_PROGRESS
+      const row = await superClient.query(
+        `SELECT status FROM staffing.idempotency_records WHERE idempotency_key = 'rollback-complete-key' AND tenant_id = $1`,
+        [tenantAId],
+      );
+      expect(row.rows[0].status).toBe('IN_PROGRESS');
+    });
+  });
 });
