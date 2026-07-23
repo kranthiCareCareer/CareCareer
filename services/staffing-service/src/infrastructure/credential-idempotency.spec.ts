@@ -1,9 +1,13 @@
 import { describe, it, expect } from 'vitest';
 
+import { StaffingDomainError } from '../domain/errors.js';
+
 import {
   hashRequest,
   IdempotencyConflictError,
+  IdempotencyConsistencyError,
   IdempotencyInProgressError,
+  IdempotencyOwnershipError,
 } from './credential-idempotency.js';
 
 describe('Credential Idempotency', () => {
@@ -55,19 +59,33 @@ describe('Credential Idempotency', () => {
     });
   });
 
-  describe('IdempotencyConflictError', () => {
-    it('should have correct code and status', () => {
+  describe('Error types extend StaffingDomainError', () => {
+    it('IdempotencyConflictError should be a StaffingDomainError with 409', () => {
       const err = new IdempotencyConflictError();
+      expect(err).toBeInstanceOf(StaffingDomainError);
       expect(err.code).toBe('IDEMPOTENCY_CONFLICT');
       expect(err.httpStatus).toBe(409);
     });
-  });
 
-  describe('IdempotencyInProgressError', () => {
-    it('should have correct code and status', () => {
+    it('IdempotencyInProgressError should be a StaffingDomainError with 409', () => {
       const err = new IdempotencyInProgressError();
+      expect(err).toBeInstanceOf(StaffingDomainError);
       expect(err.code).toBe('IDEMPOTENCY_IN_PROGRESS');
       expect(err.httpStatus).toBe(409);
+    });
+
+    it('IdempotencyOwnershipError should be a StaffingDomainError with 500', () => {
+      const err = new IdempotencyOwnershipError();
+      expect(err).toBeInstanceOf(StaffingDomainError);
+      expect(err.code).toBe('IDEMPOTENCY_OWNERSHIP_LOST');
+      expect(err.httpStatus).toBe(500);
+    });
+
+    it('IdempotencyConsistencyError should be a StaffingDomainError with 500', () => {
+      const err = new IdempotencyConsistencyError();
+      expect(err).toBeInstanceOf(StaffingDomainError);
+      expect(err.code).toBe('IDEMPOTENCY_CONSISTENCY_ERROR');
+      expect(err.httpStatus).toBe(500);
     });
   });
 });

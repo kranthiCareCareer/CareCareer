@@ -6,6 +6,11 @@ import {
   CredentialWorkerMismatchError,
   InvalidCredentialTransitionError,
 } from '../../domain/errors.js';
+import {
+  claimIdempotencyKey,
+  completeIdempotency,
+  hashRequest,
+} from '../../infrastructure/credential-idempotency.js';
 import type { CredentialRepository } from '../ports/credential-repository.js';
 
 export interface SubmitCredentialInput {
@@ -14,6 +19,7 @@ export interface SubmitCredentialInput {
   readonly correlationId: string;
   readonly workerId: string;
   readonly credentialId: string;
+  readonly idempotencyKey: string;
 }
 
 /**
@@ -30,6 +36,25 @@ export class SubmitCredentialHandler {
     let resultStatus = '';
 
     await this.tenantDb.execute(input.tenantId, async (tx) => {
+      const reqHash = hashRequest({
+        workerId: input.workerId,
+        credentialId: input.credentialId,
+        operation: 'submit',
+      });
+
+      const claim = await claimIdempotencyKey(
+        tx,
+        input.tenantId,
+        'credential.submit',
+        input.idempotencyKey,
+        reqHash,
+      );
+
+      if (!claim.claimed && claim.replay) {
+        resultStatus = (claim.replay.response as { status: string }).status;
+        return;
+      }
+
       const credential = await this.repo.getCredentialById(tx, input.credentialId);
       if (!credential) {
         throw new CredentialNotFoundError(input.credentialId);
@@ -44,6 +69,16 @@ export class SubmitCredentialHandler {
         resultStatus = updated.status;
         await this.emitAudit(tx, input, updated.status);
         await this.emitOutbox(tx, input, credential.credentialType, updated.status);
+
+        await completeIdempotency(
+          tx,
+          input.tenantId,
+          'credential.submit',
+          input.idempotencyKey,
+          claim.claimToken!,
+          200,
+          { credentialId: input.credentialId, status: updated.status },
+        );
       } catch (error: unknown) {
         if (error instanceof Error && error.message.includes('Invalid credential status')) {
           throw new InvalidCredentialTransitionError(credential.status, 'PENDING_VERIFICATION');

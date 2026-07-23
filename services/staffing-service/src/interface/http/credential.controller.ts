@@ -75,10 +75,7 @@ export class CredentialController {
     @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<{ data: { credentialId: string } }> {
     const principal = requirePrincipal(req);
-
-    if (!idempotencyKey || idempotencyKey.length < 1 || idempotencyKey.length > 128) {
-      throw new InvalidRequestError('Idempotency-Key header is required (1-128 characters)');
-    }
+    const validatedKey = this.validateIdempotencyKey(idempotencyKey);
 
     const parsed = CreateCredentialSchema.safeParse(body);
     if (!parsed.success) {
@@ -100,7 +97,7 @@ export class CredentialController {
       credentialNumber: parsed.data.credentialNumber,
       issuedAt: parsed.data.issuedAt ? new Date(parsed.data.issuedAt) : undefined,
       expiresAt: parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : undefined,
-      idempotencyKey,
+      idempotencyKey: validatedKey,
     });
 
     return { data: { credentialId: result.credentialId } };
@@ -133,8 +130,10 @@ export class CredentialController {
     @Param('credentialId') credentialId: string,
     @Req() req: AuthenticatedStaffingRequest,
     @Headers('x-correlation-id') correlationId?: string,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<{ data: { credentialId: string; status: string } }> {
     const principal = requirePrincipal(req);
+    const validatedKey = this.validateIdempotencyKey(idempotencyKey);
 
     const result = await this.submitHandler.execute({
       tenantId: principal.selectedTenantId,
@@ -142,6 +141,7 @@ export class CredentialController {
       correlationId: correlationId ?? crypto.randomUUID(),
       workerId,
       credentialId,
+      idempotencyKey: validatedKey,
     });
 
     return { data: result };
@@ -283,6 +283,22 @@ export class CredentialController {
     if (!worker) {
       throw new WorkerNotFoundError(workerId);
     }
+  }
+
+  /** Validate and normalize the Idempotency-Key header */
+  private validateIdempotencyKey(key: string | undefined): string {
+    if (!key) {
+      throw new InvalidRequestError('Idempotency-Key header is required');
+    }
+    const trimmed = key.trim();
+    if (trimmed.length < 16 || trimmed.length > 128) {
+      throw new InvalidRequestError('Idempotency-Key must be 16-128 characters');
+    }
+    // Reject control characters
+    if (/[\x00-\x1F\x7F]/.test(trimmed)) {
+      throw new InvalidRequestError('Idempotency-Key contains invalid characters');
+    }
+    return trimmed;
   }
 }
 

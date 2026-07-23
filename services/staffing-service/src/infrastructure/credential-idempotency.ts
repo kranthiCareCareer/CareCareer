@@ -2,6 +2,8 @@ import { createHash, randomUUID } from 'node:crypto';
 
 import type { TransactionClient } from '@carecareer/database';
 
+import { StaffingDomainError } from '../domain/errors.js';
+
 /**
  * Credential mutation idempotency guard.
  *
@@ -24,33 +26,39 @@ import type { TransactionClient } from '@carecareer/database';
  * Completion: only the holder of the claim_token can complete.
  */
 
-export class IdempotencyConflictError extends Error {
+export class IdempotencyConflictError extends StaffingDomainError {
   readonly code = 'IDEMPOTENCY_CONFLICT';
   readonly httpStatus = 409;
 
   constructor() {
     super('Idempotency key already used with different request payload');
-    this.name = 'IdempotencyConflictError';
   }
 }
 
-export class IdempotencyInProgressError extends Error {
+export class IdempotencyInProgressError extends StaffingDomainError {
   readonly code = 'IDEMPOTENCY_IN_PROGRESS';
   readonly httpStatus = 409;
 
   constructor() {
     super('Request with this idempotency key is currently being processed');
-    this.name = 'IdempotencyInProgressError';
   }
 }
 
-export class IdempotencyOwnershipError extends Error {
+export class IdempotencyOwnershipError extends StaffingDomainError {
   readonly code = 'IDEMPOTENCY_OWNERSHIP_LOST';
   readonly httpStatus = 500;
 
   constructor() {
-    super('Idempotency claim ownership was lost — transaction must roll back');
-    this.name = 'IdempotencyOwnershipError';
+    super('Idempotency claim ownership was lost');
+  }
+}
+
+export class IdempotencyConsistencyError extends StaffingDomainError {
+  readonly code = 'IDEMPOTENCY_CONSISTENCY_ERROR';
+  readonly httpStatus = 500;
+
+  constructor() {
+    super('Idempotency internal consistency error');
   }
 }
 
@@ -109,8 +117,8 @@ export async function claimIdempotencyKey(
     FOR UPDATE`;
 
   if (existing.length === 0) {
-    // Shouldn't happen after ON CONFLICT — defensive
-    return { claimed: true, claimToken };
+    // Should never happen after ON CONFLICT — internal consistency error
+    throw new IdempotencyConsistencyError();
   }
 
   const record = existing[0]!;

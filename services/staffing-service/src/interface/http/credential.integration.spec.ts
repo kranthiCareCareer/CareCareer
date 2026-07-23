@@ -401,6 +401,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
       // Submit for verification
       const res = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/submit`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(HttpStatus.OK);
@@ -420,6 +421,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
       // Try to submit via wrong worker path (use some other worker ID in same tenant)
       const res = await request(app.getHttpServer())
         .post(`/v1/workers/00000000-0000-0000-0000-000000099999/credentials/${credId}/submit`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(HttpStatus.NOT_FOUND);
@@ -440,11 +442,13 @@ describe('Credential HTTP Integration (GP-07)', () => {
 
       await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/submit`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
 
       // Verify
       const res = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/verify`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(HttpStatus.OK);
@@ -464,6 +468,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
       // Try to verify without submitting first
       const res = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/verify`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(HttpStatus.BAD_REQUEST);
@@ -561,6 +566,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
       // Submit
       await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/submit`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
 
       // Verify DB state matches API response
@@ -590,9 +596,11 @@ describe('Credential HTTP Integration (GP-07)', () => {
 
       await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/submit`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
       await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/verify`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
 
       const dbRow = await superClient.query(
@@ -644,6 +652,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
       // Try to verify UPLOADED (invalid) — should get typed error
       const res = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/verify`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(HttpStatus.BAD_REQUEST);
