@@ -104,9 +104,7 @@ export function changeCredentialStatus(
 ): Credential {
   const allowed = VALID_CREDENTIAL_TRANSITIONS[credential.status];
   if (!allowed.includes(newStatus)) {
-    throw new Error(
-      `Invalid credential status transition: ${credential.status} → ${newStatus}`,
-    );
+    throw new Error(`Invalid credential status transition: ${credential.status} → ${newStatus}`);
   }
 
   return {

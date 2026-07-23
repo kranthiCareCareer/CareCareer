@@ -182,23 +182,17 @@ describe('Credential Domain', () => {
 
     it('should reject verification of UPLOADED credential', () => {
       const uploaded: Credential = { ...pendingCred, status: 'UPLOADED' };
-      expect(() => verifyCredential(uploaded, 'officer-1')).toThrow(
-        'must be PENDING_VERIFICATION',
-      );
+      expect(() => verifyCredential(uploaded, 'officer-1')).toThrow('must be PENDING_VERIFICATION');
     });
 
     it('should reject verification of VERIFIED credential', () => {
       const verified: Credential = { ...pendingCred, status: 'VERIFIED' };
-      expect(() => verifyCredential(verified, 'officer-1')).toThrow(
-        'must be PENDING_VERIFICATION',
-      );
+      expect(() => verifyCredential(verified, 'officer-1')).toThrow('must be PENDING_VERIFICATION');
     });
 
     it('should reject verification of EXPIRED credential', () => {
       const expired: Credential = { ...pendingCred, status: 'EXPIRED' };
-      expect(() => verifyCredential(expired, 'officer-1')).toThrow(
-        'must be PENDING_VERIFICATION',
-      );
+      expect(() => verifyCredential(expired, 'officer-1')).toThrow('must be PENDING_VERIFICATION');
     });
 
     it('should reject empty verifiedBy', () => {

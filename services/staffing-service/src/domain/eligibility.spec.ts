@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 
-import type { Credential } from './credential.js';
 import type { CredentialRequirement } from './credential-requirement.js';
+import type { Credential } from './credential.js';
 import { evaluateEligibility, type EligibilityCheckpoint } from './eligibility.js';
 
 describe('Eligibility Evaluation', () => {
@@ -11,9 +11,7 @@ describe('Eligibility Evaluation', () => {
   const workerId = 'worker-1';
 
   /** Helper to create a credential requirement */
-  function makeRequirement(
-    overrides: Partial<CredentialRequirement> = {},
-  ): CredentialRequirement {
+  function makeRequirement(overrides: Partial<CredentialRequirement> = {}): CredentialRequirement {
     return {
       id: crypto.randomUUID(),
       tenantId,
@@ -87,9 +85,7 @@ describe('Eligibility Evaluation', () => {
     });
 
     it('should return ELIGIBLE when requirements are not yet effective', () => {
-      const requirements = [
-        makeRequirement({ effectiveFrom: new Date('2025-01-01') }),
-      ];
+      const requirements = [makeRequirement({ effectiveFrom: new Date('2025-01-01') })];
       const result = evaluateEligibility({
         workerCredentials: [],
         facilityRequirements: requirements,
@@ -135,11 +131,7 @@ describe('Eligibility Evaluation', () => {
 
       expect(result.outcome).toBe('INELIGIBLE');
       expect(result.reasons).toHaveLength(3);
-      expect(result.reasons.map((r) => r.credentialType)).toEqual([
-        'RN_LICENSE',
-        'BLS',
-        'ACLS',
-      ]);
+      expect(result.reasons.map((r) => r.credentialType)).toEqual(['RN_LICENSE', 'BLS', 'ACLS']);
       expect(result.reasons.every((r) => r.code === 'MISSING_CREDENTIAL')).toBe(true);
     });
   });
@@ -451,9 +443,7 @@ describe('Eligibility Evaluation', () => {
     for (const checkpoint of checkpoints) {
       it(`should evaluate correctly at ${checkpoint} checkpoint`, () => {
         const requirements = [makeRequirement({ credentialType: 'RN_LICENSE' })];
-        const credentials = [
-          makeCredential({ credentialType: 'RN_LICENSE', status: 'VERIFIED' }),
-        ];
+        const credentials = [makeCredential({ credentialType: 'RN_LICENSE', status: 'VERIFIED' })];
 
         const result = evaluateEligibility({
           workerCredentials: credentials,

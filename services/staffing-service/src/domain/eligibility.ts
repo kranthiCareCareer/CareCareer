@@ -8,9 +8,9 @@
  * No I/O, no randomness, no time-dependent behavior (time is injected).
  */
 
+import type { CredentialRequirement } from './credential-requirement.js';
 import type { Credential } from './credential.js';
 import { isCredentialValid } from './credential.js';
-import type { CredentialRequirement } from './credential-requirement.js';
 
 /** Checkpoints where eligibility is evaluated */
 export type EligibilityCheckpoint =
@@ -20,11 +20,7 @@ export type EligibilityCheckpoint =
   | 'CLOCK_IN';
 
 /** Possible outcomes of an eligibility evaluation */
-export type EligibilityOutcome =
-  | 'ELIGIBLE'
-  | 'INELIGIBLE'
-  | 'ELIGIBLE_WITH_EXCEPTION'
-  | 'ERROR';
+export type EligibilityOutcome = 'ELIGIBLE' | 'INELIGIBLE' | 'ELIGIBLE_WITH_EXCEPTION' | 'ERROR';
 
 /** Machine-readable reason for an ineligibility finding */
 export interface EligibilityReason {
@@ -168,20 +164,13 @@ export function evaluateEligibility(input: EvaluateEligibilityInput): Eligibilit
  * Returns the first valid credential (VERIFIED preferred, then EXPIRING).
  * Returns null if no valid credential exists.
  */
-function findBestCredential(
-  credentials: readonly Credential[],
-  asOf: Date,
-): Credential | null {
+function findBestCredential(credentials: readonly Credential[], asOf: Date): Credential | null {
   // Prefer VERIFIED credentials first
-  const verified = credentials.find(
-    (c) => c.status === 'VERIFIED' && isCredentialValid(c, asOf),
-  );
+  const verified = credentials.find((c) => c.status === 'VERIFIED' && isCredentialValid(c, asOf));
   if (verified) return verified;
 
   // Then EXPIRING (still valid but approaching expiration)
-  const expiring = credentials.find(
-    (c) => c.status === 'EXPIRING' && isCredentialValid(c, asOf),
-  );
+  const expiring = credentials.find((c) => c.status === 'EXPIRING' && isCredentialValid(c, asOf));
   if (expiring) return expiring;
 
   return null;

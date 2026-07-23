@@ -51,10 +51,7 @@ export class EvaluateEligibilityHandler {
       }
 
       // Load worker's credentials
-      const credentials = await this.credentialRepo.getCredentialsByWorkerId(
-        tx,
-        input.workerId,
-      );
+      const credentials = await this.credentialRepo.getCredentialsByWorkerId(tx, input.workerId);
 
       // Load facility requirements for the worker's role
       const requirements = await this.staffingRepo.listCredentialRequirements(

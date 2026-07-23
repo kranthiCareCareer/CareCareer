@@ -1,7 +1,7 @@
 import type { TransactionClient } from '@carecareer/database';
 
-import type { Credential } from '../domain/credential.js';
 import type { CredentialRepository } from '../application/ports/credential-repository.js';
+import type { Credential } from '../domain/credential.js';
 
 /**
  * PostgreSQL implementation of the CredentialRepository port.
