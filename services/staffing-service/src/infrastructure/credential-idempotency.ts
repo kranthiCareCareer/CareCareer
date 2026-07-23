@@ -44,6 +44,16 @@ export class IdempotencyInProgressError extends Error {
   }
 }
 
+export class IdempotencyOwnershipError extends Error {
+  readonly code = 'IDEMPOTENCY_OWNERSHIP_LOST';
+  readonly httpStatus = 500;
+
+  constructor() {
+    super('Idempotency claim ownership was lost — transaction must roll back');
+    this.name = 'IdempotencyOwnershipError';
+  }
+}
+
 export interface IdempotencyClaimResult {
   readonly claimed: boolean;
   readonly claimToken?: string;
@@ -121,11 +131,13 @@ export async function claimIdempotencyKey(
   }
 
   if (record.status === 'FAILED') {
-    // Failed records can be reclaimed — update with new claim token
+    // Failed records can be reclaimed only with the same payload
+    if (record.request_hash !== requestHash) {
+      throw new IdempotencyConflictError();
+    }
     const reclaimed = await tx.$executeRaw`
       UPDATE staffing.idempotency_records
       SET status = 'IN_PROGRESS',
-          request_hash = ${requestHash},
           claim_token = ${claimToken},
           created_at = NOW()
       WHERE tenant_id = ${tenantId}::uuid
@@ -141,11 +153,13 @@ export async function claimIdempotencyKey(
   // IN_PROGRESS — check if stale (lease expired)
   const createdAt = new Date(record.created_at);
   if (now.getTime() - createdAt.getTime() > STALE_THRESHOLD_MS) {
-    // Stale — reclaim with new token (conditional on current status)
+    // Stale — reclaim only with same payload
+    if (record.request_hash !== requestHash) {
+      throw new IdempotencyConflictError();
+    }
     const reclaimed = await tx.$executeRaw`
       UPDATE staffing.idempotency_records
       SET status = 'IN_PROGRESS',
-          request_hash = ${requestHash},
           claim_token = ${claimToken},
           created_at = NOW()
       WHERE tenant_id = ${tenantId}::uuid
@@ -164,7 +178,7 @@ export async function claimIdempotencyKey(
 /**
  * Mark an idempotency key as completed.
  * Only the holder of the claim_token can complete.
- * Returns true if completion succeeded, false if ownership was lost.
+ * Throws IdempotencyOwnershipError if ownership was lost (forces rollback).
  */
 export async function completeIdempotency(
   tx: TransactionClient,
@@ -174,7 +188,7 @@ export async function completeIdempotency(
   claimToken: string,
   httpStatus: number,
   response: unknown,
-): Promise<boolean> {
+): Promise<void> {
   const affected = await tx.$executeRaw`
     UPDATE staffing.idempotency_records
     SET status = 'COMPLETED',
@@ -186,7 +200,9 @@ export async function completeIdempotency(
       AND idempotency_key = ${idempotencyKey}
       AND claim_token = ${claimToken}
       AND status = 'IN_PROGRESS'`;
-  return affected > 0;
+  if (affected === 0) {
+    throw new IdempotencyOwnershipError();
+  }
 }
 
 /**

@@ -182,6 +182,9 @@ describe('Credential HTTP Integration (GP-07)', () => {
     await superClient.query(
       readFileSync(resolve(migrationsDir, '011_expand_credential_lifecycle.sql'), 'utf-8'),
     );
+    await superClient.query(
+      readFileSync(resolve(migrationsDir, '012_credential_idempotency.sql'), 'utf-8'),
+    );
 
     // Set password for app role
     await superClient.query(`ALTER ROLE staffing_app PASSWORD 'staffing_app_test'`);
@@ -274,6 +277,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
 
       const res = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`)
         .send({ credentialType: 'RN_LICENSE', issuingAuthority: 'CA Board of Nursing' });
 
@@ -286,6 +290,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
 
       const res = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`)
         .send({ credentialType: 'BLS', expiresAt: '2028-06-01T00:00:00Z' });
 
@@ -306,6 +311,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
 
       const res = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`)
         .set('X-Correlation-ID', 'cred-audit-001')
         .send({ credentialType: 'ACLS' });
@@ -325,6 +331,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
 
       const res = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`)
         .send({ credentialType: 'CNA_CERT' });
 
@@ -342,6 +349,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
 
       const res = await request(app.getHttpServer())
         .post('/v1/workers/00000000-0000-0000-0000-ffffffffffff/credentials')
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`)
         .send({ credentialType: 'BLS' });
 
@@ -354,6 +362,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
 
       const res = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`)
         .send({ credentialType: '' }); // empty not allowed
 
@@ -384,6 +393,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
       // Create a credential first
       const createRes = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`)
         .send({ credentialType: 'PALS' });
       const credId = createRes.body.data.credentialId;
@@ -402,6 +412,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
 
       const createRes = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`)
         .send({ credentialType: 'TB_TEST' });
       const credId = createRes.body.data.credentialId;
@@ -422,6 +433,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
       // Create + submit
       const createRes = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`)
         .send({ credentialType: 'NRP' });
       const credId = createRes.body.data.credentialId;
@@ -444,6 +456,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
 
       const createRes = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`)
         .send({ credentialType: 'FLU_SHOT' });
       const credId = createRes.body.data.credentialId;
@@ -475,6 +488,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
 
       const res = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${tokenB}`)
         .send({ credentialType: 'BLS' });
 
@@ -539,6 +553,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
       // Create
       const createRes = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`)
         .send({ credentialType: 'STATUS_CHECK' });
       const credId = createRes.body.data.credentialId;
@@ -568,6 +583,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
 
       const createRes = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`)
         .send({ credentialType: 'STATUS_VERIFY_CHECK' });
       const credId = createRes.body.data.credentialId;
@@ -594,6 +610,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
 
       await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`)
         .send({
           credentialType: 'PRIVACY_TEST',
@@ -619,6 +636,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
 
       const createRes = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials`)
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`)
         .send({ credentialType: 'FILTER_TEST' });
       const credId = createRes.body.data.credentialId;
@@ -643,6 +661,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
 
       const res = await request(app.getHttpServer())
         .post('/v1/workers/00000000-0000-0000-0000-ffffffffffff/credentials')
+        .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`)
         .send({ credentialType: 'X' });
 

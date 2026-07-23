@@ -18,7 +18,7 @@ export interface CreateCredentialInput {
   readonly credentialNumber?: string | undefined;
   readonly issuedAt?: Date | undefined;
   readonly expiresAt?: Date | undefined;
-  readonly idempotencyKey?: string | undefined;
+  readonly idempotencyKey: string;
 }
 
 export interface CreateCredentialResult {
@@ -56,55 +56,50 @@ export class CreateCredentialHandler {
     });
 
     const result = await this.tenantDb.execute(input.tenantId, async (tx) => {
-      // Idempotency check (if key provided)
-      if (input.idempotencyKey) {
-        const reqHash = hashRequest({
-          workerId: input.workerId,
-          credentialType: input.credentialType,
-          issuingAuthority: input.issuingAuthority,
-          credentialNumber: input.credentialNumber,
-          issuedAt: input.issuedAt?.toISOString(),
-          expiresAt: input.expiresAt?.toISOString(),
-        });
+      const reqHash = hashRequest({
+        workerId: input.workerId,
+        credentialType: input.credentialType,
+        issuingAuthority: input.issuingAuthority,
+        credentialNumber: input.credentialNumber,
+        issuedAt: input.issuedAt?.toISOString(),
+        expiresAt: input.expiresAt?.toISOString(),
+      });
 
-        const claim = await claimIdempotencyKey(
-          tx,
-          input.tenantId,
-          'credential.create',
-          input.idempotencyKey,
-          reqHash,
-        );
+      const claim = await claimIdempotencyKey(
+        tx,
+        input.tenantId,
+        'credential.create',
+        input.idempotencyKey,
+        reqHash,
+      );
 
-        if (!claim.claimed && claim.replay) {
-          return {
-            credentialId: (claim.replay.response as { credentialId: string }).credentialId,
-            replayed: true,
-          };
-        }
-
-        // Execute mutation
-        await this.repo.createCredential(tx, credential);
-        await this.emitAudit(tx, credential, input);
-        await this.emitOutboxEvent(tx, credential, input);
-
-        // Complete idempotency (only this claim token can complete)
-        await completeIdempotency(
-          tx,
-          input.tenantId,
-          'credential.create',
-          input.idempotencyKey,
-          claim.claimToken!,
-          201,
-          { credentialId: credential.id },
-        );
-
-        return { credentialId: credential.id };
+      if (!claim.claimed && claim.replay) {
+        return {
+          credentialId: (claim.replay.response as { credentialId: string }).credentialId,
+          replayed: true,
+        };
       }
 
-      // No idempotency key — execute directly
+      if (!claim.claimToken) {
+        throw new Error('Idempotency claim succeeded but no token returned');
+      }
+
+      // Execute mutation
       await this.repo.createCredential(tx, credential);
       await this.emitAudit(tx, credential, input);
       await this.emitOutboxEvent(tx, credential, input);
+
+      // Complete idempotency (only this claim token can complete — throws on failure)
+      await completeIdempotency(
+        tx,
+        input.tenantId,
+        'credential.create',
+        input.idempotencyKey,
+        claim.claimToken,
+        201,
+        { credentialId: credential.id },
+      );
+
       return { credentialId: credential.id };
     });
 

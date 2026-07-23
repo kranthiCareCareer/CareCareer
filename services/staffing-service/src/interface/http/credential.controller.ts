@@ -76,6 +76,10 @@ export class CredentialController {
   ): Promise<{ data: { credentialId: string } }> {
     const principal = requirePrincipal(req);
 
+    if (!idempotencyKey || idempotencyKey.length < 1 || idempotencyKey.length > 128) {
+      throw new InvalidRequestError('Idempotency-Key header is required (1-128 characters)');
+    }
+
     const parsed = CreateCredentialSchema.safeParse(body);
     if (!parsed.success) {
       throw new InvalidRequestError(
