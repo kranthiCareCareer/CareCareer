@@ -410,6 +410,180 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
+  /v1/workers/{workerId}/credentials:
+    post:
+      operationId: createCredential
+      summary: Add a credential to a worker
+      description: Requires permission credentials:create and Idempotency-Key header
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCredentialRequest'
+      responses:
+        '201':
+          description: Credential created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      credentialId:
+                        type: string
+                        format: uuid
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    get:
+      operationId: listCredentials
+      summary: List credentials for a worker
+      description: Requires permission credentials:read
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+      responses:
+        '200':
+          description: Credential list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CredentialSummary'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/workers/{workerId}/credentials/{credentialId}/submit:
+    post:
+      operationId: submitCredentialForVerification
+      summary: Submit credential for compliance review
+      description: Transitions UPLOADED -> PENDING_VERIFICATION
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+        - $ref: '#/components/parameters/CredentialId'
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Submitted for verification
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/workers/{workerId}/credentials/{credentialId}/verify:
+    post:
+      operationId: verifyCredential
+      summary: Verify a credential (compliance officer action)
+      description: Transitions PENDING_VERIFICATION -> VERIFIED
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+        - $ref: '#/components/parameters/CredentialId'
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Credential verified
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/workers/{workerId}/credentials/{credentialId}/reject:
+    post:
+      operationId: rejectCredential
+      summary: Reject a credential submission
+      description: Transitions PENDING_VERIFICATION -> REJECTED
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+        - $ref: '#/components/parameters/CredentialId'
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+      responses:
+        '200':
+          description: Credential rejected
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/workers/{workerId}/credentials/{credentialId}/revoke:
+    post:
+      operationId: revokeCredential
+      summary: Revoke a previously verified credential
+      description: Transitions VERIFIED/EXPIRING -> REVOKED
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+        - $ref: '#/components/parameters/CredentialId'
+        - $ref: '#/components/parameters/CorrelationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReasonRequest'
+      responses:
+        '200':
+          description: Credential revoked
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/workers/{workerId}/eligibility-evaluations:
+    post:
+      operationId: evaluateEligibility
+      summary: Evaluate worker eligibility for a facility
+      description: Deterministic evaluation at specified checkpoint
+      parameters:
+        - $ref: '#/components/parameters/WorkerId'
+        - $ref: '#/components/parameters/CorrelationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluateEligibilityRequest'
+      responses:
+        '200':
+          description: Eligibility evaluation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EligibilityResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
 components:
   securitySchemes:
     bearerAuth:
@@ -440,6 +614,22 @@ components:
       schema:
         type: string
       description: Request correlation ID for cross-service tracing
+    CredentialId:
+      name: credentialId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: idempotency-key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+        maxLength: 128
+      description: Unique idempotency key for exactly-once semantics
 
   schemas:
     CreateFacilityRequest:
@@ -636,6 +826,115 @@ components:
         offset: { type: integer }
         limit: { type: integer }
         total: { type: integer }
+
+    CreateCredentialRequest:
+      type: object
+      required: [credentialType]
+      additionalProperties: false
+      properties:
+        credentialType:
+          type: string
+          minLength: 1
+          maxLength: 100
+        issuingAuthority:
+          type: string
+          minLength: 1
+          maxLength: 200
+        credentialNumber:
+          type: string
+          minLength: 1
+          maxLength: 100
+        issuedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+
+    CredentialSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        credentialType:
+          type: string
+        status:
+          $ref: '#/components/schemas/CredentialStatus'
+        issuingAuthority:
+          type: string
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        version:
+          type: integer
+
+    CredentialStatus:
+      type: string
+      enum:
+        - UPLOADED
+        - PENDING_VERIFICATION
+        - CORRECTION_REQUIRED
+        - VERIFIED
+        - EXPIRING
+        - EXPIRED
+        - REJECTED
+        - REVOKED
+        - SUPERSEDED
+
+    ReasonRequest:
+      type: object
+      required: [reason]
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+          minLength: 1
+          maxLength: 500
+
+    EvaluateEligibilityRequest:
+      type: object
+      required: [facilityId, checkpoint]
+      additionalProperties: false
+      properties:
+        facilityId:
+          type: string
+          format: uuid
+        checkpoint:
+          type: string
+          enum:
+            - MARKETPLACE_DISPLAY
+            - REQUEST_SUBMISSION
+            - ASSIGNMENT_CONFIRMATION
+            - CLOCK_IN
+
+    EligibilityResult:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            outcome:
+              type: string
+              enum: [ELIGIBLE, INELIGIBLE, ELIGIBLE_WITH_EXCEPTION, ERROR]
+            checkpoint:
+              type: string
+            reasons:
+              type: array
+              items:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  message:
+                    type: string
+                  credentialType:
+                    type: string
+            evaluatedAt:
+              type: string
+              format: date-time
 
   responses:
     BadRequest:
