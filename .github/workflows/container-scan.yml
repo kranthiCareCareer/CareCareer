@@ -8,6 +8,11 @@ on:
       - '**/docker-compose*.yml'
       - 'pnpm-lock.yaml'
       - '**/package.json'
+      - 'services/staffing-service/**'
+      - 'services/identity-service/**'
+      - 'packages/auth/**'
+      - 'packages/database/**'
+      - 'packages/events/**'
   push:
     branches: [main, master]
     paths:

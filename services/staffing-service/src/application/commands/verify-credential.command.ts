@@ -1,6 +1,7 @@
 import type { TenantAwareTransaction, TransactionClient } from '@carecareer/database';
 
 import { verifyCredential, type Credential } from '../../domain/credential.js';
+import { CredentialNotFoundError, InvalidCredentialTransitionError } from '../../domain/errors.js';
 import type { CredentialRepository } from '../ports/credential-repository.js';
 
 export interface VerifyCredentialInput {
@@ -14,7 +15,7 @@ export interface VerifyCredentialInput {
 /**
  * VerifyCredential command handler.
  *
- * Transitions a credential from PENDING_VERIFICATION → VERIFIED.
+ * Transitions a credential from PENDING_VERIFICATION -> VERIFIED.
  *
  * Atomically within one TenantAwareTransaction:
  * 1. Load credential (fail if not found or wrong status)
@@ -30,15 +31,19 @@ export class VerifyCredentialHandler {
   ) {}
 
   async execute(input: VerifyCredentialInput): Promise<{ credentialId: string }> {
-    let verifiedCredential: Credential | undefined;
-
     await this.tenantDb.execute(input.tenantId, async (tx) => {
       const existing = await this.repo.getCredentialById(tx, input.credentialId);
       if (!existing) {
-        throw new Error(`Credential not found: ${input.credentialId}`);
+        throw new CredentialNotFoundError(input.credentialId);
       }
 
-      verifiedCredential = verifyCredential(existing, input.verifiedBy);
+      let verifiedCredential: Credential;
+      try {
+        verifiedCredential = verifyCredential(existing, input.verifiedBy);
+      } catch {
+        throw new InvalidCredentialTransitionError(existing.status, 'VERIFIED');
+      }
+
       await this.repo.updateCredential(tx, verifiedCredential);
       await this.emitAudit(tx, verifiedCredential, input);
       await this.emitOutboxEvent(tx, verifiedCredential, input);
