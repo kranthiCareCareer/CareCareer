@@ -27,7 +27,9 @@ import type { EligibilityCheckpoint } from '../../domain/eligibility.js';
 import {
   CredentialNotFoundError,
   CredentialWorkerMismatchError,
+  InvalidCredentialTransitionError,
   InvalidRequestError,
+  VersionConflictError,
   WorkerNotFoundError,
 } from '../../domain/errors.js';
 import type { AuthenticatedStaffingRequest } from '../../infrastructure/authenticated-request.js';
@@ -279,6 +281,50 @@ export class CredentialController {
     });
 
     return { data: result };
+  }
+
+  @Post(':workerId/credentials/:credentialId/request-correction')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermission('credentials:verify')
+  async requestCorrection(
+    @Param('workerId') workerId: string,
+    @Param('credentialId') credentialId: string,
+    @Body() body: unknown,
+    @Req() req: AuthenticatedStaffingRequest,
+    @Headers('x-correlation-id') _correlationId?: string,
+    @Headers('idempotency-key') _idempotencyKey?: string,
+  ): Promise<{ data: { credentialId: string; status: string } }> {
+    const principal = requirePrincipal(req);
+
+    const parsed = ReasonSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new InvalidRequestError('expectedVersion and reason are required');
+    }
+
+    const credential = await this.loadAndValidateCredential(
+      principal.selectedTenantId,
+      workerId,
+      credentialId,
+    );
+
+    if (credential.version !== parsed.data.expectedVersion) {
+      throw new VersionConflictError('credential', credentialId);
+    }
+
+    if (credential.status !== 'PENDING_VERIFICATION') {
+      throw new InvalidCredentialTransitionError(credential.status, 'CORRECTION_REQUIRED');
+    }
+
+    await this.tenantDb.execute(principal.selectedTenantId, async (tx) => {
+      await this.credentialRepo.updateCredential(tx, {
+        ...credential,
+        status: 'CORRECTION_REQUIRED',
+        updatedAt: new Date(),
+        version: credential.version + 1,
+      });
+    });
+
+    return { data: { credentialId, status: 'CORRECTION_REQUIRED' } };
   }
 
   @Post(':workerId/eligibility-evaluations')
