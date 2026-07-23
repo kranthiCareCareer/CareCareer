@@ -14,6 +14,7 @@ import {
 } from './infrastructure/identity-state-adapter.js';
 import { LocalJwksTokenValidator } from './infrastructure/local-jwks-token-validator.js';
 import { PostgresCredentialRepository } from './infrastructure/postgres-credential-repository.js';
+import { PostgresShiftRepository } from './infrastructure/postgres-shift-repository.js';
 import { PostgresStaffingRepository } from './infrastructure/postgres-staffing-repository.js';
 import { RemoteJwksTokenValidator } from './infrastructure/remote-jwks-token-validator.js';
 import { LocalClientCredentialsProvider } from './infrastructure/service-token-client.js';
@@ -24,6 +25,7 @@ import { CredentialController } from './interface/http/credential.controller.js'
 import { FacilityController } from './interface/http/facility.controller.js';
 import { HealthController } from './interface/http/health.controller.js';
 import { WorkerController } from './interface/http/worker.controller.js';
+import { ShiftController } from './interface/http/shift.controller.js';
 
 /**
  * Staffing service root module.
@@ -34,7 +36,13 @@ import { WorkerController } from './interface/http/worker.controller.js';
  * In tests, keys are provided directly.
  */
 @Module({
-  controllers: [HealthController, FacilityController, WorkerController, CredentialController],
+  controllers: [
+    HealthController,
+    FacilityController,
+    WorkerController,
+    CredentialController,
+    ShiftController,
+  ],
   providers: [
     {
       provide: 'TOKEN_VALIDATOR',
@@ -163,6 +171,10 @@ import { WorkerController } from './interface/http/worker.controller.js';
     {
       provide: 'CREDENTIAL_REPOSITORY',
       useClass: PostgresCredentialRepository,
+    },
+    {
+      provide: 'SHIFT_REPOSITORY',
+      useClass: PostgresShiftRepository,
     },
     {
       provide: APP_FILTER,
