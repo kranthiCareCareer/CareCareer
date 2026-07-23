@@ -1,34 +1,35 @@
 # Multi-stage Dockerfile for CareCareer staffing-service
-# Produces a minimal, non-root production image
+# Produces a minimal, non-root production image using pnpm deploy
 
-# ─── Stage 1: Install all dependencies ───
-FROM node:22-alpine AS deps
-RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
-WORKDIR /app
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs ./
-COPY packages/config/package.json packages/config/
-COPY packages/request-context/package.json packages/request-context/
-COPY packages/database/package.json packages/database/
-COPY packages/auth/package.json packages/auth/
-COPY packages/events/package.json packages/events/
-COPY packages/idempotency/package.json packages/idempotency/
-COPY packages/observability/package.json packages/observability/
-COPY packages/service-core/package.json packages/service-core/
-COPY packages/shared-types/package.json packages/shared-types/
-COPY services/staffing-service/package.json services/staffing-service/
-RUN pnpm install --frozen-lockfile --ignore-scripts
-
-# ─── Stage 2: Build all packages + service ───
+# ─── Stage 1: Build everything ───
 FROM node:22-alpine AS build
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs tsconfig.base.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .pnpmfile.cjs tsconfig.base.json turbo.json ./
 COPY packages/ packages/
 COPY services/staffing-service/ services/staffing-service/
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
 
-# ─── Stage 3: Production (minimal, non-root) ───
+# Use pnpm deploy to create a self-contained deployable directory
+# This resolves all workspace dependencies into a flat node_modules
+RUN pnpm --filter @carecareer/staffing-service deploy /app/deploy
+
+# Copy compiled workspace package dist/ into the deployed node_modules
+# pnpm deploy puts workspace packages in .pnpm/... paths
+RUN find /app/deploy/node_modules -path "*/@carecareer/*/package.json" -exec \
+      sed -i 's|"./src/index.ts"|"./dist/index.js"|g' {} \; && \
+    for pkg in auth config database events idempotency observability request-context service-core shared-types; do \
+      target=$(find /app/deploy/node_modules -path "*/@carecareer/$pkg" -type d | head -1); \
+      if [ -n "$target" ] && [ -d "/app/packages/$pkg/dist" ]; then \
+        cp -r "/app/packages/$pkg/dist" "$target/"; \
+      fi; \
+    done && echo "Workspace dist copy complete"
+
+# Copy compiled service dist
+RUN cp -r /app/services/staffing-service/dist /app/deploy/dist
+
+# ─── Stage 2: Production (minimal, non-root) ───
 FROM node:22-alpine AS production
 
 # Security: non-root user
@@ -37,36 +38,10 @@ RUN addgroup -g 1001 -S appgroup && \
 
 WORKDIR /app
 
-# Copy node_modules (production deps resolved by pnpm)
-COPY --from=deps /app/node_modules ./node_modules
-
-# Copy compiled workspace packages (dist/ output) with production-ready package.json
-COPY --from=build /app/packages/auth/dist ./node_modules/@carecareer/auth/dist
-COPY --from=build /app/packages/auth/package.json ./node_modules/@carecareer/auth/
-COPY --from=build /app/packages/config/dist ./node_modules/@carecareer/config/dist
-COPY --from=build /app/packages/config/package.json ./node_modules/@carecareer/config/
-COPY --from=build /app/packages/database/dist ./node_modules/@carecareer/database/dist
-COPY --from=build /app/packages/database/package.json ./node_modules/@carecareer/database/
-COPY --from=build /app/packages/events/dist ./node_modules/@carecareer/events/dist
-COPY --from=build /app/packages/events/package.json ./node_modules/@carecareer/events/
-COPY --from=build /app/packages/idempotency/dist ./node_modules/@carecareer/idempotency/dist
-COPY --from=build /app/packages/idempotency/package.json ./node_modules/@carecareer/idempotency/
-COPY --from=build /app/packages/observability/dist ./node_modules/@carecareer/observability/dist
-COPY --from=build /app/packages/observability/package.json ./node_modules/@carecareer/observability/
-COPY --from=build /app/packages/request-context/dist ./node_modules/@carecareer/request-context/dist
-COPY --from=build /app/packages/request-context/package.json ./node_modules/@carecareer/request-context/
-COPY --from=build /app/packages/service-core/dist ./node_modules/@carecareer/service-core/dist
-COPY --from=build /app/packages/service-core/package.json ./node_modules/@carecareer/service-core/
-COPY --from=build /app/packages/shared-types/dist ./node_modules/@carecareer/shared-types/dist
-COPY --from=build /app/packages/shared-types/package.json ./node_modules/@carecareer/shared-types/
-
-# Fix main fields to point to dist (production uses compiled JS)
-RUN find ./node_modules/@carecareer -name "package.json" -exec \
-    sed -i 's|"./src/index.ts"|"./dist/index.js"|g' {} \;
-
-# Copy compiled staffing-service
-COPY --from=build /app/services/staffing-service/dist ./dist
-COPY --from=build /app/services/staffing-service/package.json ./
+# Copy the deployed application
+COPY --from=build /app/deploy/node_modules ./node_modules
+COPY --from=build /app/deploy/dist ./dist
+COPY --from=build /app/deploy/package.json ./
 COPY --from=build /app/services/staffing-service/prisma ./prisma
 
 # Labels for traceability
