@@ -8,11 +8,12 @@
  *   REQUESTED → EXPIRED (TTL-based)
  *
  * Business rules:
- * - Worker must be eligible (evaluated at request time)
+ * - Worker must be eligible (evaluated at request time, evaluation ID stored)
  * - Worker cannot request overlapping shifts
- * - Duplicate requests (same worker + shift) are idempotent
- * - Withdrawn requests cannot be re-confirmed
- * - Expired requests cannot be re-confirmed
+ * - Only one active request (REQUESTED/UNDER_REVIEW/CONFIRMED) per worker+shift
+ * - After REJECTED/WITHDRAWN/EXPIRED, worker may re-request (new row)
+ * - Confirmation checks expiration time (fail if expired regardless of status)
+ * - TTL is bounded (min 5 min, max 7 days)
  */
 
 export type ShiftRequestStatus =
@@ -29,7 +30,7 @@ export interface ShiftRequest {
   readonly shiftId: string;
   readonly workerId: string;
   readonly status: ShiftRequestStatus;
-  readonly eligibilityEvaluationId?: string | undefined;
+  readonly eligibilityEvaluationId: string;
   readonly requestedAt: Date;
   readonly reviewedAt?: Date | undefined;
   readonly reviewedBy?: string | undefined;
@@ -54,16 +55,36 @@ const VALID_REQUEST_TRANSITIONS: Record<ShiftRequestStatus, ShiftRequestStatus[]
   EXPIRED: [],
 };
 
-/** Default request TTL: 24 hours */
-const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
+/** TTL bounds */
+const MIN_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 export interface CreateShiftRequestInput {
   readonly tenantId: string;
   readonly shiftId: string;
   readonly workerId: string;
-  readonly eligibilityEvaluationId?: string | undefined;
+  readonly eligibilityEvaluationId: string;
   readonly correlationId?: string | undefined;
   readonly ttlMs?: number | undefined;
+  readonly asOf?: Date | undefined;
+}
+
+/**
+ * Validate and bound TTL value.
+ */
+function validateTtl(ttlMs: number | undefined): number {
+  if (ttlMs === undefined || ttlMs === null) return DEFAULT_TTL_MS;
+  if (!Number.isFinite(ttlMs) || !Number.isInteger(ttlMs)) {
+    throw new Error('TTL must be a finite positive integer');
+  }
+  if (ttlMs < MIN_TTL_MS) {
+    throw new Error(`TTL must be at least ${MIN_TTL_MS}ms (5 minutes)`);
+  }
+  if (ttlMs > MAX_TTL_MS) {
+    throw new Error(`TTL must not exceed ${MAX_TTL_MS}ms (7 days)`);
+  }
+  return ttlMs;
 }
 
 /**
@@ -79,9 +100,12 @@ export function createShiftRequest(input: CreateShiftRequestInput): ShiftRequest
   if (!input.workerId || input.workerId.trim() === '') {
     throw new Error('Worker ID is required');
   }
+  if (!input.eligibilityEvaluationId || input.eligibilityEvaluationId.trim() === '') {
+    throw new Error('Eligibility evaluation ID is required');
+  }
 
-  const now = new Date();
-  const ttl = input.ttlMs ?? DEFAULT_TTL_MS;
+  const ttl = validateTtl(input.ttlMs);
+  const now = input.asOf ?? new Date();
 
   return {
     id: crypto.randomUUID(),
@@ -122,9 +146,15 @@ export function withdrawShiftRequest(request: ShiftRequest): ShiftRequest {
 }
 
 /**
- * Confirm a shift request. Only valid from REQUESTED or UNDER_REVIEW.
+ * Confirm a shift request.
+ * MUST check expiration: if asOf >= expiresAt, reject even if status is REQUESTED.
+ * This prevents confirming stale requests when the expiration worker is delayed.
  */
-export function confirmShiftRequest(request: ShiftRequest, reviewedBy: string): ShiftRequest {
+export function confirmShiftRequest(
+  request: ShiftRequest,
+  reviewedBy: string,
+  asOf: Date = new Date(),
+): ShiftRequest {
   if (!reviewedBy || reviewedBy.trim() === '') {
     throw new Error('Reviewer ID is required');
   }
@@ -132,13 +162,17 @@ export function confirmShiftRequest(request: ShiftRequest, reviewedBy: string): 
   if (!allowed.includes('CONFIRMED')) {
     throw new Error(`Cannot confirm request in status ${request.status}`);
   }
+  // P0 fix: reject if TTL has expired regardless of status
+  if (asOf >= request.expiresAt) {
+    throw new Error('Cannot confirm expired request — TTL exceeded');
+  }
 
   return {
     ...request,
     status: 'CONFIRMED',
-    reviewedAt: new Date(),
+    reviewedAt: asOf,
     reviewedBy: reviewedBy.trim(),
-    updatedAt: new Date(),
+    updatedAt: asOf,
     version: request.version + 1,
   };
 }

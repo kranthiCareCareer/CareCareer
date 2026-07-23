@@ -12,11 +12,15 @@ import {
 } from './shift-request.js';
 
 describe('ShiftRequest Domain', () => {
+  const now = new Date('2027-03-01T12:00:00Z');
+
   const validInput: CreateShiftRequestInput = {
     tenantId: 'tenant-1',
     shiftId: 'shift-1',
     workerId: 'worker-1',
+    eligibilityEvaluationId: 'eval-1',
     correlationId: 'corr-1',
+    asOf: now,
   };
 
   describe('createShiftRequest', () => {
@@ -26,6 +30,7 @@ describe('ShiftRequest Domain', () => {
       expect(req.version).toBe(1);
       expect(req.shiftId).toBe('shift-1');
       expect(req.workerId).toBe('worker-1');
+      expect(req.eligibilityEvaluationId).toBe('eval-1');
     });
 
     it('should generate a UUID id', () => {
@@ -39,15 +44,16 @@ describe('ShiftRequest Domain', () => {
       expect(diff).toBe(24 * 60 * 60 * 1000);
     });
 
-    it('should accept custom TTL', () => {
+    it('should accept custom TTL within bounds', () => {
       const req = createShiftRequest({ ...validInput, ttlMs: 3600000 });
       const diff = req.expiresAt.getTime() - req.requestedAt.getTime();
       expect(diff).toBe(3600000);
     });
 
-    it('should store eligibility evaluation ID', () => {
-      const req = createShiftRequest({ ...validInput, eligibilityEvaluationId: 'eval-1' });
-      expect(req.eligibilityEvaluationId).toBe('eval-1');
+    it('should use injected asOf for deterministic timestamps', () => {
+      const req = createShiftRequest(validInput);
+      expect(req.requestedAt).toEqual(now);
+      expect(req.createdAt).toEqual(now);
     });
 
     it('should reject empty tenant ID', () => {
@@ -60,6 +66,63 @@ describe('ShiftRequest Domain', () => {
 
     it('should reject empty worker ID', () => {
       expect(() => createShiftRequest({ ...validInput, workerId: '' })).toThrow('Worker ID');
+    });
+
+    it('should reject empty eligibility evaluation ID', () => {
+      expect(() => createShiftRequest({ ...validInput, eligibilityEvaluationId: '' })).toThrow(
+        'Eligibility evaluation ID',
+      );
+    });
+
+    describe('TTL validation', () => {
+      it('should reject TTL of zero', () => {
+        expect(() => createShiftRequest({ ...validInput, ttlMs: 0 })).toThrow('at least');
+      });
+
+      it('should reject negative TTL', () => {
+        expect(() => createShiftRequest({ ...validInput, ttlMs: -1000 })).toThrow('at least');
+      });
+
+      it('should reject NaN TTL', () => {
+        expect(() => createShiftRequest({ ...validInput, ttlMs: NaN })).toThrow('finite positive');
+      });
+
+      it('should reject Infinity TTL', () => {
+        expect(() => createShiftRequest({ ...validInput, ttlMs: Infinity })).toThrow(
+          'finite positive',
+        );
+      });
+
+      it('should reject non-integer TTL', () => {
+        expect(() => createShiftRequest({ ...validInput, ttlMs: 3600000.5 })).toThrow(
+          'finite positive',
+        );
+      });
+
+      it('should reject TTL below minimum (5 minutes)', () => {
+        expect(() => createShiftRequest({ ...validInput, ttlMs: 60000 })).toThrow('at least');
+      });
+
+      it('should reject TTL above maximum (7 days)', () => {
+        const eightDays = 8 * 24 * 60 * 60 * 1000;
+        expect(() => createShiftRequest({ ...validInput, ttlMs: eightDays })).toThrow(
+          'must not exceed',
+        );
+      });
+
+      it('should accept minimum TTL (5 minutes)', () => {
+        const minTtl = 5 * 60 * 1000;
+        const req = createShiftRequest({ ...validInput, ttlMs: minTtl });
+        const diff = req.expiresAt.getTime() - req.requestedAt.getTime();
+        expect(diff).toBe(minTtl);
+      });
+
+      it('should accept maximum TTL (7 days)', () => {
+        const maxTtl = 7 * 24 * 60 * 60 * 1000;
+        const req = createShiftRequest({ ...validInput, ttlMs: maxTtl });
+        const diff = req.expiresAt.getTime() - req.requestedAt.getTime();
+        expect(diff).toBe(maxTtl);
+      });
     });
   });
 
@@ -95,34 +158,51 @@ describe('ShiftRequest Domain', () => {
   });
 
   describe('confirmShiftRequest', () => {
-    it('should confirm a REQUESTED request', () => {
+    it('should confirm a REQUESTED request when not expired', () => {
       const req = createShiftRequest(validInput);
-      const confirmed = confirmShiftRequest(req, 'scheduler-1');
+      const confirmTime = new Date(now.getTime() + 1000); // 1 second after creation
+      const confirmed = confirmShiftRequest(req, 'scheduler-1', confirmTime);
       expect(confirmed.status).toBe('CONFIRMED');
       expect(confirmed.reviewedBy).toBe('scheduler-1');
-      expect(confirmed.reviewedAt).toBeInstanceOf(Date);
+      expect(confirmed.reviewedAt).toEqual(confirmTime);
       expect(confirmed.version).toBe(2);
     });
 
     it('should confirm an UNDER_REVIEW request', () => {
       const req = { ...createShiftRequest(validInput), status: 'UNDER_REVIEW' as const };
-      const confirmed = confirmShiftRequest(req, 'scheduler-1');
+      const confirmTime = new Date(now.getTime() + 1000);
+      const confirmed = confirmShiftRequest(req, 'scheduler-1', confirmTime);
       expect(confirmed.status).toBe('CONFIRMED');
+    });
+
+    it('should REJECT confirmation when TTL has expired', () => {
+      const req = createShiftRequest(validInput);
+      const afterExpiry = new Date(req.expiresAt.getTime() + 1);
+      expect(() => confirmShiftRequest(req, 'scheduler-1', afterExpiry)).toThrow(
+        'Cannot confirm expired request',
+      );
+    });
+
+    it('should REJECT confirmation at exact expiry time', () => {
+      const req = createShiftRequest(validInput);
+      expect(() => confirmShiftRequest(req, 'scheduler-1', req.expiresAt)).toThrow(
+        'Cannot confirm expired request',
+      );
     });
 
     it('should reject confirmation of WITHDRAWN request', () => {
       const req = { ...createShiftRequest(validInput), status: 'WITHDRAWN' as const };
-      expect(() => confirmShiftRequest(req, 'scheduler-1')).toThrow('Cannot confirm');
+      expect(() => confirmShiftRequest(req, 'scheduler-1', now)).toThrow('Cannot confirm');
     });
 
     it('should reject confirmation of EXPIRED request', () => {
       const req = { ...createShiftRequest(validInput), status: 'EXPIRED' as const };
-      expect(() => confirmShiftRequest(req, 'scheduler-1')).toThrow('Cannot confirm');
+      expect(() => confirmShiftRequest(req, 'scheduler-1', now)).toThrow('Cannot confirm');
     });
 
     it('should require reviewer ID', () => {
       const req = createShiftRequest(validInput);
-      expect(() => confirmShiftRequest(req, '')).toThrow('Reviewer ID');
+      expect(() => confirmShiftRequest(req, '', now)).toThrow('Reviewer ID');
     });
   });
 
@@ -178,7 +258,7 @@ describe('ShiftRequest Domain', () => {
 
   describe('isRequestExpired', () => {
     it('should return true when past expiry and REQUESTED', () => {
-      const req = createShiftRequest({ ...validInput, ttlMs: 1000 });
+      const req = createShiftRequest({ ...validInput, ttlMs: 300000 }); // 5 min
       const future = new Date(req.expiresAt.getTime() + 1);
       expect(isRequestExpired(req, future)).toBe(true);
     });
@@ -200,7 +280,6 @@ describe('ShiftRequest Domain', () => {
       const transitions = getValidRequestTransitions('REQUESTED');
       expect(transitions).toContain('UNDER_REVIEW');
       expect(transitions).toContain('CONFIRMED');
-      expect(transitions).toContain('REJECTED');
       expect(transitions).toContain('WITHDRAWN');
       expect(transitions).toContain('EXPIRED');
     });
