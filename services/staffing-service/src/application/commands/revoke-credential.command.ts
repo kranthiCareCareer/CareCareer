@@ -6,6 +6,12 @@ import {
   CredentialWorkerMismatchError,
   InvalidCredentialTransitionError,
 } from '../../domain/errors.js';
+import {
+  claimIdempotencyKey,
+  completeIdempotency,
+  hashRequest,
+  IdempotencyConsistencyError,
+} from '../../infrastructure/credential-idempotency.js';
 import type { CredentialRepository } from '../ports/credential-repository.js';
 
 export interface RevokeCredentialInput {
@@ -15,6 +21,7 @@ export interface RevokeCredentialInput {
   readonly workerId: string;
   readonly credentialId: string;
   readonly reason: string;
+  readonly idempotencyKey: string;
 }
 
 /**
@@ -31,6 +38,29 @@ export class RevokeCredentialHandler {
     let resultStatus = '';
 
     await this.tenantDb.execute(input.tenantId, async (tx) => {
+      const reqHash = hashRequest({
+        workerId: input.workerId,
+        credentialId: input.credentialId,
+        operation: 'revoke',
+        reason: input.reason,
+      });
+
+      const claim = await claimIdempotencyKey(
+        tx,
+        input.tenantId,
+        'credential.revoke',
+        input.idempotencyKey,
+        reqHash,
+      );
+
+      if (!claim.claimed && claim.replay) {
+        resultStatus = (claim.replay.response as { status: string }).status;
+        return;
+      }
+
+      const token = claim.claimToken;
+      if (!token) throw new IdempotencyConsistencyError();
+
       const credential = await this.repo.getCredentialById(tx, input.credentialId);
       if (!credential) {
         throw new CredentialNotFoundError(input.credentialId);
@@ -45,7 +75,22 @@ export class RevokeCredentialHandler {
         resultStatus = updated.status;
         await this.emitAudit(tx, input, updated.status);
         await this.emitOutbox(tx, input, credential.credentialType, updated.status);
+
+        await completeIdempotency(
+          tx,
+          input.tenantId,
+          'credential.revoke',
+          input.idempotencyKey,
+          token,
+          200,
+          { credentialId: input.credentialId, status: updated.status },
+        );
       } catch (error: unknown) {
+        if (
+          error instanceof InvalidCredentialTransitionError ||
+          error instanceof IdempotencyConsistencyError
+        )
+          throw error;
         if (error instanceof Error && error.message.includes('Cannot revoke')) {
           throw new InvalidCredentialTransitionError(credential.status, 'REVOKED');
         }

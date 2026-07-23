@@ -155,8 +155,10 @@ export class CredentialController {
     @Param('credentialId') credentialId: string,
     @Req() req: AuthenticatedStaffingRequest,
     @Headers('x-correlation-id') correlationId?: string,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<{ data: { credentialId: string; status: string } }> {
     const principal = requirePrincipal(req);
+    const validatedKey = this.validateIdempotencyKey(idempotencyKey);
 
     const result = await this.verifyHandler.execute({
       tenantId: principal.selectedTenantId,
@@ -165,6 +167,7 @@ export class CredentialController {
       workerId,
       credentialId,
       verifiedBy: principal.subject,
+      idempotencyKey: validatedKey,
     });
 
     return { data: { credentialId: result.credentialId, status: 'VERIFIED' } };
@@ -179,8 +182,10 @@ export class CredentialController {
     @Body() body: unknown,
     @Req() req: AuthenticatedStaffingRequest,
     @Headers('x-correlation-id') correlationId?: string,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<{ data: { credentialId: string; status: string } }> {
     const principal = requirePrincipal(req);
+    const validatedKey = this.validateIdempotencyKey(idempotencyKey);
 
     const parsed = ReasonSchema.safeParse(body);
     if (!parsed.success) {
@@ -194,6 +199,7 @@ export class CredentialController {
       workerId,
       credentialId,
       reason: parsed.data.reason,
+      idempotencyKey: validatedKey,
     });
 
     return { data: result };
@@ -208,8 +214,10 @@ export class CredentialController {
     @Body() body: unknown,
     @Req() req: AuthenticatedStaffingRequest,
     @Headers('x-correlation-id') correlationId?: string,
+    @Headers('idempotency-key') idempotencyKey?: string,
   ): Promise<{ data: { credentialId: string; status: string } }> {
     const principal = requirePrincipal(req);
+    const validatedKey = this.validateIdempotencyKey(idempotencyKey);
 
     const parsed = ReasonSchema.safeParse(body);
     if (!parsed.success) {
@@ -223,6 +231,7 @@ export class CredentialController {
       workerId,
       credentialId,
       reason: parsed.data.reason,
+      idempotencyKey: validatedKey,
     });
 
     return { data: result };

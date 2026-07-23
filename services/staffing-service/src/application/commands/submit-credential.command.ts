@@ -10,6 +10,7 @@ import {
   claimIdempotencyKey,
   completeIdempotency,
   hashRequest,
+  IdempotencyConsistencyError,
 } from '../../infrastructure/credential-idempotency.js';
 import type { CredentialRepository } from '../ports/credential-repository.js';
 
@@ -70,16 +71,25 @@ export class SubmitCredentialHandler {
         await this.emitAudit(tx, input, updated.status);
         await this.emitOutbox(tx, input, credential.credentialType, updated.status);
 
+        const token = claim.claimToken;
+        if (!token) throw new IdempotencyConsistencyError();
+
         await completeIdempotency(
           tx,
           input.tenantId,
           'credential.submit',
           input.idempotencyKey,
-          claim.claimToken!,
+          token,
           200,
           { credentialId: input.credentialId, status: updated.status },
         );
       } catch (error: unknown) {
+        if (
+          error instanceof InvalidCredentialTransitionError ||
+          error instanceof IdempotencyConsistencyError
+        ) {
+          throw error;
+        }
         if (error instanceof Error && error.message.includes('Invalid credential status')) {
           throw new InvalidCredentialTransitionError(credential.status, 'PENDING_VERIFICATION');
         }

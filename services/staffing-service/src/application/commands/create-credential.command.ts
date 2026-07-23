@@ -5,6 +5,7 @@ import {
   claimIdempotencyKey,
   completeIdempotency,
   hashRequest,
+  IdempotencyConsistencyError,
 } from '../../infrastructure/credential-idempotency.js';
 import type { CredentialRepository } from '../ports/credential-repository.js';
 
@@ -81,7 +82,7 @@ export class CreateCredentialHandler {
       }
 
       if (!claim.claimToken) {
-        throw new Error('Idempotency claim succeeded but no token returned');
+        throw new IdempotencyConsistencyError();
       }
 
       // Execute mutation
