@@ -128,6 +128,7 @@ export class CredentialController {
   async submitForVerification(
     @Param('workerId') workerId: string,
     @Param('credentialId') credentialId: string,
+    @Body() body: unknown,
     @Req() req: AuthenticatedStaffingRequest,
     @Headers('x-correlation-id') correlationId?: string,
     @Headers('idempotency-key') idempotencyKey?: string,
@@ -135,12 +136,18 @@ export class CredentialController {
     const principal = requirePrincipal(req);
     const validatedKey = this.validateIdempotencyKey(idempotencyKey);
 
+    const parsed = VersionedMutationSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new InvalidRequestError('expectedVersion is required');
+    }
+
     const result = await this.submitHandler.execute({
       tenantId: principal.selectedTenantId,
       actorId: principal.subject,
       correlationId: correlationId ?? crypto.randomUUID(),
       workerId,
       credentialId,
+      expectedVersion: parsed.data.expectedVersion,
       idempotencyKey: validatedKey,
     });
 
@@ -153,6 +160,7 @@ export class CredentialController {
   async verifyCredential(
     @Param('workerId') workerId: string,
     @Param('credentialId') credentialId: string,
+    @Body() body: unknown,
     @Req() req: AuthenticatedStaffingRequest,
     @Headers('x-correlation-id') correlationId?: string,
     @Headers('idempotency-key') idempotencyKey?: string,
@@ -160,12 +168,18 @@ export class CredentialController {
     const principal = requirePrincipal(req);
     const validatedKey = this.validateIdempotencyKey(idempotencyKey);
 
+    const parsed = VersionedMutationSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new InvalidRequestError('expectedVersion is required');
+    }
+
     const result = await this.verifyHandler.execute({
       tenantId: principal.selectedTenantId,
       actorId: principal.subject,
       correlationId: correlationId ?? crypto.randomUUID(),
       workerId,
       credentialId,
+      expectedVersion: parsed.data.expectedVersion,
       verifiedBy: principal.subject,
       idempotencyKey: validatedKey,
     });
@@ -198,6 +212,7 @@ export class CredentialController {
       correlationId: correlationId ?? crypto.randomUUID(),
       workerId,
       credentialId,
+      expectedVersion: parsed.data.expectedVersion,
       reason: parsed.data.reason,
       idempotencyKey: validatedKey,
     });
@@ -230,6 +245,7 @@ export class CredentialController {
       correlationId: correlationId ?? crypto.randomUUID(),
       workerId,
       credentialId,
+      expectedVersion: parsed.data.expectedVersion,
       reason: parsed.data.reason,
       idempotencyKey: validatedKey,
     });
@@ -326,6 +342,13 @@ const CreateCredentialSchema = z
 const ReasonSchema = z
   .object({
     reason: z.string().min(1).max(500),
+    expectedVersion: z.number().int().min(1),
+  })
+  .strict();
+
+const VersionedMutationSchema = z
+  .object({
+    expectedVersion: z.number().int().min(1),
   })
   .strict();
 

@@ -5,6 +5,7 @@ import {
   CredentialNotFoundError,
   CredentialWorkerMismatchError,
   InvalidCredentialTransitionError,
+  VersionConflictError,
 } from '../../domain/errors.js';
 import {
   claimIdempotencyKey,
@@ -20,6 +21,7 @@ export interface RejectCredentialInput {
   readonly correlationId: string;
   readonly workerId: string;
   readonly credentialId: string;
+  readonly expectedVersion: number;
   readonly reason: string;
   readonly idempotencyKey: string;
 }
@@ -67,6 +69,9 @@ export class RejectCredentialHandler {
       }
       if (credential.workerId !== input.workerId) {
         throw new CredentialWorkerMismatchError();
+      }
+      if (credential.version !== input.expectedVersion) {
+        throw new VersionConflictError('credential', input.credentialId);
       }
 
       try {

@@ -401,6 +401,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
       // Submit for verification
       const res = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/submit`)
+        .send({ expectedVersion: 1 })
         .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
 
@@ -421,6 +422,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
       // Try to submit via wrong worker path (use some other worker ID in same tenant)
       const res = await request(app.getHttpServer())
         .post(`/v1/workers/00000000-0000-0000-0000-000000099999/credentials/${credId}/submit`)
+        .send({ expectedVersion: 1 })
         .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
 
@@ -442,12 +444,14 @@ describe('Credential HTTP Integration (GP-07)', () => {
 
       await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/submit`)
+        .send({ expectedVersion: 1 })
         .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
 
       // Verify
       const res = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/verify`)
+        .send({ expectedVersion: 2 })
         .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
 
@@ -465,13 +469,15 @@ describe('Credential HTTP Integration (GP-07)', () => {
         .send({ credentialType: 'FLU_SHOT' });
       const credId = createRes.body.data.credentialId;
 
-      // Try to verify without submitting first
+      // Try to verify without submitting first (credential is UPLOADED at version 1)
       const res = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/verify`)
+        .send({ expectedVersion: 1 })
         .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
 
       expect(res.status).toBe(HttpStatus.BAD_REQUEST);
+      expect(res.body.code).toBe('INVALID_CREDENTIAL_TRANSITION');
     });
   });
 
@@ -566,6 +572,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
       // Submit
       await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/submit`)
+        .send({ expectedVersion: 1 })
         .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
 
@@ -596,10 +603,12 @@ describe('Credential HTTP Integration (GP-07)', () => {
 
       await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/submit`)
+        .send({ expectedVersion: 1 })
         .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
       await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/verify`)
+        .send({ expectedVersion: 2 })
         .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
 
@@ -652,6 +661,7 @@ describe('Credential HTTP Integration (GP-07)', () => {
       // Try to verify UPLOADED (invalid) — should get typed error
       const res = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/verify`)
+        .send({ expectedVersion: 1 })
         .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
 
@@ -698,20 +708,22 @@ describe('Credential HTTP Integration (GP-07)', () => {
       // First submit succeeds
       const first = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/submit`)
+        .send({ expectedVersion: 1 })
         .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
       expect(first.status).toBe(HttpStatus.OK);
 
       // Second submit on the same credential with a different idempotency key
-      // should fail because status is no longer UPLOADED (it's PENDING_VERIFICATION)
+      // should fail because version is now 2 (stale expectedVersion: 1)
       const second = await request(app.getHttpServer())
         .post(`/v1/workers/${workerAId}/credentials/${credId}/submit`)
+        .send({ expectedVersion: 1 })
         .set('Idempotency-Key', crypto.randomUUID())
         .set('Authorization', `Bearer ${token}`);
 
-      // Invalid transition (already PENDING_VERIFICATION, can't submit again)
-      expect(second.status).toBe(HttpStatus.BAD_REQUEST);
-      expect(second.body.code).toBe('INVALID_CREDENTIAL_TRANSITION');
+      // Version conflict — credential was already updated by first submit
+      expect(second.status).toBe(HttpStatus.CONFLICT);
+      expect(second.body.code).toBe('VERSION_CONFLICT');
     });
   });
 });
