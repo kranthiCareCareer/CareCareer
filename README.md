@@ -8,9 +8,7 @@ CareCareer is a multi-tenant SaaS platform designed to consolidate and modernize
 
 ## Current State
 
-**Platform foundation: LOCALLY COMPLETE**
-
-The platform control plane is functional with:
+**Platform foundation: COMPLETE**
 
 - Multi-tenant architecture with PostgreSQL Row-Level Security
 - Identity, session management, and RS256 token infrastructure
@@ -18,16 +16,20 @@ The platform control plane is functional with:
 - Tenant provisioning, lifecycle, organizations, entitlements, and features
 - Administrative console (React) with 9 routes
 - Comprehensive security testing (99%+ coverage on critical paths)
-- Cross-browser validation (Chromium, Firefox, WebKit, Mobile Chrome)
-- Deterministic investor demonstration
+- Cross-browser E2E validation (20/20 Chromium tests)
+- All 6 CI/CD workflows green (CI, CodeQL, Secret Scan, Dependency Review, Trivy, E2E)
 
-**Workforce product: IN PROGRESS (GP-05 Facilities)**
+**Workforce product: THROUGH GP-08**
 
 - Facility CRUD with timezone enforcement and geofence versioning
 - Department management (per-facility)
-- Credential requirements queryable by role + department
+- Worker profiles with 9-state lifecycle (APPLICANT → ACTIVE → BLOCKED)
+- Credential management with 5-state machine (UPLOADED → VERIFIED → EXPIRED)
+- Eligibility engine — deterministic evaluation at 4 checkpoints
+- Shift creation with 7-state machine, multi-worker support, overnight shifts
+- Cross-service authentication proven (token exchange, state validation, authorization)
 - Audit + outbox event emission (atomic, within transaction)
-- 34 integration tests against real PostgreSQL with RLS
+- 300+ tests across unit, integration, and contract layers
 
 ## Architecture
 
@@ -43,11 +45,11 @@ The platform control plane is functional with:
 
 ### Services
 
-| Service          | Port | Purpose                                                |
-| ---------------- | ---- | ------------------------------------------------------ |
-| platform-service | 3001 | Tenants, organizations, entitlements, features         |
-| identity-service | 3100 | Users, sessions, authorization, signing keys           |
-| staffing-service | 3200 | Facilities, departments, workers, shifts (in progress) |
+| Service          | Port | Purpose                                        |
+| ---------------- | ---- | ---------------------------------------------- |
+| platform-service | 3001 | Tenants, organizations, entitlements, features |
+| identity-service | 3100 | Users, sessions, authorization, signing keys   |
+| staffing-service | 3200 | Facilities, workers, credentials, shifts       |
 
 ### Packages
 
@@ -71,9 +73,6 @@ The platform control plane is functional with:
 # Install dependencies
 pnpm install
 
-# Start the demo (PostgreSQL + services + admin console)
-pnpm demo:verify
-
 # Run all tests
 pnpm test
 
@@ -83,6 +82,10 @@ pnpm test:integration
 # Run security coverage
 pnpm coverage
 pnpm coverage:security-check
+
+# Start the demo (PostgreSQL + services + admin console)
+pnpm demo:up
+pnpm demo:e2e
 ```
 
 ## Development
@@ -100,6 +103,9 @@ pnpm --filter @carecareer/platform-admin-console dev
 pnpm lint
 pnpm typecheck
 
+# Format
+pnpm format
+
 # Build all packages
 pnpm build
 ```
@@ -107,7 +113,7 @@ pnpm build
 ## Testing
 
 ```bash
-# Unit tests
+# Unit tests (all services)
 pnpm test
 
 # Integration tests (real PostgreSQL via Testcontainers)
@@ -119,27 +125,41 @@ pnpm --filter @carecareer/staffing-service test:integration
 pnpm coverage:security-check
 
 # Browser E2E (Chromium)
-pnpm test:e2e:investor
+pnpm demo:e2e
 
-# Full verification
-pnpm demo:verify
+# Full local verification
 pnpm local:verify
 ```
 
 ## Golden Path Milestones
 
-| #            | Milestone                      | Status         |
-| ------------ | ------------------------------ | -------------- |
-| GP-00        | Repository baseline            | ✅ Complete    |
-| GP-01        | Service template + packages    | ✅ Complete    |
-| GP-02        | Platform service               | ✅ Complete    |
-| GP-03.0–03.3 | Identity, sessions, signing    | ✅ Complete    |
-| GP-03.4      | Authorization decisions        | ✅ Complete    |
-| GP-05        | Facilities and departments     | 🔄 In progress |
-| GP-06        | Worker profiles                | ⬜ Not started |
-| GP-07        | Credentials and eligibility    | ⬜ Not started |
-| GP-08        | Shift creation                 | ⬜ Not started |
-| GP-09–15     | Marketplace through production | ⬜ Not started |
+| #        | Milestone                      | Status      |
+| -------- | ------------------------------ | ----------- |
+| GP-00    | Repository baseline            | ✅ Complete |
+| GP-01    | Service template + packages    | ✅ Complete |
+| GP-02    | Platform service               | ✅ Complete |
+| GP-03    | Identity and authorization     | ✅ Complete |
+| GP-04    | Admin portal shell             | ✅ Complete |
+| GP-05    | Facilities and departments     | ✅ Complete |
+| GP-06    | Worker profiles                | ✅ Complete |
+| GP-07    | Credentials and eligibility    | ✅ Complete |
+| GP-08    | Shift creation                 | ✅ Complete |
+| GP-09    | Shift marketplace + assignment | ⬜ Next     |
+| GP-10    | Time and attendance            | ⬜ Planned  |
+| GP-11–15 | Pay/bill through production    | ⬜ Planned  |
+
+## CI/CD
+
+All workflows green on master:
+
+| Workflow           | Purpose                             |
+| ------------------ | ----------------------------------- |
+| CI                 | Lint, typecheck, test, build        |
+| Secret Scanning    | Gitleaks — no secrets in history    |
+| Code Security      | CodeQL static analysis              |
+| Dependency Review  | Vulnerability + license enforcement |
+| Container Security | Trivy filesystem scan (0 HIGH/CRIT) |
+| DEMO-01 E2E        | Playwright Chromium (20/20 pass)    |
 
 ## Security
 
@@ -150,6 +170,8 @@ pnpm local:verify
 - Authorization versions enforce immediate revocation
 - Refresh token replay compromises the entire token family
 - Production startup rejects insecure configuration
+- Service-to-service auth via client_credentials token exchange (identity-service is sole issuer)
+- Fail-closed: any adapter failure denies access
 
 ## Documentation
 
@@ -158,7 +180,7 @@ pnpm local:verify
 - Security controls: `docs/security/`
 - Testing strategy: `docs/testing/`
 - Demo documentation: `docs/demo/`
-- Product assessment: `docs/product/`
+- Branching strategy: `docs/engineering/BRANCHING-STRATEGY.md`
 
 ## License
 
