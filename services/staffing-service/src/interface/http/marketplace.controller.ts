@@ -1,15 +1,18 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import {
   Body,
+  ConflictException,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
   Inject,
+  NotFoundException,
   Param,
   Post,
   Query,
   Req,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 
 import type { TenantAwareTransaction } from '@carecareer/database';
@@ -124,13 +127,13 @@ export class MarketplaceController {
     if ('error' in result) {
       switch (result.error) {
         case 'SHIFT_NOT_FOUND':
-          return { statusCode: 404, message: 'Shift not found' };
+          throw new NotFoundException('Shift not found');
         case 'SHIFT_NOT_AVAILABLE':
-          return { statusCode: 422, message: 'Shift is not available for requests' };
+          throw new UnprocessableEntityException('Shift is not available for requests');
         case 'SHIFT_FULL':
-          return { statusCode: 422, message: 'Shift is fully staffed' };
+          throw new UnprocessableEntityException('Shift is fully staffed');
         case 'DUPLICATE_REQUEST':
-          return { statusCode: 409, message: 'Active request already exists for this shift' };
+          throw new ConflictException('Active request already exists for this shift');
       }
     }
 
@@ -241,17 +244,16 @@ export class MarketplaceController {
       switch (result.error) {
         case 'NOT_FOUND':
         case 'SHIFT_NOT_FOUND':
-          return { statusCode: 404, message: 'Not found' };
+          throw new NotFoundException('Not found');
         case 'VERSION_CONFLICT':
-          return {
-            statusCode: 409,
+          throw new ConflictException({
             error: 'VERSION_CONFLICT',
             currentVersion: result.currentVersion,
-          };
+          });
         case 'INVALID_STATUS':
-          return { statusCode: 422, message: result.message };
+          throw new UnprocessableEntityException(result.message);
         case 'SHIFT_FULL':
-          return { statusCode: 422, message: 'Shift is fully staffed' };
+          throw new UnprocessableEntityException('Shift is fully staffed');
       }
     }
 
@@ -303,13 +305,12 @@ export class MarketplaceController {
 
     if ('error' in result) {
       if (result.error === 'NOT_FOUND') {
-        return { statusCode: 404, message: 'Request not found' };
+        throw new NotFoundException('Request not found');
       }
-      return {
-        statusCode: 409,
+      throw new ConflictException({
         error: 'VERSION_CONFLICT',
         currentVersion: result.currentVersion,
-      };
+      });
     }
 
     return { id: result.request.id, status: result.request.status };
@@ -338,7 +339,7 @@ export class MarketplaceController {
     });
 
     if ('error' in result) {
-      return { statusCode: 404, message: 'Request not found' };
+      throw new NotFoundException('Request not found');
     }
 
     return { id: result.request.id, status: result.request.status };

@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import {
   Body,
+  ConflictException,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
   Inject,
+  NotFoundException,
   Param,
   Post,
   Query,
@@ -107,7 +109,7 @@ export class ShiftController {
     });
 
     if (!shift) {
-      return { statusCode: 404, message: 'Shift not found' };
+      throw new NotFoundException('Shift not found');
     }
 
     return shift;
@@ -167,9 +169,9 @@ export class ShiftController {
 
     if ('error' in result) {
       if (result.error === 'NOT_FOUND') {
-        return { statusCode: 404, message: 'Shift not found' };
+        throw new NotFoundException('Shift not found');
       }
-      return { statusCode: 409, error: 'VERSION_CONFLICT', currentVersion: result.currentVersion };
+      throw new ConflictException({ error: 'VERSION_CONFLICT', currentVersion: result.currentVersion });
     }
 
     return { id: result.shift.id, status: result.shift.status, version: result.shift.version };
@@ -212,9 +214,9 @@ export class ShiftController {
 
     if ('error' in result) {
       if (result.error === 'NOT_FOUND') {
-        return { statusCode: 404, message: 'Shift not found' };
+        throw new NotFoundException('Shift not found');
       }
-      return { statusCode: 409, error: 'VERSION_CONFLICT', currentVersion: result.currentVersion };
+      throw new ConflictException({ error: 'VERSION_CONFLICT', currentVersion: result.currentVersion });
     }
 
     return { id: result.shift.id, status: result.shift.status, version: result.shift.version };

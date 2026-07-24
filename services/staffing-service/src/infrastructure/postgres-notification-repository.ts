@@ -52,6 +52,10 @@ export class PostgresNotificationRepository implements NotificationRepository {
   }
 
   async listByRecipient(tx: TransactionClient, recipientId: string): Promise<Notification[]> {
+    // If recipientId is not a valid UUID, return empty (demo subjects are string names)
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(recipientId)) {
+      return [];
+    }
     const rows = await tx.$queryRaw<NotificationRow>`
       SELECT * FROM staffing.notifications
       WHERE recipient_id = ${recipientId}::uuid
