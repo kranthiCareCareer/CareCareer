@@ -13,16 +13,28 @@ import {
   type IdentityStateAdapter,
 } from './infrastructure/identity-state-adapter.js';
 import { LocalJwksTokenValidator } from './infrastructure/local-jwks-token-validator.js';
+import { PostgresAssignmentRepository } from './infrastructure/postgres-assignment-repository.js';
+import { PostgresAuditRepository } from './infrastructure/postgres-audit-repository.js';
 import { PostgresCredentialRepository } from './infrastructure/postgres-credential-repository.js';
+import { PostgresNotificationRepository } from './infrastructure/postgres-notification-repository.js';
+import { PostgresShiftRepository } from './infrastructure/postgres-shift-repository.js';
+import { PostgresShiftRequestRepository } from './infrastructure/postgres-shift-request-repository.js';
 import { PostgresStaffingRepository } from './infrastructure/postgres-staffing-repository.js';
+import { PostgresTimekeepingRepository } from './infrastructure/postgres-timekeeping-repository.js';
 import { RemoteJwksTokenValidator } from './infrastructure/remote-jwks-token-validator.js';
 import { LocalClientCredentialsProvider } from './infrastructure/service-token-client.js';
 import { StaffingAuthGuard } from './infrastructure/staffing-auth.guard.js';
 import { StaffingExceptionFilter } from './infrastructure/staffing-exception.filter.js';
 import { StaffingPermissionGuard } from './infrastructure/staffing-permission.guard.js';
+import { AssignmentController } from './interface/http/assignment.controller.js';
+import { AuditController } from './interface/http/audit.controller.js';
 import { CredentialController } from './interface/http/credential.controller.js';
 import { FacilityController } from './interface/http/facility.controller.js';
 import { HealthController } from './interface/http/health.controller.js';
+import { MarketplaceController } from './interface/http/marketplace.controller.js';
+import { NotificationController } from './interface/http/notification.controller.js';
+import { ShiftController } from './interface/http/shift.controller.js';
+import { TimekeepingController } from './interface/http/timekeeping.controller.js';
 import { WorkerController } from './interface/http/worker.controller.js';
 
 /**
@@ -34,7 +46,18 @@ import { WorkerController } from './interface/http/worker.controller.js';
  * In tests, keys are provided directly.
  */
 @Module({
-  controllers: [HealthController, FacilityController, WorkerController, CredentialController],
+  controllers: [
+    HealthController,
+    FacilityController,
+    WorkerController,
+    CredentialController,
+    ShiftController,
+    MarketplaceController,
+    AssignmentController,
+    TimekeepingController,
+    NotificationController,
+    AuditController,
+  ],
   providers: [
     {
       provide: 'TOKEN_VALIDATOR',
@@ -163,6 +186,30 @@ import { WorkerController } from './interface/http/worker.controller.js';
     {
       provide: 'CREDENTIAL_REPOSITORY',
       useClass: PostgresCredentialRepository,
+    },
+    {
+      provide: 'SHIFT_REPOSITORY',
+      useClass: PostgresShiftRepository,
+    },
+    {
+      provide: 'SHIFT_REQUEST_REPOSITORY',
+      useClass: PostgresShiftRequestRepository,
+    },
+    {
+      provide: 'ASSIGNMENT_REPOSITORY',
+      useClass: PostgresAssignmentRepository,
+    },
+    {
+      provide: 'TIMEKEEPING_REPOSITORY',
+      useClass: PostgresTimekeepingRepository,
+    },
+    {
+      provide: 'NOTIFICATION_REPOSITORY',
+      useClass: PostgresNotificationRepository,
+    },
+    {
+      provide: 'AUDIT_REPOSITORY',
+      useClass: PostgresAuditRepository,
     },
     {
       provide: APP_FILTER,
