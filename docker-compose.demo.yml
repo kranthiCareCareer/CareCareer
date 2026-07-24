@@ -116,7 +116,6 @@ services:
       JWKS_URI: http://identity-service:3100/.well-known/jwks.json
       JWT_ISSUER: carecareer-identity
       JWT_AUDIENCE: carecareer-api
-      STAFFING_AUTH_MODE: 'local'
       SERVICE_NAME: staffing-service
       SMTP_HOST: mailhog
       SMTP_PORT: '1025'

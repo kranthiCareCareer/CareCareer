@@ -12,6 +12,10 @@ import {
   HttpIdentityStateAdapter,
   type IdentityStateAdapter,
 } from './infrastructure/identity-state-adapter.js';
+import {
+  DemoIdentityStateAdapter,
+  DemoPermissionAdapter,
+} from './infrastructure/demo-identity-state-adapter.js';
 import { DemoTokenValidator } from './infrastructure/demo-token-validator.js';
 import { LocalJwksTokenValidator } from './infrastructure/local-jwks-token-validator.js';
 import { PostgresAssignmentRepository } from './infrastructure/postgres-assignment-repository.js';
@@ -98,6 +102,13 @@ import { WorkerController } from './interface/http/worker.controller.js';
     {
       provide: 'IDENTITY_STATE_ADAPTER',
       useFactory: (): IdentityStateAdapter | undefined => {
+        // Demo mode: use seeded local state (real validation, no external calls)
+        const demoMode = process.env['DEMO_MODE'] === 'true';
+        if (demoMode) {
+          return new DemoIdentityStateAdapter();
+        }
+
+        // Production: call identity-service for real-time state validation
         const identityUrl = process.env['IDENTITY_SERVICE_URL'];
         const clientId = process.env['SERVICE_CLIENT_ID'] ?? 'staffing-service';
         const clientSecret = process.env['SERVICE_CLIENT_SECRET'];
@@ -124,6 +135,13 @@ import { WorkerController } from './interface/http/worker.controller.js';
     {
       provide: 'PERMISSION_ADAPTER',
       useFactory: (): PermissionAdapter | null => {
+        // Demo mode: use seeded permission data (real checks, no external calls)
+        const demoMode = process.env['DEMO_MODE'] === 'true';
+        if (demoMode) {
+          return new DemoPermissionAdapter() as unknown as PermissionAdapter;
+        }
+
+        // Production: call authorization service
         const authUrl =
           process.env['AUTHORIZATION_SERVICE_URL'] ?? process.env['IDENTITY_SERVICE_URL'];
         const clientId = process.env['SERVICE_CLIENT_ID'] ?? 'staffing-service';
