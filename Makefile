@@ -42,6 +42,9 @@ demo-test:
 	@echo "═══ MVP Acceptance Tests (20 steps) ═══"
 	node tests/acceptance/mvp-workflow.test.mjs
 	@echo ""
+	@echo "═══ Auth Integration (16 tests) ═══"
+	node tests/acceptance/auth-integration-proof.test.mjs
+	@echo ""
 	@echo "═══ Notification Proof (8 steps) ═══"
 	node tests/acceptance/notification-proof.test.mjs
 	@echo ""
