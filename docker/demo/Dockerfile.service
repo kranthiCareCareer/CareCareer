@@ -1,0 +1,35 @@
+# Generic service Dockerfile for local demo
+# Uses tsx for TypeScript execution (workspace packages expose .ts source)
+ARG SERVICE_NAME=platform-service
+
+FROM node:20-alpine
+
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+
+# Security: non-root user
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -S appuser -u 1001 -G appgroup
+
+WORKDIR /app
+
+# Copy workspace files for install
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+COPY .npmrc ./
+COPY packages/ packages/
+COPY services/ services/
+
+# Install all dependencies (including dev for tsx)
+RUN pnpm install --frozen-lockfile
+
+# Switch to non-root
+USER appuser
+
+ARG SERVICE_NAME
+ENV SERVICE_PATH=services/${SERVICE_NAME}
+
+# Health check via wget
+HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-3000}/health/live || exit 1
+
+# Run with tsx for TypeScript workspace compatibility
+CMD ["sh", "-c", "npx tsx ${SERVICE_PATH}/src/main.ts"]
