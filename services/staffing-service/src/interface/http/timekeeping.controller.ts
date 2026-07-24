@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import {
   Body,
   Controller,
@@ -10,11 +11,12 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
+
 import type { TenantAwareTransaction } from '@carecareer/database';
 
 import type { AssignmentRepository } from '../../application/ports/assignment-repository.js';
-import type { TimekeepingRepository } from '../../application/ports/timekeeping-repository.js';
 import type { AuditRepository } from '../../application/ports/audit-repository.js';
+import type { TimekeepingRepository } from '../../application/ports/timekeeping-repository.js';
 import {
   createClockEvent,
   createTimecard,
@@ -25,8 +27,8 @@ import {
 } from '../../domain/timekeeping.js';
 import type { ClockEventType } from '../../domain/timekeeping.js';
 import type { AuthenticatedStaffingRequest } from '../../infrastructure/authenticated-request.js';
-import { requirePrincipal } from '../../infrastructure/require-principal.js';
 import { RequirePermission } from '../../infrastructure/permission.decorator.js';
+import { requirePrincipal } from '../../infrastructure/require-principal.js';
 
 interface ClockEventDto {
   assignmentId: string;

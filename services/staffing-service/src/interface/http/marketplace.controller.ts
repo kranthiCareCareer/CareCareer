@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import {
   Body,
   Controller,
@@ -10,22 +11,23 @@ import {
   Query,
   Req,
 } from '@nestjs/common';
+
 import type { TenantAwareTransaction } from '@carecareer/database';
 
-import type { ShiftRepository } from '../../application/ports/shift-repository.js';
-import type { ShiftRequestRepository } from '../../application/ports/shift-request-repository.js';
 import type { AssignmentRepository } from '../../application/ports/assignment-repository.js';
 import type { AuditRepository } from '../../application/ports/audit-repository.js';
+import type { ShiftRepository } from '../../application/ports/shift-repository.js';
+import type { ShiftRequestRepository } from '../../application/ports/shift-request-repository.js';
+import { createAssignment } from '../../domain/assignment.js';
 import {
   createShiftRequest,
   confirmShiftRequest,
   rejectShiftRequest,
   withdrawShiftRequest,
 } from '../../domain/shift-request.js';
-import { createAssignment } from '../../domain/assignment.js';
 import type { AuthenticatedStaffingRequest } from '../../infrastructure/authenticated-request.js';
-import { requirePrincipal } from '../../infrastructure/require-principal.js';
 import { RequirePermission } from '../../infrastructure/permission.decorator.js';
+import { requirePrincipal } from '../../infrastructure/require-principal.js';
 
 interface SubmitRequestDto {
   shiftId: string;

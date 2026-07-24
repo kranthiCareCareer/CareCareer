@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import {
   Controller,
   Get,
@@ -8,12 +9,13 @@ import {
   Post,
   Req,
 } from '@nestjs/common';
+
 import type { TenantAwareTransaction } from '@carecareer/database';
 
 import type { NotificationRepository } from '../../application/ports/notification-repository.js';
 import type { AuthenticatedStaffingRequest } from '../../infrastructure/authenticated-request.js';
-import { requirePrincipal } from '../../infrastructure/require-principal.js';
 import { RequirePermission } from '../../infrastructure/permission.decorator.js';
+import { requirePrincipal } from '../../infrastructure/require-principal.js';
 
 @Controller('v1/notifications')
 export class NotificationController {

@@ -1,10 +1,12 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { Controller, Get, Inject, Param, Query, Req } from '@nestjs/common';
+
 import type { TenantAwareTransaction } from '@carecareer/database';
 
 import type { AuditRepository } from '../../application/ports/audit-repository.js';
 import type { AuthenticatedStaffingRequest } from '../../infrastructure/authenticated-request.js';
-import { requirePrincipal } from '../../infrastructure/require-principal.js';
 import { RequirePermission } from '../../infrastructure/permission.decorator.js';
+import { requirePrincipal } from '../../infrastructure/require-principal.js';
 
 @Controller('v1/audit')
 export class AuditController {
