@@ -154,8 +154,8 @@ describe('AuthContext', () => {
   });
 
   describe('DEMO_PERSONAS', () => {
-    it('should have 4 defined personas', () => {
-      expect(DEMO_PERSONAS).toHaveLength(4);
+    it('should have 6 defined personas', () => {
+      expect(DEMO_PERSONAS).toHaveLength(6);
     });
 
     it('should include Platform Administrator', () => {
