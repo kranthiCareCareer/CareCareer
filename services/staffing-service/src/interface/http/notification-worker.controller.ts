@@ -91,9 +91,7 @@ export class NotificationWorkerController {
    * Atomically claim a batch of pending notifications.
    * Uses UPDATE ... WHERE to prevent concurrent claims.
    */
-  private async claimBatch(
-    tx: import('@carecareer/database').TransactionClient,
-  ): Promise<
+  private async claimBatch(tx: import('@carecareer/database').TransactionClient): Promise<
     Array<{
       id: string;
       recipientId: string;
