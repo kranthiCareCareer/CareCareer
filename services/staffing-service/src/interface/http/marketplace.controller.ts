@@ -19,9 +19,11 @@ import type { TenantAwareTransaction } from '@carecareer/database';
 
 import type { AssignmentRepository } from '../../application/ports/assignment-repository.js';
 import type { AuditRepository } from '../../application/ports/audit-repository.js';
+import type { NotificationRepository } from '../../application/ports/notification-repository.js';
 import type { ShiftRepository } from '../../application/ports/shift-repository.js';
 import type { ShiftRequestRepository } from '../../application/ports/shift-request-repository.js';
 import { createAssignment } from '../../domain/assignment.js';
+import { createNotificationForEvent } from '../../infrastructure/notification-worker.js';
 import {
   createShiftRequest,
   confirmShiftRequest,
@@ -53,6 +55,7 @@ export class MarketplaceController {
     @Inject('SHIFT_REPOSITORY') private readonly shiftRepo: ShiftRepository,
     @Inject('SHIFT_REQUEST_REPOSITORY') private readonly requestRepo: ShiftRequestRepository,
     @Inject('ASSIGNMENT_REPOSITORY') private readonly assignmentRepo: AssignmentRepository,
+    @Inject('NOTIFICATION_REPOSITORY') private readonly notificationRepo: NotificationRepository,
     @Inject('AUDIT_REPOSITORY') private readonly auditRepo: AuditRepository,
   ) {}
 
@@ -236,6 +239,15 @@ export class MarketplaceController {
         details: { assignmentId: assignment.id, shiftId: request.shiftId },
         createdAt: new Date(),
       });
+
+      // Notification to worker (assignment confirmed)
+      const notification = createNotificationForEvent(
+        principal.selectedTenantId,
+        request.workerId,
+        'shift_request.confirmed',
+        { assignmentId: assignment.id, shiftId: request.shiftId },
+      );
+      await this.notificationRepo.createNotification(tx, notification);
 
       return { request: confirmed, assignment };
     });

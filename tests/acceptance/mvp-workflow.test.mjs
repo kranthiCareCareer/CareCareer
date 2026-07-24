@@ -234,10 +234,16 @@ async function run() {
 
   // 16. Notifications created
   await step('16. Notification records exist', async () => {
-    const { status } = await api('GET', '/v1/notifications', workerToken);
-    // 200 response proves the notification system is operational
-    // Actual notification records depend on notification worker processing
-    assert(status === 200, `Notifications failed: ${status}`);
+    // Query notifications for the worker (by worker UUID from seeded data)
+    const { status, data } = await api('GET', `/v1/notifications/recipient/${WORKER_ID}`, adminToken);
+    assert(status === 200, `Notifications query failed: ${status}`);
+    const notifications = data.data ?? [];
+    // Should have at least 1 notification (from shift_request.confirmed)
+    assert(notifications.length >= 1, `Expected notifications, got ${notifications.length}`);
+    // Verify no sensitive credential numbers in body
+    for (const n of notifications) {
+      assert(!n.body.includes('GA-RN-2024'), 'Credential number leaked in notification body');
+    }
   });
 
   // 17. Admin sees audit history

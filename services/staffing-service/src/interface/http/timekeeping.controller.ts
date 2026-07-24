@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import {
   Body,
+  ConflictException,
   Controller,
   Get,
   HttpCode,
   HttpStatus,
   Inject,
+  NotFoundException,
   Param,
   Post,
   Query,
@@ -16,7 +18,9 @@ import type { TenantAwareTransaction } from '@carecareer/database';
 
 import type { AssignmentRepository } from '../../application/ports/assignment-repository.js';
 import type { AuditRepository } from '../../application/ports/audit-repository.js';
+import type { NotificationRepository } from '../../application/ports/notification-repository.js';
 import type { TimekeepingRepository } from '../../application/ports/timekeeping-repository.js';
+import { createNotificationForEvent } from '../../infrastructure/notification-worker.js';
 import {
   createClockEvent,
   createTimecard,
@@ -58,6 +62,7 @@ export class TimekeepingController {
     @Inject('TIMEKEEPING_REPOSITORY') private readonly timekeepingRepo: TimekeepingRepository,
     @Inject('ASSIGNMENT_REPOSITORY') private readonly assignmentRepo: AssignmentRepository,
     @Inject('AUDIT_REPOSITORY') private readonly auditRepo: AuditRepository,
+    @Inject('NOTIFICATION_REPOSITORY') private readonly notificationRepo: NotificationRepository,
   ) {}
 
   /** Record a clock event (clock-in, break-start, break-end, clock-out). */
@@ -267,18 +272,26 @@ export class TimekeepingController {
         createdAt: new Date(),
       });
 
+      // Notification to worker
+      const notification = createNotificationForEvent(
+        principal.selectedTenantId,
+        timecard.workerId,
+        'timecard.approved',
+        { timecardId, totalHoursWorked: timecard.totalHoursWorked },
+      );
+      await this.notificationRepo.createNotification(tx, notification);
+
       return { timecard: approved };
     });
 
     if ('error' in result) {
       if (result.error === 'NOT_FOUND') {
-        return { statusCode: 404, message: 'Timecard not found' };
+        throw new NotFoundException('Timecard not found');
       }
-      return {
-        statusCode: 409,
+      throw new ConflictException({
         error: 'VERSION_CONFLICT',
         currentVersion: result.currentVersion,
-      };
+      });
     }
 
     return { id: result.timecard.id, status: result.timecard.status };
