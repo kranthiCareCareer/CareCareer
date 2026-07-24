@@ -11,12 +11,12 @@ No manual screen recording needed — everything is scripted and reproducible.
 
 ## Tools Required
 
-| Tool | Purpose | Install Command |
-|------|---------|-----------------|
-| Playwright (Node.js) | Browser automation + video recording | Already in workspace |
-| Python 3.12+ | TTS generation + video composition | `winget install Python.Python.3.12` |
-| edge-tts | Microsoft neural TTS (no API key) | `pip install edge-tts` |
-| ffmpeg | Video composition + encoding | `winget install Gyan.FFmpeg` |
+| Tool                 | Purpose                              | Install Command                     |
+| -------------------- | ------------------------------------ | ----------------------------------- |
+| Playwright (Node.js) | Browser automation + video recording | Already in workspace                |
+| Python 3.12+         | TTS generation + video composition   | `winget install Python.Python.3.12` |
+| edge-tts             | Microsoft neural TTS (no API key)    | `pip install edge-tts`              |
+| ffmpeg               | Video composition + encoding         | `winget install Gyan.FFmpeg`        |
 
 Python path on this machine: `C:\Users\Lenovo\AppData\Local\Programs\Python\Python312\python.exe`
 
@@ -59,13 +59,13 @@ all segments into one continuous video.
 
 ## Available Voices (Female, English US)
 
-| Voice ID | Character |
-|----------|-----------|
-| en-US-AvaNeural | Professional, warm (RECOMMENDED) |
-| en-US-EmmaNeural | Clear, articulate |
-| en-US-JennyNeural | Friendly, approachable |
-| en-US-AriaNeural | Confident, broadcast-style |
-| en-US-MichelleNeural | Warm, conversational |
+| Voice ID             | Character                        |
+| -------------------- | -------------------------------- |
+| en-US-AvaNeural      | Professional, warm (RECOMMENDED) |
+| en-US-EmmaNeural     | Clear, articulate                |
+| en-US-JennyNeural    | Friendly, approachable           |
+| en-US-AriaNeural     | Confident, broadcast-style       |
+| en-US-MichelleNeural | Warm, conversational             |
 
 To change voice, edit `VOICE` in `generate_voiceover.py`.
 
@@ -87,19 +87,23 @@ To change voice, edit `VOICE` in `generate_voiceover.py`.
 ## Troubleshooting
 
 ### Video recording shows blank
+
 - Ensure Docker Compose is running and seeded
 - Check http://localhost:8080 is accessible before recording
 
 ### ffmpeg not found
+
 - Restart terminal after winget install (PATH updated)
 - Or use full path: `C:\Users\Lenovo\scoop\shims\ffmpeg.exe`
 
 ### edge-tts fails
+
 - Requires internet connection (calls Microsoft Edge API)
 - No API key needed — uses same service as Edge browser read-aloud
 - If rate-limited, add `await asyncio.sleep(1)` between generations
 
 ### Video too short for narration
+
 - The compositor uses `tpad` to extend video to match audio length
 - If still mismatched, increase sleep times in record_demo.cjs
 

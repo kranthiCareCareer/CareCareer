@@ -10,7 +10,9 @@
  *
  * Run: node scripts/demo-video/record_demo.cjs
  */
-const { chromium } = require('C:/Users/Lenovo/Downloads/CareCareer/node_modules/.pnpm/playwright@1.52.0/node_modules/playwright');
+const {
+  chromium,
+} = require('C:/Users/Lenovo/Downloads/CareCareer/node_modules/.pnpm/playwright@1.52.0/node_modules/playwright');
 const path = require('path');
 const fs = require('fs');
 
@@ -23,7 +25,7 @@ fs.mkdirSync(VIDEO_DIR, { recursive: true });
 fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
 
 async function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function recordScene(browser, sceneName, actions) {
@@ -46,7 +48,10 @@ async function recordScene(browser, sceneName, actions) {
   await context.close();
 
   // Get the video file
-  const videoFiles = fs.readdirSync(VIDEO_DIR).filter(f => f.endsWith('.webm')).sort();
+  const videoFiles = fs
+    .readdirSync(VIDEO_DIR)
+    .filter((f) => f.endsWith('.webm'))
+    .sort();
   const latestVideo = videoFiles[videoFiles.length - 1];
   if (latestVideo) {
     const newName = `${sceneName}.webm`;
@@ -211,8 +216,11 @@ async function main() {
   console.log('\n  Recording complete!');
   console.log(`  Videos: ${VIDEO_DIR}`);
   console.log(`  Screenshots: ${SCREENSHOT_DIR}`);
-  const videos = fs.readdirSync(VIDEO_DIR).filter(f => f.endsWith('.webm'));
+  const videos = fs.readdirSync(VIDEO_DIR).filter((f) => f.endsWith('.webm'));
   console.log(`  Total segments: ${videos.length}\n`);
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

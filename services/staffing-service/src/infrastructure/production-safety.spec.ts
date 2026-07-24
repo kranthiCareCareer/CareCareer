@@ -40,7 +40,8 @@ describe('Production Authentication Safety', () => {
   it('should allow demo mode in development', async () => {
     process.env['NODE_ENV'] = 'development';
     process.env['DEMO_MODE'] = 'true';
-    process.env['DEMO_AUTH_SECRET'] = 'carecareer-demo-secret-for-testing-only-do-not-use-in-production';
+    process.env['DEMO_AUTH_SECRET'] =
+      'carecareer-demo-secret-for-testing-only-do-not-use-in-production';
 
     const { createTokenValidator } = await import('./production-safety-helpers.js');
     const validator = createTokenValidator();

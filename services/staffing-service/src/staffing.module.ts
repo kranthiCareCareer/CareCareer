@@ -78,7 +78,7 @@ import { WorkerController } from './interface/http/worker.controller.js';
         if (nodeEnv === 'production' && demoMode) {
           throw new Error(
             'FATAL: DEMO_MODE=true is forbidden in production. ' +
-            'Remove DEMO_MODE or set NODE_ENV to development/staging.',
+              'Remove DEMO_MODE or set NODE_ENV to development/staging.',
           );
         }
 
@@ -100,7 +100,7 @@ import { WorkerController } from './interface/http/worker.controller.js';
         if (nodeEnv === 'production' && !jwksUri) {
           throw new Error(
             'FATAL: JWKS_URI is required in production for RS256 token validation. ' +
-            'Configure the identity-service JWKS endpoint.',
+              'Configure the identity-service JWKS endpoint.',
           );
         }
 
