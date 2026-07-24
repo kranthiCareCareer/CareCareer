@@ -1,0 +1,15 @@
+{
+  "name": "@carecareer/e2e-tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test --config playwright.config.ts",
+    "test:desktop": "playwright test --config playwright.config.ts --project=desktop",
+    "test:mobile": "playwright test --config playwright.config.ts --project=mobile",
+    "report": "playwright show-report playwright-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.52.0"
+  }
+}
