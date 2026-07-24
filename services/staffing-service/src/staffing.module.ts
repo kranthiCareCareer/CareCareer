@@ -12,6 +12,7 @@ import {
   HttpIdentityStateAdapter,
   type IdentityStateAdapter,
 } from './infrastructure/identity-state-adapter.js';
+import { DemoTokenValidator } from './infrastructure/demo-token-validator.js';
 import { LocalJwksTokenValidator } from './infrastructure/local-jwks-token-validator.js';
 import { PostgresAssignmentRepository } from './infrastructure/postgres-assignment-repository.js';
 import { PostgresAuditRepository } from './infrastructure/postgres-audit-repository.js';
@@ -62,9 +63,23 @@ import { WorkerController } from './interface/http/worker.controller.js';
     {
       provide: 'TOKEN_VALIDATOR',
       useFactory: (): TokenValidator => {
-        const jwksUri = process.env['JWKS_URI'];
+        const demoMode = process.env['DEMO_MODE'] === 'true';
         const issuer = process.env['JWT_ISSUER'] ?? 'carecareer-identity';
         const audience = process.env['JWT_AUDIENCE'] ?? 'carecareer-api';
+
+        // Demo mode: accept HS256 tokens from platform-service demo endpoint
+        if (demoMode) {
+          const secret =
+            process.env['DEMO_AUTH_SECRET'] ??
+            'carecareer-demo-secret-for-testing-only-do-not-use-in-production';
+          return new DemoTokenValidator({
+            secret,
+            issuer: 'carecareer-demo',
+            audience,
+          });
+        }
+
+        const jwksUri = process.env['JWKS_URI'];
 
         // Production: use remote JWKS with auto-refresh and key rotation
         if (jwksUri) {

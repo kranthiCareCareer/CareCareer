@@ -110,6 +110,8 @@ services:
       HOST: '0.0.0.0'
       NODE_ENV: development
       DATABASE_URL: postgresql://carecareer_admin:demo_password_not_for_production@postgres:5432/carecareer_demo
+      DEMO_MODE: 'true'
+      DEMO_AUTH_SECRET: carecareer-demo-secret-for-testing-only-do-not-use-in-production
       IDENTITY_SERVICE_URL: http://identity-service:3100
       JWKS_URI: http://identity-service:3100/.well-known/jwks.json
       JWT_ISSUER: carecareer-identity

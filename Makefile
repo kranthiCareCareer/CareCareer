@@ -25,11 +25,10 @@ demo-up:
 
 ## Seed the demo database with synthetic data
 demo-seed:
-	$(COMPOSE) exec -T postgres psql -U carecareer_admin -d carecareer_demo -f /docker-entrypoint-initdb.d/01-init.sql 2>/dev/null || true
-	@echo "Running migrations..."
-	$(COMPOSE) exec -T identity-service sh -c "npx tsx services/identity-service/scripts/migrate.mjs" || true
-	$(COMPOSE) exec -T platform-service sh -c "npx tsx services/platform-service/scripts/migrate.mjs" || true
-	$(COMPOSE) exec -T staffing-service sh -c "npx tsx services/staffing-service/scripts/migrate.mjs" || true
+	@echo "Running staffing service migrations..."
+	$(COMPOSE) exec -T staffing-service sh -c "node scripts/demo-run-migrations.mjs"
+	@echo "Seeding demo data..."
+	$(COMPOSE) exec -T staffing-service sh -c "node scripts/demo-seed-data.mjs"
 	@echo ""
 	@echo "Demo seed complete. Accounts:"
 	@echo "  - Platform Admin: platform-admin"
