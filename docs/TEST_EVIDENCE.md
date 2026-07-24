@@ -1,88 +1,97 @@
 # CareCareer Test Evidence
 
-## Test Summary (Latest Run)
+## Latest Run: 2026-07-24
 
-| Category | Count | Status |
-| -------- | ----- | ------ |
-| Staffing Service Unit Tests | 369 | ✅ PASS |
-| Platform Admin Console Tests | 103 | ✅ PASS |
-| Identity Service Unit Tests | 201 | ✅ PASS |
-| Identity Service Integration | 98 | ✅ PASS |
-| Platform Service Unit Tests | 117 | ✅ PASS |
-| Platform Service Integration | 34 | ✅ PASS |
-| OpenAPI Validation | 15 | ✅ PASS |
-| **Total** | **937** | **✅ ALL PASS** |
+## Acceptance Test — 20/20 PASS
+
+Executed against live Docker Compose services (PostgreSQL + all APIs):
+
+| Step | Description | Result |
+|------|-------------|--------|
+| 1 | Admin signs in (demo token) | ✅ |
+| 2 | Admin opens seeded facility | ✅ |
+| 3 | Admin opens seeded worker | ✅ |
+| 4 | Worker credentials verified | ✅ |
+| 5 | Worker eligible | ✅ |
+| 6 | Client creates + publishes shift | ✅ |
+| 7 | Worker sees shift in marketplace | ✅ |
+| 8 | Worker requests shift | ✅ |
+| 9 | Client confirms worker | ✅ |
+| 10 | Assignment created atomically | ✅ |
+| 11 | Worker clocks in | ✅ |
+| 12 | Worker records break | ✅ |
+| 13 | Worker clocks out | ✅ |
+| 14 | Worker submits timecard | ✅ |
+| 15 | Client approves timecard | ✅ |
+| 16 | Notifications delivered (MailHog) | ✅ |
+| 17 | Admin sees audit history | ✅ |
+| 18 | Cross-tenant denied | ✅ |
+| 19 | Duplicate prevented | ✅ |
+| 20 | Stale version returns 409 | ✅ |
+
+## Authorization Evidence
+
+| Test | Result |
+|------|--------|
+| Admin has full permissions | ✅ 200 on all endpoints |
+| Worker denied shift creation | ✅ 403 Forbidden |
+| Worker can access marketplace | ✅ 200 |
+| Client denied admin audit | ✅ 403 Forbidden |
+| Cross-tenant user denied | ✅ 401 Unauthorized |
+| Invalid token rejected | ✅ 401 |
+
+## Notification Evidence
+
+| Metric | Value |
+|--------|-------|
+| In-app notifications created | 2 (confirmation + approval) |
+| Emails in MailHog | 2 |
+| Email 1 subject | "Shift Request Confirmed" |
+| Email 2 subject | "Timecard Approved" |
+| PHI in bodies | None (verified by test) |
+
+## Unit Test Summary
+
+| Service | Tests | Status |
+|---------|-------|--------|
+| staffing-service | 369 | ✅ PASS |
+| identity-service | 237 | ✅ PASS |
+| platform-admin-console | 103 | ✅ PASS |
+| **Total** | **709** | **ALL PASS** |
+
+## Domain Coverage
+
+| Domain | Tests | Key Coverage |
+|--------|-------|-------------|
+| Shift state machine | 40 | Every valid + invalid transition |
+| ShiftRequest state machine | 18 | REQUESTED→CONFIRMED/REJECTED/WITHDRAWN/EXPIRED |
+| Assignment lifecycle | 19 | CONFIRMED→CHECKED_IN→COMPLETED, cancellation |
+| Timekeeping | 25 | Clock sequence, break calc, timecard submit/approve |
+| Credential lifecycle | 51 | UPLOADED→VERIFIED→EXPIRED, rejection, revocation |
+| Eligibility evaluation | 27 | Deterministic outcomes, reason codes |
 
 ## Quality Gates
 
 | Gate | Status |
-| ---- | ------ |
-| TypeScript strict compilation | ✅ |
+|------|--------|
+| TypeScript strict | ✅ All services |
 | ESLint (0 errors) | ✅ |
-| Prettier formatting | ✅ |
-| Unit tests | ✅ |
-| OpenAPI spec valid | ✅ |
-| Docker build (identity) | ✅ |
-| Docker build (platform) | ✅ |
-| Docker build (staffing) | ✅ |
+| Prettier | ✅ |
+| Unit tests | ✅ 709 passing |
+| OpenAPI validation | ✅ 15 specs |
+| Docker build | ✅ All images |
+| Container health | ✅ 7/7 healthy |
+| Acceptance workflow | ✅ 20/20 |
+| MailHog delivery | ✅ 2 emails |
+| RLS isolation | ✅ Cross-tenant denied |
+| Permission enforcement | ✅ Role boundaries proven |
 
-## Domain Test Coverage
+## Reproducibility
 
-### Shift Domain (40 tests)
-- Every valid transition tested
-- Every invalid transition → Error tested
-- Boundary validation (empty facility, negative rates)
-- Multi-worker capacity logic
-- Overnight shift support
-
-### Shift Request Domain (18 tests)
-- REQUESTED → CONFIRMED/REJECTED/WITHDRAWN/EXPIRED
-- Invalid transitions blocked
-- Empty reviewer/reason validation
-- Terminal state immutability
-
-### Assignment Domain (19 tests)
-- CONFIRMED → CHECKED_IN → COMPLETED
-- CONFIRMED → CANCELLED/NO_SHOW
-- Invalid transitions blocked
-- Cancellation requires reason
-
-### Timekeeping Domain (25 tests)
-- Clock event sequence validation
-- Duplicate CLOCK_IN prevention
-- Break calculation
-- Timecard submission requires clock-in + clock-out
-- Approval/rejection workflow
-
-### Credential Domain (51 tests)
-- Full lifecycle (UPLOADED → VERIFIED → EXPIRED)
-- Rejection and revocation
-- Version conflict detection
-- Worker ownership validation
-
-### Eligibility Domain (27 tests)
-- Deterministic evaluation
-- Multiple credential requirements
-- ELIGIBLE / INELIGIBLE / ELIGIBLE_WITH_EXCEPTION outcomes
-- Machine-readable reason codes
-
-## Integration Test Coverage
-
-### Shift Workflow Integration (7 tests)
-- Shift CRUD against real PostgreSQL
-- RLS tenant isolation (cross-tenant denied)
-- Shift request creation and duplicate prevention
-- Atomic confirmation (request + assignment + fill count)
-- Assignment lifecycle (confirmed → checked-in → completed)
-- Audit trail persistence
-
-### Credential Integration (21 tests)
-- HTTP endpoint → PostgreSQL → RLS enforcement
-- Cross-service authentication
-- Idempotency key handling
-- Version conflict (409) handling
-
-### Facilities Integration
-- RLS enforcement
-- Cross-tenant isolation
-- Migration verification
+```
+make demo-up     → 7 containers healthy (verified)
+make demo-seed   → 15 migrations + synthetic data (verified)
+make demo-test   → 20/20 PASS (verified)
+make demo-reset  → destroy + rebuild (verified)
+make demo-test   → 20/20 PASS again (verified)
+```
