@@ -596,6 +596,322 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  # ─── GP-08: Shifts ───────────────────────────────────────────────────────
+  /v1/shifts:
+    post:
+      operationId: createShift
+      summary: Create a new shift in DRAFT status
+      description: Requires permission shifts:create
+      responses:
+        '201':
+          description: Shift created
+    get:
+      operationId: listShifts
+      summary: List shifts (filterable by status, facility, role)
+      description: Requires permission shifts:read
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: facilityId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: role
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Shift list
+
+  /v1/shifts/{shiftId}:
+    get:
+      operationId: getShift
+      summary: Get shift detail
+      parameters:
+        - name: shiftId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Shift detail
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/shifts/{shiftId}/publish:
+    post:
+      operationId: publishShift
+      summary: Publish a draft shift to marketplace
+      description: DRAFT → PUBLISHED. Requires expectedVersion.
+      parameters:
+        - name: shiftId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Shift published
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/shifts/{shiftId}/cancel:
+    post:
+      operationId: cancelShift
+      summary: Cancel a shift
+      description: Any pre-completion state → CANCELLED. Requires reason and expectedVersion.
+      parameters:
+        - name: shiftId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Shift cancelled
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # ─── GP-09: Marketplace ──────────────────────────────────────────────────
+  /v1/marketplace/shifts:
+    get:
+      operationId: listMarketplaceShifts
+      summary: List available shifts (published, future, with capacity)
+      description: Worker marketplace view. Requires permission marketplace:read
+      responses:
+        '200':
+          description: Available shifts
+
+  /v1/marketplace/requests:
+    post:
+      operationId: submitShiftRequest
+      summary: Submit a shift request (worker requests a shift)
+      description: Requires permission shift-requests:create
+      responses:
+        '201':
+          description: Request submitted
+        '409':
+          description: Duplicate active request
+
+  /v1/marketplace/requests/{requestId}/confirm:
+    post:
+      operationId: confirmShiftRequest
+      summary: Confirm a shift request (creates assignment atomically)
+      description: Requires permission shift-requests:confirm
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Request confirmed, assignment created
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          description: Shift full or invalid status
+
+  /v1/marketplace/requests/{requestId}/reject:
+    post:
+      operationId: rejectShiftRequest
+      summary: Reject a shift request
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Request rejected
+
+  /v1/marketplace/requests/{requestId}/withdraw:
+    post:
+      operationId: withdrawShiftRequest
+      summary: Withdraw a shift request (worker-initiated)
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Request withdrawn
+
+  # ─── GP-10: Assignments ──────────────────────────────────────────────────
+  /v1/assignments:
+    get:
+      operationId: listAssignments
+      summary: List assignments (by worker or shift)
+      responses:
+        '200':
+          description: Assignment list
+
+  /v1/assignments/{assignmentId}:
+    get:
+      operationId: getAssignment
+      summary: Get assignment detail
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Assignment detail
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/assignments/{assignmentId}/check-in:
+    post:
+      operationId: checkInAssignment
+      summary: Worker checks in to assignment
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Checked in
+        '422':
+          description: Invalid status for check-in
+
+  /v1/assignments/{assignmentId}/complete:
+    post:
+      operationId: completeAssignment
+      summary: Complete assignment (clock out)
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Assignment completed
+
+  /v1/assignments/{assignmentId}/cancel:
+    post:
+      operationId: cancelAssignment
+      summary: Cancel an assignment
+      parameters:
+        - name: assignmentId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Assignment cancelled
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # ─── Timekeeping ─────────────────────────────────────────────────────────
+  /v1/timekeeping/clock-events:
+    post:
+      operationId: recordClockEvent
+      summary: Record a clock event (clock-in, break-start, break-end, clock-out)
+      responses:
+        '201':
+          description: Clock event recorded
+        '422':
+          description: Invalid event sequence
+
+  /v1/timekeeping/timecards/submit:
+    post:
+      operationId: submitTimecard
+      summary: Submit a timecard for approval
+      responses:
+        '201':
+          description: Timecard submitted
+
+  /v1/timekeeping/timecards/{timecardId}/approve:
+    post:
+      operationId: approveTimecard
+      summary: Approve a submitted timecard
+      parameters:
+        - name: timecardId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Timecard approved
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1/timekeeping/timecards/{timecardId}/reject:
+    post:
+      operationId: rejectTimecard
+      summary: Reject a submitted timecard
+      parameters:
+        - name: timecardId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Timecard rejected
+
+  /v1/timekeeping/timecards:
+    get:
+      operationId: listTimecards
+      summary: List timecards (filterable by status)
+      responses:
+        '200':
+          description: Timecard list
+
+  # ─── Notifications ───────────────────────────────────────────────────────
+  /v1/notifications:
+    get:
+      operationId: listNotifications
+      summary: List notifications for the current user
+      responses:
+        '200':
+          description: Notification list
+
+  /v1/notifications/{notificationId}/read:
+    post:
+      operationId: markNotificationRead
+      summary: Mark a notification as read
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Marked as read
+
+  # ─── Audit ──────────────────────────────────────────────────────────────
+  /v1/audit:
+    get:
+      operationId: listAuditEntries
+      summary: List audit entries for tenant
+      parameters:
+        - name: action
+          in: query
+          schema: { type: string }
+        - name: resourceType
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Audit entries
+
+  /v1/audit/{resourceType}/{resourceId}:
+    get:
+      operationId: getResourceAudit
+      summary: Get audit history for a specific resource
+      parameters:
+        - name: resourceType
+          in: path
+          required: true
+          schema: { type: string }
+        - name: resourceId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Resource audit history
+
 components:
   securitySchemes:
     bearerAuth:
