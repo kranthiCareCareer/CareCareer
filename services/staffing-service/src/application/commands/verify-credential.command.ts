@@ -51,6 +51,7 @@ export class VerifyCredentialHandler {
         credentialId: input.credentialId,
         operation: 'verify',
         verifiedBy: input.verifiedBy,
+        expectedVersion: input.expectedVersion,
       });
 
       const claim = await claimIdempotencyKey(

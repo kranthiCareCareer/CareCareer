@@ -45,6 +45,7 @@ export class RejectCredentialHandler {
         credentialId: input.credentialId,
         operation: 'reject',
         reason: input.reason,
+        expectedVersion: input.expectedVersion,
       });
 
       const claim = await claimIdempotencyKey(

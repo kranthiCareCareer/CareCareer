@@ -43,6 +43,7 @@ export class SubmitCredentialHandler {
         workerId: input.workerId,
         credentialId: input.credentialId,
         operation: 'submit',
+        expectedVersion: input.expectedVersion,
       });
 
       const claim = await claimIdempotencyKey(

@@ -45,6 +45,7 @@ export class RevokeCredentialHandler {
         credentialId: input.credentialId,
         operation: 'revoke',
         reason: input.reason,
+        expectedVersion: input.expectedVersion,
       });
 
       const claim = await claimIdempotencyKey(

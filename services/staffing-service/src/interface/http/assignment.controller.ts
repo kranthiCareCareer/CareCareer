@@ -1,11 +1,14 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import {
   Body,
+  ConflictException,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
   Inject,
+  NotFoundException,
   Param,
   Post,
   Query,
@@ -53,7 +56,15 @@ export class AssignmentController {
     });
 
     if (!assignment) {
-      return { statusCode: 404, message: 'Assignment not found' };
+      throw new NotFoundException('Assignment not found');
+    }
+
+    // Worker ownership: workers can only see their own assignments
+    if (
+      this.isWorkerRole(principal) &&
+      assignment.workerId !== this.getWorkerIdForPrincipal(principal)
+    ) {
+      throw new ForbiddenException("Cannot access another worker's assignment");
     }
 
     return assignment;
@@ -122,9 +133,9 @@ export class AssignmentController {
 
     if ('error' in result) {
       if (result.error === 'NOT_FOUND') {
-        return { statusCode: 404, message: 'Assignment not found' };
+        throw new NotFoundException('Assignment not found');
       }
-      return { statusCode: 422, message: result.message };
+      throw new ForbiddenException(result.message);
     }
 
     return { id: result.assignment.id, status: result.assignment.status };
@@ -171,9 +182,9 @@ export class AssignmentController {
 
     if ('error' in result) {
       if (result.error === 'NOT_FOUND') {
-        return { statusCode: 404, message: 'Assignment not found' };
+        throw new NotFoundException('Assignment not found');
       }
-      return { statusCode: 422, message: result.message };
+      throw new ForbiddenException(result.message);
     }
 
     return { id: result.assignment.id, status: result.assignment.status };
@@ -221,15 +232,30 @@ export class AssignmentController {
 
     if ('error' in result) {
       if (result.error === 'NOT_FOUND') {
-        return { statusCode: 404, message: 'Assignment not found' };
+        throw new NotFoundException('Assignment not found');
       }
-      return {
-        statusCode: 409,
+      throw new ConflictException({
         error: 'VERSION_CONFLICT',
         currentVersion: result.currentVersion,
-      };
+      });
     }
 
     return { id: result.assignment.id, status: result.assignment.status };
+  }
+
+  /** Check if the principal has worker role (not admin/client). */
+  private isWorkerRole(principal: { subject: string }): boolean {
+    // Workers have 'worker-' prefix in demo; in production check tenantMemberships
+    return principal.subject.startsWith('worker-');
+  }
+
+  /** Map principal subject to worker ID for ownership checks. */
+  private getWorkerIdForPrincipal(principal: { subject: string }): string {
+    // In demo: worker-sarah maps to the seeded worker UUID
+    // In production: look up worker by user_id from principal.subject
+    const WORKER_MAP: Record<string, string> = {
+      'worker-sarah': '00000000-0000-4000-a000-000000000020',
+    };
+    return WORKER_MAP[principal.subject] ?? '';
   }
 }
