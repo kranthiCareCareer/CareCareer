@@ -69,9 +69,18 @@ import { WorkerController } from './interface/http/worker.controller.js';
     {
       provide: 'TOKEN_VALIDATOR',
       useFactory: (): TokenValidator => {
+        const nodeEnv = process.env['NODE_ENV'] ?? 'development';
         const demoMode = process.env['DEMO_MODE'] === 'true';
         const issuer = process.env['JWT_ISSUER'] ?? 'carecareer-identity';
         const audience = process.env['JWT_AUDIENCE'] ?? 'carecareer-api';
+
+        // PRODUCTION SAFETY: reject demo mode in production
+        if (nodeEnv === 'production' && demoMode) {
+          throw new Error(
+            'FATAL: DEMO_MODE=true is forbidden in production. ' +
+            'Remove DEMO_MODE or set NODE_ENV to development/staging.',
+          );
+        }
 
         // Demo mode: accept HS256 tokens from platform-service demo endpoint
         if (demoMode) {
@@ -86,6 +95,14 @@ import { WorkerController } from './interface/http/worker.controller.js';
         }
 
         const jwksUri = process.env['JWKS_URI'];
+
+        // PRODUCTION SAFETY: require JWKS in production
+        if (nodeEnv === 'production' && !jwksUri) {
+          throw new Error(
+            'FATAL: JWKS_URI is required in production for RS256 token validation. ' +
+            'Configure the identity-service JWKS endpoint.',
+          );
+        }
 
         // Production: use remote JWKS with auto-refresh and key rotation
         if (jwksUri) {
