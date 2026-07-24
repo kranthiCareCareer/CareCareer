@@ -2,6 +2,7 @@ import type { TransactionClient } from '@carecareer/database';
 
 import type { CredentialRepository } from '../application/ports/credential-repository.js';
 import type { Credential } from '../domain/credential.js';
+import { VersionConflictError } from '../domain/errors.js';
 
 /**
  * PostgreSQL implementation of the CredentialRepository port.
@@ -66,7 +67,7 @@ export class PostgresCredentialRepository implements CredentialRepository {
       WHERE id = ${credential.id}::uuid AND version = ${credential.version - 1}`;
 
     if (count === 0) {
-      throw new Error(`Version conflict updating credential ${credential.id}`);
+      throw new VersionConflictError('credential', credential.id);
     }
   }
 

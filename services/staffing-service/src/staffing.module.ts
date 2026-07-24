@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD, Reflector } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, Reflector } from '@nestjs/core';
 
 import type { TokenValidator } from '@carecareer/auth';
 import { TenantAwareTransaction } from '@carecareer/database';
@@ -13,25 +13,28 @@ import {
   type IdentityStateAdapter,
 } from './infrastructure/identity-state-adapter.js';
 import { LocalJwksTokenValidator } from './infrastructure/local-jwks-token-validator.js';
+import { PostgresCredentialRepository } from './infrastructure/postgres-credential-repository.js';
 import { PostgresStaffingRepository } from './infrastructure/postgres-staffing-repository.js';
 import { RemoteJwksTokenValidator } from './infrastructure/remote-jwks-token-validator.js';
 import { LocalClientCredentialsProvider } from './infrastructure/service-token-client.js';
 import { StaffingAuthGuard } from './infrastructure/staffing-auth.guard.js';
+import { StaffingExceptionFilter } from './infrastructure/staffing-exception.filter.js';
 import { StaffingPermissionGuard } from './infrastructure/staffing-permission.guard.js';
+import { CredentialController } from './interface/http/credential.controller.js';
 import { FacilityController } from './interface/http/facility.controller.js';
 import { HealthController } from './interface/http/health.controller.js';
 import { WorkerController } from './interface/http/worker.controller.js';
 
 /**
  * Staffing service root module.
- * Manages facilities, departments, workers, shifts and assignments.
+ * Manages facilities, departments, workers, and credentials.
  *
  * Authentication: RS256 JWT validation via LocalJwksTokenValidator.
  * In production, public keys are fetched from identity-service JWKS endpoint.
  * In tests, keys are provided directly.
  */
 @Module({
-  controllers: [HealthController, FacilityController, WorkerController],
+  controllers: [HealthController, FacilityController, WorkerController, CredentialController],
   providers: [
     {
       provide: 'TOKEN_VALIDATOR',
@@ -156,6 +159,14 @@ import { WorkerController } from './interface/http/worker.controller.js';
     {
       provide: 'STAFFING_REPOSITORY',
       useClass: PostgresStaffingRepository,
+    },
+    {
+      provide: 'CREDENTIAL_REPOSITORY',
+      useClass: PostgresCredentialRepository,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: StaffingExceptionFilter,
     },
   ],
 })

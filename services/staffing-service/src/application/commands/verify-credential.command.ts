@@ -1,20 +1,35 @@
 import type { TenantAwareTransaction, TransactionClient } from '@carecareer/database';
 
 import { verifyCredential, type Credential } from '../../domain/credential.js';
+import {
+  CredentialNotFoundError,
+  CredentialWorkerMismatchError,
+  InvalidCredentialTransitionError,
+  VersionConflictError,
+} from '../../domain/errors.js';
+import {
+  claimIdempotencyKey,
+  completeIdempotency,
+  hashRequest,
+  IdempotencyConsistencyError,
+} from '../../infrastructure/credential-idempotency.js';
 import type { CredentialRepository } from '../ports/credential-repository.js';
 
 export interface VerifyCredentialInput {
   readonly tenantId: string;
   readonly actorId: string;
   readonly correlationId: string;
+  readonly workerId: string;
   readonly credentialId: string;
+  readonly expectedVersion: number;
   readonly verifiedBy: string;
+  readonly idempotencyKey: string;
 }
 
 /**
  * VerifyCredential command handler.
  *
- * Transitions a credential from PENDING_VERIFICATION → VERIFIED.
+ * Transitions a credential from PENDING_VERIFICATION -> VERIFIED.
  *
  * Atomically within one TenantAwareTransaction:
  * 1. Load credential (fail if not found or wrong status)
@@ -30,18 +45,60 @@ export class VerifyCredentialHandler {
   ) {}
 
   async execute(input: VerifyCredentialInput): Promise<{ credentialId: string }> {
-    let verifiedCredential: Credential | undefined;
-
     await this.tenantDb.execute(input.tenantId, async (tx) => {
-      const existing = await this.repo.getCredentialById(tx, input.credentialId);
-      if (!existing) {
-        throw new Error(`Credential not found: ${input.credentialId}`);
+      const reqHash = hashRequest({
+        workerId: input.workerId,
+        credentialId: input.credentialId,
+        operation: 'verify',
+        verifiedBy: input.verifiedBy,
+      });
+
+      const claim = await claimIdempotencyKey(
+        tx,
+        input.tenantId,
+        'credential.verify',
+        input.idempotencyKey,
+        reqHash,
+      );
+
+      if (!claim.claimed && claim.replay) {
+        return;
       }
 
-      verifiedCredential = verifyCredential(existing, input.verifiedBy);
+      const token = claim.claimToken;
+      if (!token) throw new IdempotencyConsistencyError();
+
+      const existing = await this.repo.getCredentialById(tx, input.credentialId);
+      if (!existing) {
+        throw new CredentialNotFoundError(input.credentialId);
+      }
+      if (existing.workerId !== input.workerId) {
+        throw new CredentialWorkerMismatchError();
+      }
+      if (existing.version !== input.expectedVersion) {
+        throw new VersionConflictError('credential', input.credentialId);
+      }
+
+      let verifiedCredential: Credential;
+      try {
+        verifiedCredential = verifyCredential(existing, input.verifiedBy);
+      } catch {
+        throw new InvalidCredentialTransitionError(existing.status, 'VERIFIED');
+      }
+
       await this.repo.updateCredential(tx, verifiedCredential);
       await this.emitAudit(tx, verifiedCredential, input);
       await this.emitOutboxEvent(tx, verifiedCredential, input);
+
+      await completeIdempotency(
+        tx,
+        input.tenantId,
+        'credential.verify',
+        input.idempotencyKey,
+        token,
+        200,
+        { credentialId: input.credentialId },
+      );
     });
 
     return { credentialId: input.credentialId };

@@ -1,6 +1,12 @@
 import type { TenantAwareTransaction, TransactionClient } from '@carecareer/database';
 
 import { createCredential, type Credential } from '../../domain/credential.js';
+import {
+  claimIdempotencyKey,
+  completeIdempotency,
+  hashRequest,
+  IdempotencyConsistencyError,
+} from '../../infrastructure/credential-idempotency.js';
 import type { CredentialRepository } from '../ports/credential-repository.js';
 
 export interface CreateCredentialInput {
@@ -13,15 +19,25 @@ export interface CreateCredentialInput {
   readonly credentialNumber?: string | undefined;
   readonly issuedAt?: Date | undefined;
   readonly expiresAt?: Date | undefined;
+  readonly idempotencyKey: string;
+}
+
+export interface CreateCredentialResult {
+  readonly credentialId: string;
+  readonly replayed?: boolean;
 }
 
 /**
  * CreateCredential command handler.
  *
  * Atomically within one TenantAwareTransaction:
- * 1. Create credential aggregate in UPLOADED status
- * 2. Persist audit record (NO PII)
- * 3. Persist outbox event (NO PII)
+ * 1. Claim idempotency key (if provided)
+ * 2. Create credential aggregate in UPLOADED status
+ * 3. Persist audit record (NO PII)
+ * 4. Persist outbox event (NO PII)
+ * 5. Complete idempotency record with response
+ *
+ * On replay: returns original result without re-executing.
  */
 export class CreateCredentialHandler {
   constructor(
@@ -29,7 +45,7 @@ export class CreateCredentialHandler {
     private readonly repo: CredentialRepository,
   ) {}
 
-  async execute(input: CreateCredentialInput): Promise<{ credentialId: string }> {
+  async execute(input: CreateCredentialInput): Promise<CreateCredentialResult> {
     const credential = createCredential({
       tenantId: input.tenantId,
       workerId: input.workerId,
@@ -40,13 +56,55 @@ export class CreateCredentialHandler {
       expiresAt: input.expiresAt,
     });
 
-    await this.tenantDb.execute(input.tenantId, async (tx) => {
+    const result = await this.tenantDb.execute(input.tenantId, async (tx) => {
+      const reqHash = hashRequest({
+        workerId: input.workerId,
+        credentialType: input.credentialType,
+        issuingAuthority: input.issuingAuthority,
+        credentialNumber: input.credentialNumber,
+        issuedAt: input.issuedAt?.toISOString(),
+        expiresAt: input.expiresAt?.toISOString(),
+      });
+
+      const claim = await claimIdempotencyKey(
+        tx,
+        input.tenantId,
+        'credential.create',
+        input.idempotencyKey,
+        reqHash,
+      );
+
+      if (!claim.claimed && claim.replay) {
+        return {
+          credentialId: (claim.replay.response as { credentialId: string }).credentialId,
+          replayed: true,
+        };
+      }
+
+      if (!claim.claimToken) {
+        throw new IdempotencyConsistencyError();
+      }
+
+      // Execute mutation
       await this.repo.createCredential(tx, credential);
       await this.emitAudit(tx, credential, input);
       await this.emitOutboxEvent(tx, credential, input);
+
+      // Complete idempotency (only this claim token can complete — throws on failure)
+      await completeIdempotency(
+        tx,
+        input.tenantId,
+        'credential.create',
+        input.idempotencyKey,
+        claim.claimToken,
+        201,
+        { credentialId: credential.id },
+      );
+
+      return { credentialId: credential.id };
     });
 
-    return { credentialId: credential.id };
+    return result;
   }
 
   private async emitAudit(
