@@ -33,7 +33,7 @@ describe('Shift Workflow Integration (GP-08/09/10)', () => {
   const tenantAId = '00000000-0000-0000-0000-00000000aa01';
   const tenantBId = '00000000-0000-0000-0000-00000000bb01';
   const facilityId = '00000000-0000-0000-0000-000000000f01';
-  const workerId = '00000000-0000-0000-0000-000000000w01';
+  const workerId = '00000000-0000-0000-0000-000000000a01';
 
   beforeAll(async () => {
     container = await new PostgreSqlContainer('postgres:16-alpine')
