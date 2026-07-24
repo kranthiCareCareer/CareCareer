@@ -147,7 +147,7 @@ export function createNotificationForEvent(
     notificationType: eventType,
     subject: template.subject,
     body: template.body,
-    metadata: details,
+    metadata: sanitizeMetadata(eventType, details),
     status: 'PENDING',
     deliveredAt: undefined,
     readAt: undefined,
@@ -157,6 +157,72 @@ export function createNotificationForEvent(
     createdAt: now,
     updatedAt: now,
   };
+}
+
+/**
+ * Event-specific metadata allowlists.
+ * Only these fields are persisted — all others are stripped.
+ * Prevents credential numbers, secrets, PHI, and tokens from leaking.
+ */
+const METADATA_ALLOWLISTS: Record<string, readonly string[]> = {
+  'shift_request.created': ['shiftId', 'workerId'],
+  'shift_request.confirmed': ['assignmentId', 'shiftId'],
+  'shift_request.rejected': ['shiftId', 'reason'],
+  'assignment.checked_in': ['assignmentId', 'shiftId'],
+  'timecard.submitted': ['assignmentId', 'timecardId', 'totalHoursWorked'],
+  'timecard.approved': ['timecardId', 'totalHoursWorked'],
+  'timecard.rejected': ['timecardId', 'reason'],
+  'credential.verified': ['credentialId'],
+  'credential.rejected': ['credentialId'],
+};
+
+/** Fields that must NEVER appear in notification metadata. */
+const SENSITIVE_FIELD_BLOCKLIST = new Set([
+  'credentialNumber',
+  'credential_number',
+  'ssn',
+  'socialSecurityNumber',
+  'dateOfBirth',
+  'dob',
+  'password',
+  'secret',
+  'token',
+  'accessToken',
+  'refreshToken',
+  'privateKey',
+  'apiKey',
+]);
+
+/**
+ * Filter metadata to only allowed fields for the event type.
+ * Reject any sensitive fields regardless of allowlist.
+ */
+function sanitizeMetadata(
+  eventType: string,
+  raw: Record<string, unknown>,
+): Record<string, unknown> {
+  const allowlist = METADATA_ALLOWLISTS[eventType];
+  const result: Record<string, unknown> = {};
+
+  const fieldsToCheck = allowlist ? allowlist : Object.keys(raw);
+
+  for (const key of fieldsToCheck) {
+    if (SENSITIVE_FIELD_BLOCKLIST.has(key)) continue;
+    if (key in raw) {
+      const value = raw[key];
+      // Only allow primitives and simple values
+      if (
+        typeof value === 'string' ||
+        typeof value === 'number' ||
+        typeof value === 'boolean' ||
+        value === null
+      ) {
+        result[key] = value;
+      }
+    }
+  }
+
+  return result;
 }
 
 /**

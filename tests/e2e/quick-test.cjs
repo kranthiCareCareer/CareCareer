@@ -1,9 +1,12 @@
 /**
  * Quick Playwright browser sanity check against Docker Compose demo.
  */
-const {
-  chromium,
-} = require('C:/Users/Lenovo/Downloads/CareCareer/node_modules/.pnpm/playwright@1.52.0/node_modules/playwright');
+const { chromium } = require(
+  require('path').resolve(
+    __dirname,
+    '../../node_modules/.pnpm/playwright@1.52.0/node_modules/playwright',
+  ),
+);
 
 async function main() {
   console.log('Launching Chromium...');

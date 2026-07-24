@@ -10,12 +10,18 @@
  * Run: node tests/e2e/accessibility-audit.cjs
  * Prerequisite: make demo-up && make demo-seed
  */
-const {
-  chromium,
-} = require('C:/Users/Lenovo/Downloads/CareCareer/node_modules/.pnpm/playwright@1.52.0/node_modules/playwright');
-const {
-  AxeBuilder,
-} = require('C:/Users/Lenovo/Downloads/CareCareer/node_modules/.pnpm/@axe-core+playwright@4.10.1_playwright-core@1.52.0/node_modules/@axe-core/playwright');
+const { chromium } = require(
+  require('path').resolve(
+    __dirname,
+    '../../node_modules/.pnpm/playwright@1.52.0/node_modules/playwright',
+  ),
+);
+const { AxeBuilder } = require(
+  require('path').resolve(
+    __dirname,
+    '../../node_modules/.pnpm/@axe-core+playwright@4.10.1_playwright-core@1.52.0/node_modules/@axe-core/playwright',
+  ),
+);
 
 const BASE_URL = 'http://localhost:8080';
 const results = [];

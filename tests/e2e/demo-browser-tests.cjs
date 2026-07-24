@@ -6,9 +6,12 @@
  *
  * Run: node tests/e2e/demo-browser-tests.cjs
  */
-const {
-  chromium,
-} = require('C:/Users/Lenovo/Downloads/CareCareer/node_modules/.pnpm/playwright@1.52.0/node_modules/playwright');
+const { chromium } = require(
+  require('path').resolve(
+    __dirname,
+    '../../node_modules/.pnpm/playwright@1.52.0/node_modules/playwright',
+  ),
+);
 
 const BASE_URL = 'http://localhost:8080';
 const results = [];
