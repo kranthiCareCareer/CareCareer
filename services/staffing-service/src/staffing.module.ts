@@ -38,6 +38,7 @@ import { FacilityController } from './interface/http/facility.controller.js';
 import { HealthController } from './interface/http/health.controller.js';
 import { MarketplaceController } from './interface/http/marketplace.controller.js';
 import { NotificationController } from './interface/http/notification.controller.js';
+import { NotificationWorkerController } from './interface/http/notification-worker.controller.js';
 import { ShiftController } from './interface/http/shift.controller.js';
 import { TimekeepingController } from './interface/http/timekeeping.controller.js';
 import { WorkerController } from './interface/http/worker.controller.js';
@@ -61,6 +62,7 @@ import { WorkerController } from './interface/http/worker.controller.js';
     AssignmentController,
     TimekeepingController,
     NotificationController,
+    NotificationWorkerController,
     AuditController,
   ],
   providers: [
