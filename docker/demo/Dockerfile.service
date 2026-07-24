@@ -12,11 +12,15 @@ RUN addgroup -g 1001 -S appgroup && \
 
 WORKDIR /app
 
-# Copy workspace files for install
+# Copy workspace root files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
-COPY .npmrc ./
+COPY .npmrc .pnpmfile.cjs ./
+
+# Copy all workspace packages (needed for pnpm install)
 COPY packages/ packages/
 COPY services/ services/
+COPY apps/platform-admin-console/package.json apps/platform-admin-console/
+COPY tooling/ tooling/
 
 # Install all dependencies (including dev for tsx)
 RUN pnpm install --frozen-lockfile
@@ -29,7 +33,7 @@ ENV SERVICE_PATH=services/${SERVICE_NAME}
 
 # Health check via wget
 HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-3000}/health/live || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT:-3000}/health || exit 1
 
-# Run with tsx for TypeScript workspace compatibility
-CMD ["sh", "-c", "npx tsx ${SERVICE_PATH}/src/main.ts"]
+# Run with tsx using tsconfig path (enables decorators)
+CMD ["sh", "-c", "npx tsx --tsconfig ${SERVICE_PATH}/tsconfig.json ${SERVICE_PATH}/src/main.ts"]

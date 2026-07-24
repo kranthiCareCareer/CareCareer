@@ -5,11 +5,15 @@ RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 
 WORKDIR /app
 
-# Copy workspace files
+# Copy workspace root files
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
-COPY .npmrc ./
+COPY .npmrc .pnpmfile.cjs ./
+
+# Copy all workspace packages (needed for pnpm install)
 COPY packages/ packages/
-COPY apps/platform-admin-console/ apps/platform-admin-console/
+COPY services/ services/
+COPY apps/ apps/
+COPY tooling/ tooling/
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
