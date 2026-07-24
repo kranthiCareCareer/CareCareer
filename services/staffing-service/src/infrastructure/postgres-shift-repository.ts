@@ -1,8 +1,8 @@
 import type { TransactionClient } from '@carecareer/database';
 
 import type { ShiftRepository } from '../application/ports/shift-repository.js';
-import type { Shift } from '../domain/shift.js';
 import { VersionConflictError } from '../domain/errors.js';
+import type { Shift } from '../domain/shift.js';
 
 /**
  * PostgreSQL implementation of the ShiftRepository port.

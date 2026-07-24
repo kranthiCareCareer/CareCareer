@@ -1,5 +1,6 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
+ 
 import type { TransactionClient } from '@carecareer/database';
+
 import type { Notification, NotificationRepository } from '../application/ports/notification-repository.js';
 
 /**

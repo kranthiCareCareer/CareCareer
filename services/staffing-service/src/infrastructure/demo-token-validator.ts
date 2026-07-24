@@ -1,5 +1,6 @@
-import type { TokenValidator, ValidatedTokenContext } from '@carecareer/auth';
 import { createHmac } from 'node:crypto';
+
+import type { TokenValidator, ValidatedTokenContext } from '@carecareer/auth';
 
 /**
  * Demo-only token validator for local development.

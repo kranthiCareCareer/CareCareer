@@ -1,7 +1,7 @@
 import type { TransactionClient } from '@carecareer/database';
 
-import type { NotificationRepository, Notification } from '../ports/notification-repository.js';
 import { createNotificationForEvent } from '../../infrastructure/notification-worker.js';
+import type { NotificationRepository, Notification } from '../ports/notification-repository.js';
 
 /**
  * Creates both EMAIL and IN_APP notifications for a domain event.

@@ -9,14 +9,14 @@ import {
   type PermissionAdapter,
 } from './infrastructure/authorization-adapter.js';
 import {
-  HttpIdentityStateAdapter,
-  type IdentityStateAdapter,
-} from './infrastructure/identity-state-adapter.js';
-import {
   DemoIdentityStateAdapter,
   DemoPermissionAdapter,
 } from './infrastructure/demo-identity-state-adapter.js';
 import { DemoTokenValidator } from './infrastructure/demo-token-validator.js';
+import {
+  HttpIdentityStateAdapter,
+  type IdentityStateAdapter,
+} from './infrastructure/identity-state-adapter.js';
 import { LocalJwksTokenValidator } from './infrastructure/local-jwks-token-validator.js';
 import { PostgresAssignmentRepository } from './infrastructure/postgres-assignment-repository.js';
 import { PostgresAuditRepository } from './infrastructure/postgres-audit-repository.js';

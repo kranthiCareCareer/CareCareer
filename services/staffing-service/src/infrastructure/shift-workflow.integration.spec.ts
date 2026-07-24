@@ -6,14 +6,18 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testconta
 import { Client, Pool } from 'pg';
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 
-import { PostgresShiftRepository } from './postgres-shift-repository.js';
-import { PostgresShiftRequestRepository } from './postgres-shift-request-repository.js';
+import type { TransactionClient } from '@carecareer/database';
+
+import { createAssignment, checkInAssignment, completeAssignment } from '../domain/assignment.js';
+import { createShiftRequest, confirmShiftRequest } from '../domain/shift-request.js';
+import { createShift, publishShift } from '../domain/shift.js';
+
 import { PostgresAssignmentRepository } from './postgres-assignment-repository.js';
 import { PostgresAuditRepository } from './postgres-audit-repository.js';
-import { createShift, publishShift } from '../domain/shift.js';
-import { createShiftRequest, confirmShiftRequest } from '../domain/shift-request.js';
-import { createAssignment, checkInAssignment, completeAssignment } from '../domain/assignment.js';
-import type { TransactionClient } from '@carecareer/database';
+import { PostgresShiftRepository } from './postgres-shift-repository.js';
+import { PostgresShiftRequestRepository } from './postgres-shift-request-repository.js';
+
+
 
 /**
  * Shift Workflow Integration Tests

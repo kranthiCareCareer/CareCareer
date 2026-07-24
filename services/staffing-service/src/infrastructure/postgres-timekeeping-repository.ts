@@ -1,8 +1,8 @@
 import type { TransactionClient } from '@carecareer/database';
 
 import type { TimekeepingRepository } from '../application/ports/timekeeping-repository.js';
-import type { ClockEvent, Timecard } from '../domain/timekeeping.js';
 import { VersionConflictError } from '../domain/errors.js';
+import type { ClockEvent, Timecard } from '../domain/timekeeping.js';
 
 /**
  * PostgreSQL implementation of the TimekeepingRepository port.
