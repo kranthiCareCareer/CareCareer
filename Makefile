@@ -40,8 +40,8 @@ demo-seed:
 
 ## Run the acceptance test against the demo environment
 demo-test:
-	@echo "Running demo acceptance tests..."
-	pnpm demo:e2e || echo "E2E tests completed"
+	@echo "Running MVP acceptance tests..."
+	node tests/acceptance/mvp-workflow.test.mjs
 
 ## Reset the demo environment (destroy and recreate)
 demo-reset:
