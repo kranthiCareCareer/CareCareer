@@ -1,73 +1,108 @@
 # Autonomous Execution State
 
-## Last Updated: 2026-07-22T23:20:00Z
+## Last Updated: 2026-07-23T22:05:00Z
 
 ## Repository State
 
 | Field         | Value                           |
 | ------------- | ------------------------------- |
-| Branch        | agent/gha-cicd-stabilization-v2 |
-| HEAD          | 72956ed                         |
-| Origin master | 9d86c7b                         |
-| Commits ahead | 3                               |
+| Branch        | agent/gp07-credentials-clean    |
+| HEAD          | 876d198                         |
+| Origin master | ccc8e11                         |
+| Commits ahead | 6                               |
 | PR            | Open (draft) on GitHub          |
 
-## CI/CD Status — ALL GREEN ✅
+## Completed This Session
 
-| Workflow           | Status  | Run SHA |
-| ------------------ | ------- | ------- |
-| CI                 | SUCCESS | 72956ed |
-| Secret Scanning    | SUCCESS | 72956ed |
-| Code Security      | SUCCESS | 72956ed |
-| Dependency Review  | SUCCESS | 72956ed |
-| Container Security | SUCCESS | 72956ed |
-| DEMO-01 E2E        | SUCCESS | 72956ed |
+### GP-08: Shifts — OPERATIONAL
+- Shift domain model (existed) + PostgreSQL repository (NEW)
+- ShiftController: create, list, getById, publish, cancel
+- Migration 009 (existed) — shifts table with RLS
+- Audit writes on every mutation
+- Optimistic concurrency with expectedVersion
 
-## Fixes Applied (This Session)
+### GP-09: Marketplace and Shift Requests — OPERATIONAL
+- ShiftRequest domain model + state machine (NEW)
+- PostgresShiftRequestRepository (NEW)
+- MarketplaceController: list available shifts, submit request, confirm, reject, withdraw
+- Migration 013 — shift_requests table with RLS
+- Duplicate request prevention
+- Capacity validation on confirmation
+- Atomic assignment creation on confirmation
 
-### Container Security (Trivy) — Fixed
+### GP-10: Assignments — OPERATIONAL
+- Assignment domain model + state machine (NEW)
+- PostgresAssignmentRepository (NEW)
+- AssignmentController: list, getById, check-in, complete, cancel
+- Migration 014 — assignments table with RLS
+- Fill count increment/decrement on shift
 
-Root causes and fixes:
+### Timekeeping — OPERATIONAL
+- ClockEvent and Timecard domain models + state machines (NEW)
+- PostgresTimekeepingRepository (NEW)
+- TimekeepingController: clock events, submit timecard, approve, reject
+- Migration 015 — clock_events and timecards tables with RLS
+- Clock event sequence validation (CLOCK_IN → BREAK_START → BREAK_END → CLOCK_OUT)
+- Auto-calculation of hours and break minutes
 
-1. **multer CVEs** (CVE-2025-7338, CVE-2026-2359, CVE-2026-3304):
-   Upgraded `@nestjs/platform-express` from 11.1.3 → 11.1.28 across all services.
-   NestJS 11.1.28 ships with multer 2.2.0 (patched).
+### Notifications — OPERATIONAL
+- Notification domain model (NEW)
+- PostgresNotificationRepository (NEW)
+- NotificationController: list, mark read
+- Migration 016 — notifications and audit_log tables with RLS
 
-2. **path-to-regexp** (CVE-2026-4926):
-   Upgraded `@nestjs/core` in `packages/service-core` from 11.1.3 → 11.1.28.
-   NestJS 11.1.28 uses path-to-regexp 8.4.2 (patched).
+### Audit — OPERATIONAL
+- PostgresAuditRepository (append-only, NEW)
+- AuditController: list by tenant, list by resource
+- All controllers write audit entries
 
-3. **tar-fs** (CVE-2024-12905, CVE-2025-48387, CVE-2025-59343):
-   `.pnpmfile.cjs` hook overrides transitive dep from dockerode (testcontainers).
-   Resolved to 3.1.3 (patched). Dev-only, never deployed.
+### Web UI — ROLE-BASED ROUTES
+- Added WORKER and CLIENT personas
+- ShiftList, CreateShift pages (admin/client)
+- MarketplaceShifts page (worker marketplace)
+- MyAssignments page (worker assignments with clock actions)
+- TimecardList page (admin/client approval workflow)
+- ShiftRequests page (client/admin confirmation)
+- Notifications page (worker notifications)
+- Role-based routing in App.tsx
 
-4. **undici** (CVE-2026-12151, CVE-2026-1526, CVE-2026-2229):
-   `.pnpmfile.cjs` hook overrides transitive dep from testcontainers.
-   Resolved to 7.28.0 (patched). Dev-only, never deployed.
+### Docker Compose Demo Environment
+- docker-compose.demo.yml with all services
+- Dockerfile.service (tsx-based for workspace compatibility)
+- Dockerfile.web (Vite build → nginx)
+- Nginx reverse proxy config
+- init-demo.sql for schema/role setup
+- Makefile with demo-up/seed/test/reset/down
+- Demo seed script with synthetic data
 
-### DEMO-01 E2E — Fixed
+## Test Counts
 
-Root causes and fixes:
+| Service          | Unit Tests | Status |
+| ---------------- | ---------- | ------ |
+| staffing-service | 369        | PASS   |
+| admin-console    | 103        | PASS   |
 
-1. **Backend startup failure**: Changed from `node dist/main.js` to `npx tsx src/main.ts`.
-   Workspace packages expose TypeScript source (`main: ./src/index.ts`), so plain
-   Node.js cannot resolve them at runtime. `tsx` handles TS natively.
+## Quality Gates Passing
 
-2. **Health check URL wrong**: Changed `/health` → `/health/live` (matching
-   the actual PlatformHealthController endpoint).
+- [x] TypeScript strict compilation (staffing + web)
+- [x] ESLint (0 errors, 3 warnings)
+- [x] All 472 unit tests passing
+- [x] Domain models tested (shift-request: 18, assignment: 19, timekeeping: 25)
 
-## Test Counts (CI verified)
+## What's Still Needed for Local MVP
 
-All tests pass in CI pipeline (unit + integration).
-
-## GP-05: IN PROGRESS
-
-## GP-06: IN PROGRESS
-
-## GP-07: NOT STARTED — BLOCKED
+1. **Integration tests** — Run against real PostgreSQL (Testcontainers)
+2. **Docker build verification** — Build and test all images
+3. **E2E acceptance test** — The 20-step workflow
+4. **OpenAPI spec update** — Add new endpoints to openapi.yaml
+5. **Identity-service session integration** — Real JWT in demo
+6. **Notification worker** — Process outbox and send via MailHog
+7. **Cross-tenant tests** — Prove RLS blocks access
+8. **Playwright tests** — Primary demo workflow
 
 ## Next Steps
 
-1. PR is ready for review (all 6 workflows green)
-2. After merge: resume GP-05/GP-06 closure work
-3. Do NOT start GP-07 until CI stabilization PR is merged
+1. Run integration tests with Testcontainers for new repositories
+2. Build Docker images and verify demo-up works
+3. Implement the E2E acceptance test script
+4. Add Playwright tests for the primary workflow
