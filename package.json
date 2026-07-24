@@ -20,7 +20,7 @@
     "format:check": "prettier --check .",
     "clean": "turbo run clean",
     "db:migrate": "turbo run db:migrate",
-    "db:seed": "turbo run db:seed",
+    "db:seed": "node scripts/demo-seed.mjs",
     "db:reset": "turbo run db:reset",
     "security:secrets": "gitleaks detect --source .",
     "security:dependencies": "pnpm audit --audit-level high",

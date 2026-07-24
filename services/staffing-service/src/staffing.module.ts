@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD, Reflector } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, Reflector } from '@nestjs/core';
 
 import type { TokenValidator } from '@carecareer/auth';
 import { TenantAwareTransaction } from '@carecareer/database';
@@ -9,36 +9,103 @@ import {
   type PermissionAdapter,
 } from './infrastructure/authorization-adapter.js';
 import {
+  DemoIdentityStateAdapter,
+  DemoPermissionAdapter,
+} from './infrastructure/demo-identity-state-adapter.js';
+import { DemoTokenValidator } from './infrastructure/demo-token-validator.js';
+import {
   HttpIdentityStateAdapter,
   type IdentityStateAdapter,
 } from './infrastructure/identity-state-adapter.js';
 import { LocalJwksTokenValidator } from './infrastructure/local-jwks-token-validator.js';
+import { PostgresAssignmentRepository } from './infrastructure/postgres-assignment-repository.js';
+import { PostgresAuditRepository } from './infrastructure/postgres-audit-repository.js';
+import { PostgresCredentialRepository } from './infrastructure/postgres-credential-repository.js';
+import { PostgresNotificationRepository } from './infrastructure/postgres-notification-repository.js';
+import { PostgresShiftRepository } from './infrastructure/postgres-shift-repository.js';
+import { PostgresShiftRequestRepository } from './infrastructure/postgres-shift-request-repository.js';
 import { PostgresStaffingRepository } from './infrastructure/postgres-staffing-repository.js';
+import { PostgresTimekeepingRepository } from './infrastructure/postgres-timekeeping-repository.js';
 import { RemoteJwksTokenValidator } from './infrastructure/remote-jwks-token-validator.js';
 import { LocalClientCredentialsProvider } from './infrastructure/service-token-client.js';
 import { StaffingAuthGuard } from './infrastructure/staffing-auth.guard.js';
+import { StaffingExceptionFilter } from './infrastructure/staffing-exception.filter.js';
 import { StaffingPermissionGuard } from './infrastructure/staffing-permission.guard.js';
+import { AssignmentController } from './interface/http/assignment.controller.js';
+import { AuditController } from './interface/http/audit.controller.js';
+import { CredentialController } from './interface/http/credential.controller.js';
 import { FacilityController } from './interface/http/facility.controller.js';
 import { HealthController } from './interface/http/health.controller.js';
+import { MarketplaceController } from './interface/http/marketplace.controller.js';
+import { NotificationWorkerController } from './interface/http/notification-worker.controller.js';
+import { NotificationController } from './interface/http/notification.controller.js';
+import { ShiftController } from './interface/http/shift.controller.js';
+import { TimekeepingController } from './interface/http/timekeeping.controller.js';
 import { WorkerController } from './interface/http/worker.controller.js';
 
 /**
  * Staffing service root module.
- * Manages facilities, departments, workers, shifts and assignments.
+ * Manages facilities, departments, workers, and credentials.
  *
  * Authentication: RS256 JWT validation via LocalJwksTokenValidator.
  * In production, public keys are fetched from identity-service JWKS endpoint.
  * In tests, keys are provided directly.
  */
 @Module({
-  controllers: [HealthController, FacilityController, WorkerController],
+  controllers: [
+    HealthController,
+    FacilityController,
+    WorkerController,
+    CredentialController,
+    ShiftController,
+    MarketplaceController,
+    AssignmentController,
+    TimekeepingController,
+    NotificationController,
+    NotificationWorkerController,
+    AuditController,
+  ],
   providers: [
     {
       provide: 'TOKEN_VALIDATOR',
       useFactory: (): TokenValidator => {
-        const jwksUri = process.env['JWKS_URI'];
+        const nodeEnv = process.env['NODE_ENV'] ?? 'development';
+        const demoMode = process.env['DEMO_MODE'] === 'true';
         const issuer = process.env['JWT_ISSUER'] ?? 'carecareer-identity';
         const audience = process.env['JWT_AUDIENCE'] ?? 'carecareer-api';
+
+        // PRODUCTION SAFETY: reject demo mode in production
+        if (nodeEnv === 'production' && demoMode) {
+          throw new Error(
+            'FATAL: DEMO_MODE=true is forbidden in production. ' +
+              'Remove DEMO_MODE or set NODE_ENV to development/staging.',
+          );
+        }
+
+        // Demo mode: accept HS256 tokens from platform-service demo endpoint
+        if (demoMode) {
+          const secret = process.env['DEMO_AUTH_SECRET'];
+          if (!secret || secret.length < 32) {
+            throw new Error(
+              'FATAL: DEMO_AUTH_SECRET must be set (min 32 chars) when DEMO_MODE=true.',
+            );
+          }
+          return new DemoTokenValidator({
+            secret,
+            issuer: 'carecareer-demo',
+            audience,
+          });
+        }
+
+        const jwksUri = process.env['JWKS_URI'];
+
+        // PRODUCTION SAFETY: require JWKS in production
+        if (nodeEnv === 'production' && !jwksUri) {
+          throw new Error(
+            'FATAL: JWKS_URI is required in production for RS256 token validation. ' +
+              'Configure the identity-service JWKS endpoint.',
+          );
+        }
 
         // Production: use remote JWKS with auto-refresh and key rotation
         if (jwksUri) {
@@ -57,6 +124,13 @@ import { WorkerController } from './interface/http/worker.controller.js';
     {
       provide: 'IDENTITY_STATE_ADAPTER',
       useFactory: (): IdentityStateAdapter | undefined => {
+        // Demo mode: use seeded local state (real validation, no external calls)
+        const demoMode = process.env['DEMO_MODE'] === 'true';
+        if (demoMode) {
+          return new DemoIdentityStateAdapter();
+        }
+
+        // Production: call identity-service for real-time state validation
         const identityUrl = process.env['IDENTITY_SERVICE_URL'];
         const clientId = process.env['SERVICE_CLIENT_ID'] ?? 'staffing-service';
         const clientSecret = process.env['SERVICE_CLIENT_SECRET'];
@@ -83,6 +157,13 @@ import { WorkerController } from './interface/http/worker.controller.js';
     {
       provide: 'PERMISSION_ADAPTER',
       useFactory: (): PermissionAdapter | null => {
+        // Demo mode: use seeded permission data (real checks, no external calls)
+        const demoMode = process.env['DEMO_MODE'] === 'true';
+        if (demoMode) {
+          return new DemoPermissionAdapter() as unknown as PermissionAdapter;
+        }
+
+        // Production: call authorization service
         const authUrl =
           process.env['AUTHORIZATION_SERVICE_URL'] ?? process.env['IDENTITY_SERVICE_URL'];
         const clientId = process.env['SERVICE_CLIENT_ID'] ?? 'staffing-service';
@@ -156,6 +237,38 @@ import { WorkerController } from './interface/http/worker.controller.js';
     {
       provide: 'STAFFING_REPOSITORY',
       useClass: PostgresStaffingRepository,
+    },
+    {
+      provide: 'CREDENTIAL_REPOSITORY',
+      useClass: PostgresCredentialRepository,
+    },
+    {
+      provide: 'SHIFT_REPOSITORY',
+      useClass: PostgresShiftRepository,
+    },
+    {
+      provide: 'SHIFT_REQUEST_REPOSITORY',
+      useClass: PostgresShiftRequestRepository,
+    },
+    {
+      provide: 'ASSIGNMENT_REPOSITORY',
+      useClass: PostgresAssignmentRepository,
+    },
+    {
+      provide: 'TIMEKEEPING_REPOSITORY',
+      useClass: PostgresTimekeepingRepository,
+    },
+    {
+      provide: 'NOTIFICATION_REPOSITORY',
+      useClass: PostgresNotificationRepository,
+    },
+    {
+      provide: 'AUDIT_REPOSITORY',
+      useClass: PostgresAuditRepository,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: StaffingExceptionFilter,
     },
   ],
 })

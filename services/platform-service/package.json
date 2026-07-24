@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node scripts/build-production.mjs",
+    "build:typecheck": "tsc -p tsconfig.build.json",
     "dev": "tsx --env-file=.env src/main.ts",
     "lint": "eslint --config eslint.config.mjs src/",
     "typecheck": "tsc --noEmit",
@@ -36,6 +37,7 @@
     "@types/node": "22.15.21",
     "@types/pg": "8.11.11",
     "@types/supertest": "6.0.2",
+    "esbuild": "^0.28.1",
     "pg": "8.13.3",
     "supertest": "7.1.0",
     "testcontainers": "10.18.0",

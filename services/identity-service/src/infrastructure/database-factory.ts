@@ -1,4 +1,6 @@
-import { Pool } from 'pg';
+import pg from 'pg';
+
+const { Pool } = pg;
 
 import type { PrismaLikeClient, TransactionClient } from '@carecareer/database';
 

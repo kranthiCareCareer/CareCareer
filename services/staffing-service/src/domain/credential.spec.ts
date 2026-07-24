@@ -104,7 +104,8 @@ describe('Credential Domain', () => {
         ['UPLOADED', 'PENDING_VERIFICATION'],
         ['UPLOADED', 'EXPIRED'],
         ['PENDING_VERIFICATION', 'VERIFIED'],
-        ['PENDING_VERIFICATION', 'UPLOADED'],
+        ['PENDING_VERIFICATION', 'REJECTED'],
+        ['PENDING_VERIFICATION', 'CORRECTION_REQUIRED'],
         ['PENDING_VERIFICATION', 'EXPIRED'],
         ['VERIFIED', 'EXPIRING'],
         ['VERIFIED', 'EXPIRED'],
@@ -332,17 +333,23 @@ describe('Credential Domain', () => {
     it('should return valid transitions for PENDING_VERIFICATION', () => {
       expect(getValidTransitions('PENDING_VERIFICATION')).toEqual([
         'VERIFIED',
-        'UPLOADED',
+        'REJECTED',
+        'CORRECTION_REQUIRED',
         'EXPIRED',
       ]);
     });
 
     it('should return valid transitions for VERIFIED', () => {
-      expect(getValidTransitions('VERIFIED')).toEqual(['EXPIRING', 'EXPIRED']);
+      expect(getValidTransitions('VERIFIED')).toEqual([
+        'EXPIRING',
+        'EXPIRED',
+        'REVOKED',
+        'SUPERSEDED',
+      ]);
     });
 
     it('should return valid transitions for EXPIRING', () => {
-      expect(getValidTransitions('EXPIRING')).toEqual(['EXPIRED', 'VERIFIED']);
+      expect(getValidTransitions('EXPIRING')).toEqual(['EXPIRED', 'VERIFIED', 'REVOKED']);
     });
 
     it('should return valid transitions for EXPIRED', () => {

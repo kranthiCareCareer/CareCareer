@@ -51,6 +51,21 @@ export const DEMO_PERSONAS: DemoPersona[] = [
     tenantId: 'platform',
     description: 'Can view tenants and audit records but cannot make changes.',
   },
+  {
+    id: 'worker-sarah',
+    label: 'Worker — Sarah Johnson (RN)',
+    role: 'WORKER',
+    tenantId: 'mas-medical-staffing',
+    description: 'Registered Nurse. Can browse shifts, request assignments, and submit timecards.',
+  },
+  {
+    id: 'client-mercy',
+    label: 'Client — Mercy General Hospital',
+    role: 'CLIENT',
+    tenantId: 'mas-medical-staffing',
+    description:
+      'Facility hiring manager. Can create shifts, confirm workers, and approve timecards.',
+  },
 ];
 
 interface AuthState {

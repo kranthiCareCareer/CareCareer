@@ -2,19 +2,33 @@
  * Worker Credential domain entity.
  *
  * Represents a license, certification, or other credential held by a worker.
- * Credentials follow a state machine:
- *   UPLOADED → PENDING_VERIFICATION → VERIFIED → EXPIRING → EXPIRED
  *
- * Credentials may also transition directly to EXPIRED from VERIFIED
- * when the expiration date passes.
+ * State machine:
+ *   UPLOADED → PENDING_VERIFICATION → VERIFIED → EXPIRING → EXPIRED
+ *   PENDING_VERIFICATION → REJECTED
+ *   PENDING_VERIFICATION → CORRECTION_REQUIRED → UPLOADED (re-submit)
+ *   VERIFIED → REVOKED
+ *   VERIFIED → SUPERSEDED (replaced by newer credential)
+ *   EXPIRED → UPLOADED (renewal)
+ *
+ * Compliance semantics:
+ * - REJECTED: submission was never accepted as valid
+ * - REVOKED: previously accepted credential was invalidated
+ * - EXPIRED: credential passed its validity date naturally
+ * - CORRECTION_REQUIRED: reviewer found issues, worker must re-upload
+ * - SUPERSEDED: replaced by a newer version of the same credential
  */
 
 export type CredentialStatus =
   | 'UPLOADED'
   | 'PENDING_VERIFICATION'
+  | 'CORRECTION_REQUIRED'
   | 'VERIFIED'
   | 'EXPIRING'
-  | 'EXPIRED';
+  | 'EXPIRED'
+  | 'REJECTED'
+  | 'REVOKED'
+  | 'SUPERSEDED';
 
 export interface Credential {
   readonly id: string;
@@ -35,19 +49,17 @@ export interface Credential {
 
 /**
  * Valid state transitions for the credential lifecycle.
- *
- * UPLOADED: Initial state when worker uploads a credential document
- * PENDING_VERIFICATION: Submitted for verification by compliance team
- * VERIFIED: Confirmed valid by compliance team
- * EXPIRING: Approaching expiration (within grace period)
- * EXPIRED: Past expiration date, no longer valid
  */
 const VALID_CREDENTIAL_TRANSITIONS: Record<CredentialStatus, CredentialStatus[]> = {
   UPLOADED: ['PENDING_VERIFICATION', 'EXPIRED'],
-  PENDING_VERIFICATION: ['VERIFIED', 'UPLOADED', 'EXPIRED'],
-  VERIFIED: ['EXPIRING', 'EXPIRED'],
-  EXPIRING: ['EXPIRED', 'VERIFIED'],
+  PENDING_VERIFICATION: ['VERIFIED', 'REJECTED', 'CORRECTION_REQUIRED', 'EXPIRED'],
+  CORRECTION_REQUIRED: ['UPLOADED'],
+  VERIFIED: ['EXPIRING', 'EXPIRED', 'REVOKED', 'SUPERSEDED'],
+  EXPIRING: ['EXPIRED', 'VERIFIED', 'REVOKED'],
   EXPIRED: ['UPLOADED'],
+  REJECTED: [],
+  REVOKED: [],
+  SUPERSEDED: [],
 };
 
 export interface CreateCredentialInput {
@@ -140,6 +152,80 @@ export function verifyCredential(credential: Credential, verifiedBy: string): Cr
 }
 
 /**
+ * Reject a credential submission.
+ * Transitions from PENDING_VERIFICATION → REJECTED.
+ */
+export function rejectCredential(credential: Credential): Credential {
+  if (credential.status !== 'PENDING_VERIFICATION') {
+    throw new Error(
+      `Cannot reject credential in status ${credential.status}; must be PENDING_VERIFICATION`,
+    );
+  }
+
+  return {
+    ...credential,
+    status: 'REJECTED',
+    updatedAt: new Date(),
+    version: credential.version + 1,
+  };
+}
+
+/**
+ * Revoke a previously verified credential.
+ * Transitions from VERIFIED or EXPIRING → REVOKED.
+ */
+export function revokeCredential(credential: Credential): Credential {
+  if (credential.status !== 'VERIFIED' && credential.status !== 'EXPIRING') {
+    throw new Error(
+      `Cannot revoke credential in status ${credential.status}; must be VERIFIED or EXPIRING`,
+    );
+  }
+
+  return {
+    ...credential,
+    status: 'REVOKED',
+    updatedAt: new Date(),
+    version: credential.version + 1,
+  };
+}
+
+/**
+ * Request correction on a pending credential.
+ * Transitions from PENDING_VERIFICATION → CORRECTION_REQUIRED.
+ */
+export function requestCorrection(credential: Credential): Credential {
+  if (credential.status !== 'PENDING_VERIFICATION') {
+    throw new Error(
+      `Cannot request correction in status ${credential.status}; must be PENDING_VERIFICATION`,
+    );
+  }
+
+  return {
+    ...credential,
+    status: 'CORRECTION_REQUIRED',
+    updatedAt: new Date(),
+    version: credential.version + 1,
+  };
+}
+
+/**
+ * Mark a credential as superseded by a newer version.
+ * Transitions from VERIFIED → SUPERSEDED.
+ */
+export function supersedeCredential(credential: Credential): Credential {
+  if (credential.status !== 'VERIFIED') {
+    throw new Error(`Cannot supersede credential in status ${credential.status}; must be VERIFIED`);
+  }
+
+  return {
+    ...credential,
+    status: 'SUPERSEDED',
+    updatedAt: new Date(),
+    version: credential.version + 1,
+  };
+}
+
+/**
  * Check if a credential is currently valid (verified and not expired).
  */
 export function isCredentialValid(credential: Credential, asOf: Date = new Date()): boolean {
@@ -154,7 +240,6 @@ export function isCredentialValid(credential: Credential, asOf: Date = new Date(
 
 /**
  * Get all valid transitions from the current status.
- * Useful for UI to display available actions.
  */
 export function getValidTransitions(status: CredentialStatus): CredentialStatus[] {
   return [...VALID_CREDENTIAL_TRANSITIONS[status]];
