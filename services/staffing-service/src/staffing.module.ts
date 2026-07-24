@@ -84,9 +84,12 @@ import { WorkerController } from './interface/http/worker.controller.js';
 
         // Demo mode: accept HS256 tokens from platform-service demo endpoint
         if (demoMode) {
-          const secret =
-            process.env['DEMO_AUTH_SECRET'] ??
-            'carecareer-demo-secret-for-testing-only-do-not-use-in-production';
+          const secret = process.env['DEMO_AUTH_SECRET'];
+          if (!secret || secret.length < 32) {
+            throw new Error(
+              'FATAL: DEMO_AUTH_SECRET must be set (min 32 chars) when DEMO_MODE=true.',
+            );
+          }
           return new DemoTokenValidator({
             secret,
             issuer: 'carecareer-demo',

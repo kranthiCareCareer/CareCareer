@@ -52,51 +52,24 @@ export class NotificationWorkerController {
   }
 
   private async sendEmail(recipientId: string, subject: string, body: string): Promise<void> {
+    const nodemailer = await import('nodemailer');
     const smtpHost = process.env['SMTP_HOST'] ?? 'localhost';
     const smtpPort = parseInt(process.env['SMTP_PORT'] ?? '1025', 10);
+
+    const transport = nodemailer.default.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: false,
+      tls: { rejectUnauthorized: false },
+    });
+
     const to = `user-${recipientId.slice(0, 8)}@carecareer.local`;
 
-    const net = await import('node:net');
-    return new Promise<void>((resolve, reject) => {
-      const socket = net.createConnection(smtpPort, smtpHost);
-      let step = 0;
-
-      socket.on('data', () => {
-        step++;
-        switch (step) {
-          case 1:
-            socket.write('EHLO localhost\r\n');
-            break;
-          case 2:
-            socket.write(`MAIL FROM:<notifications@carecareer.local>\r\n`);
-            break;
-          case 3:
-            socket.write(`RCPT TO:<${to}>\r\n`);
-            break;
-          case 4:
-            socket.write('DATA\r\n');
-            break;
-          case 5:
-            socket.write(`From: notifications@carecareer.local\r\n`);
-            socket.write(`To: ${to}\r\n`);
-            socket.write(`Subject: ${subject}\r\n`);
-            socket.write('\r\n');
-            socket.write(`${body}\r\n`);
-            socket.write('.\r\n');
-            break;
-          case 6:
-            socket.write('QUIT\r\n');
-            socket.end();
-            resolve();
-            break;
-        }
-      });
-
-      socket.on('error', reject);
-      socket.setTimeout(5000, () => {
-        socket.destroy();
-        reject(new Error('SMTP timeout'));
-      });
+    await transport.sendMail({
+      from: 'notifications@carecareer.local',
+      to,
+      subject,
+      text: body,
     });
   }
 }

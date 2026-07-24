@@ -48,6 +48,24 @@ describe('Production Authentication Safety', () => {
     expect(validator).toBeDefined();
   });
 
+  it('should reject demo mode without DEMO_AUTH_SECRET', async () => {
+    process.env['NODE_ENV'] = 'development';
+    process.env['DEMO_MODE'] = 'true';
+    delete process.env['DEMO_AUTH_SECRET'];
+
+    const { createTokenValidator } = await import('./production-safety-helpers.js');
+    expect(() => createTokenValidator()).toThrow('DEMO_AUTH_SECRET must be set');
+  });
+
+  it('should reject demo mode with short secret', async () => {
+    process.env['NODE_ENV'] = 'development';
+    process.env['DEMO_MODE'] = 'true';
+    process.env['DEMO_AUTH_SECRET'] = 'too-short';
+
+    const { createTokenValidator } = await import('./production-safety-helpers.js');
+    expect(() => createTokenValidator()).toThrow('DEMO_AUTH_SECRET must be set');
+  });
+
   it('should allow production with JWKS_URI configured', async () => {
     process.env['NODE_ENV'] = 'production';
     process.env['DEMO_MODE'] = 'false';

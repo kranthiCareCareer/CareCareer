@@ -39,7 +39,12 @@ async function getToken(sub) {
   const res = await fetch(`${PLATFORM_URL}/demo/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sub, tenantId: TENANT_ID, role: 'ALL' }),
+    body: JSON.stringify({
+      sub,
+      tenantId: TENANT_ID,
+      role:
+        sub === 'platform-admin' ? 'PLATFORM_ADMIN' : sub === 'worker-sarah' ? 'WORKER' : 'CLIENT',
+    }),
   });
   return (await res.json()).token;
 }

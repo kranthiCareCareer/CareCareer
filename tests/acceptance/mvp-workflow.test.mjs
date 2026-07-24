@@ -39,13 +39,22 @@ async function step(name, fn) {
 }
 
 async function getToken(personaId, overrideTenantId) {
+  // Map persona to correct role — no arbitrary 'ALL' tokens
+  const PERSONA_ROLES = {
+    'platform-admin': 'PLATFORM_ADMIN',
+    'worker-sarah': 'WORKER',
+    'client-mercy': 'CLIENT',
+    'other-tenant-user': 'UNKNOWN',
+  };
+  const role = PERSONA_ROLES[personaId] ?? 'UNKNOWN';
+
   const res = await fetch(`${PLATFORM_URL}/demo/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       sub: personaId,
       tenantId: overrideTenantId ?? TENANT_ID,
-      role: 'ALL',
+      role,
     }),
   });
   if (!res.ok) throw new Error(`Token request failed: ${res.status}`);
