@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { Controller, HttpCode, HttpStatus, Inject, Post, Req } from '@nestjs/common';
+
 import type { TenantAwareTransaction } from '@carecareer/database';
 
 import type { NotificationRepository } from '../../application/ports/notification-repository.js';
 import type { AuthenticatedStaffingRequest } from '../../infrastructure/authenticated-request.js';
-import { requirePrincipal } from '../../infrastructure/require-principal.js';
 import { RequirePermission } from '../../infrastructure/permission.decorator.js';
+import { requirePrincipal } from '../../infrastructure/require-principal.js';
 
 /**
  * Notification worker trigger endpoint.

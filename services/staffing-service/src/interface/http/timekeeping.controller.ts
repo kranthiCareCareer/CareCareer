@@ -20,7 +20,6 @@ import type { AssignmentRepository } from '../../application/ports/assignment-re
 import type { AuditRepository } from '../../application/ports/audit-repository.js';
 import type { NotificationRepository } from '../../application/ports/notification-repository.js';
 import type { TimekeepingRepository } from '../../application/ports/timekeeping-repository.js';
-import { createNotificationForEvent } from '../../infrastructure/notification-worker.js';
 import {
   createClockEvent,
   createTimecard,
@@ -31,6 +30,7 @@ import {
 } from '../../domain/timekeeping.js';
 import type { ClockEventType } from '../../domain/timekeeping.js';
 import type { AuthenticatedStaffingRequest } from '../../infrastructure/authenticated-request.js';
+import { createNotificationForEvent } from '../../infrastructure/notification-worker.js';
 import { RequirePermission } from '../../infrastructure/permission.decorator.js';
 import { requirePrincipal } from '../../infrastructure/require-principal.js';
 

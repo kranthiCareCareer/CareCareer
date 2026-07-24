@@ -39,14 +39,17 @@ demo-seed:
 
 ## Run the acceptance test against the demo environment
 demo-test:
-	@echo "Running MVP acceptance tests (20 steps)..."
+	@echo "═══ MVP Acceptance Tests (20 steps) ═══"
 	node tests/acceptance/mvp-workflow.test.mjs
 	@echo ""
-	@echo "Running notification proof (8 steps)..."
+	@echo "═══ Notification Proof (8 steps) ═══"
 	node tests/acceptance/notification-proof.test.mjs
 	@echo ""
-	@echo "Running browser tests (15 tests)..."
+	@echo "═══ Browser E2E Tests (15 tests) ═══"
 	node tests/e2e/demo-browser-tests.cjs
+	@echo ""
+	@echo "═══ Accessibility Audit (14 pages) ═══"
+	node tests/e2e/accessibility-audit.cjs
 
 ## Reset the demo environment (destroy and recreate)
 demo-reset:

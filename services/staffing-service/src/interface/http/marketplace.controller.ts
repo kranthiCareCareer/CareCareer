@@ -23,7 +23,6 @@ import type { NotificationRepository } from '../../application/ports/notificatio
 import type { ShiftRepository } from '../../application/ports/shift-repository.js';
 import type { ShiftRequestRepository } from '../../application/ports/shift-request-repository.js';
 import { createAssignment } from '../../domain/assignment.js';
-import { createNotificationForEvent } from '../../infrastructure/notification-worker.js';
 import {
   createShiftRequest,
   confirmShiftRequest,
@@ -31,6 +30,7 @@ import {
   withdrawShiftRequest,
 } from '../../domain/shift-request.js';
 import type { AuthenticatedStaffingRequest } from '../../infrastructure/authenticated-request.js';
+import { createNotificationForEvent } from '../../infrastructure/notification-worker.js';
 import { RequirePermission } from '../../infrastructure/permission.decorator.js';
 import { requirePrincipal } from '../../infrastructure/require-principal.js';
 
