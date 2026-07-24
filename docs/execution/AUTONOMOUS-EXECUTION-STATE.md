@@ -1,105 +1,64 @@
 # Autonomous Execution State
 
-## Last Updated: 2026-07-24T09:30:00Z
+## Last Updated: 2026-07-24T11:20:00Z
 
 ## Repository State
 
-| Field         | Value                        |
-| ------------- | ---------------------------- |
-| Branch        | agent/gp07-credentials-clean |
-| HEAD          | 50d329f                      |
-| Origin master | ccc8e11                      |
-| Commits ahead | 13                           |
-| PR            | Open (draft) on GitHub       |
+| Field           | Value                                          |
+| --------------- | ---------------------------------------------- |
+| Branch          | agent/gp07-credentials-clean                   |
+| Full SHA        | a1c842a2c06532eed3bd7aa1174258401d91e6cf       |
+| Safety branch   | agent/mvp-local-integration                    |
+| Origin master   | ccc8e11                                        |
+| PR              | #12 (integration baseline, DO NOT MERGE)       |
 
-## Docker Compose — VERIFIED OPERATIONAL ✅
+## PROVEN GATES (All on SHA a1c842a or later)
 
-All 7 containers healthy on `docker compose -f docker-compose.demo.yml up -d`:
+| Gate | Tests | Status |
+|------|-------|--------|
+| Gate 1: API Acceptance | 20/20 | ✅ PASS |
+| Gate 2: Authorization | Role denial proven | ✅ PASS |
+| Gate 3: Notifications (delivery+retry+dedup) | 8+14 = 22 | ✅ PASS |
+| Gate 4: Browser E2E | 15/15 | ✅ PASS |
+| Gate 4: Accessibility (axe-core) | 14/14 pages, 0 violations | ✅ PASS |
+| Gate 5: Reproducibility | build→seed→test→reset→retest | ✅ PASS |
 
-| Container                  | Port  | Status  |
-| -------------------------- | ----- | ------- |
-| carecareer-demo-postgres   | 5432  | Healthy |
-| carecareer-demo-identity   | 3100  | Healthy |
-| carecareer-demo-platform   | 3001  | Healthy |
-| carecareer-demo-staffing   | 3200  | Healthy |
-| carecareer-demo-web        | 5173  | Healthy |
-| carecareer-demo-mailhog    | 8025  | Healthy |
-| carecareer-demo-proxy      | 8080  | Healthy |
+## UNIT TESTS (709 total, all PASS)
 
-Verified endpoints:
-- http://localhost:8080 → Web UI (200)
-- http://localhost:8080/health → Nginx proxy health (200)
-- http://localhost:3100/health → Identity service (200)
-- http://localhost:3200/health → Staffing service (200)
-- http://localhost:8025 → MailHog inbox (200)
+| Service | Tests |
+|---------|-------|
+| staffing-service | 369 |
+| identity-service | 237 |
+| platform-admin-console | 103 |
 
-## Completed (This Branch)
+## REMAINING GATES
 
-### Backend (staffing-service)
-- GP-07: Credentials and eligibility — OPERATIONAL (HTTP + DB + RLS + Auth)
-- GP-08: Shifts — OPERATIONAL (create, publish, cancel + state machine + audit)
-- GP-09: Marketplace — OPERATIONAL (list available, submit request, confirm, reject, withdraw)
-- GP-10: Assignments — OPERATIONAL (confirm, check-in, complete, cancel)
-- Timekeeping — OPERATIONAL (clock events, timecard submit/approve/reject)
-- Notifications — OPERATIONAL (repository + worker + templates)
-- Audit — OPERATIONAL (append-only audit trail for all mutations)
+| Gate | Status |
+|------|--------|
+| Gate 6: Image scanning + SBOM | NOT STARTED |
+| Gate 7: Full CI on exact SHA | NOT STARTED |
+| Gate 9: PR extraction | NOT STARTED |
+| Gate 10: Final report | NOT STARTED |
 
-### Frontend (platform-admin-console)
-- 6 personas (admin, tenant-admin, worker, client, auditor, careshield-admin)
-- Role-based routing (admin sees all, worker sees marketplace, client sees shifts)
-- Pages: ShiftList, CreateShift, MarketplaceShifts, MyAssignments, TimecardList, ShiftRequests, Notifications
-
-### Infrastructure
-- Docker Compose with 7 services (all healthy)
-- Dockerfile.service with tsx --tsconfig (decorators + CJS interop)
-- Dockerfile.web with Vite build + nginx
-- Nginx reverse proxy
-- Makefile (demo-up, demo-seed, demo-test, demo-reset, demo-down)
-- Migration runner (scripts/migrate.mjs)
-- Demo seed script with synthetic data
-- Fixed: IPv6 healthcheck issue, ESM pg import
-
-### Documentation
-- docs/MVP_SCOPE.md
-- docs/MVP_ARCHITECTURE.md
-- docs/LOCAL_DEMO_RUNBOOK.md
-- docs/DEMO_SCRIPT.md
-- docs/TEST_EVIDENCE.md
-- docs/SECURITY_CONTROLS.md
-- docs/KNOWN_LIMITATIONS.md
-- docs/AWS_MIGRATION_PLAN.md
-
-### Tests
-- 369 staffing-service unit tests (PASS)
-- 237 identity-service unit tests (PASS)
-- 103 admin-console component tests (PASS)
-- Integration test file (shift workflow with Testcontainers)
-- 20-step acceptance test script
-
-## Quality Gates
-
-- [x] TypeScript strict compilation (all services + web)
-- [x] ESLint (0 errors)
-- [x] Unit tests (709 total passing)
-- [x] OpenAPI validation (15 specs)
-- [x] Docker images build
-- [x] All containers healthy
-- [x] Health endpoints respond 200
-
-## Remaining for Full MVP Acceptance
-
-1. Run migrations in Docker Compose (currently schema not applied automatically)
-2. Run demo-seed against the running DB
-3. Execute the 20-step acceptance test against running services
-4. Add Playwright tests for primary demo workflow
-5. Fix platform-service health endpoint (uses /health/live not /health)
-6. Add missing notification creation calls in controllers
-7. Integration tests with Testcontainers (requires Docker daemon)
-
-## Next Command
+## COMMANDS
 
 ```bash
+# Start and test
 make demo-up
 make demo-seed
 make demo-test
+
+# Individual suites
+node tests/acceptance/mvp-workflow.test.mjs
+node tests/acceptance/notification-proof.test.mjs
+node tests/acceptance/notification-retry-proof.test.mjs
+node tests/e2e/demo-browser-tests.cjs
+node tests/e2e/accessibility-audit.cjs
 ```
+
+## NEXT STEPS
+
+1. Image scanning with Trivy + SBOM generation
+2. Push and verify GitHub Actions on this SHA
+3. PR extraction into bounded-context branches
+4. Final report
