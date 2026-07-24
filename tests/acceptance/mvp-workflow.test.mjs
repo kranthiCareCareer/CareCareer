@@ -124,17 +124,25 @@ async function run() {
     const endTime = new Date(tomorrow);
     endTime.setHours(19, 0, 0, 0);
 
-    const { status: createStatus, data: createData } = await api('POST', '/v1/shifts', clientToken, {
-      facilityId: FACILITY_ID,
-      role: 'RN',
-      startTime: tomorrow.toISOString(),
-      endTime: endTime.toISOString(),
-      businessDate: tomorrow.toISOString().split('T')[0],
-      requiredWorkerCount: 1,
-      payRateCents: 5000,
-      billRateCents: 8000,
-    });
-    assert(createStatus === 201, `Shift create failed: ${createStatus} ${JSON.stringify(createData)}`);
+    const { status: createStatus, data: createData } = await api(
+      'POST',
+      '/v1/shifts',
+      clientToken,
+      {
+        facilityId: FACILITY_ID,
+        role: 'RN',
+        startTime: tomorrow.toISOString(),
+        endTime: endTime.toISOString(),
+        businessDate: tomorrow.toISOString().split('T')[0],
+        requiredWorkerCount: 1,
+        payRateCents: 5000,
+        billRateCents: 8000,
+      },
+    );
+    assert(
+      createStatus === 201,
+      `Shift create failed: ${createStatus} ${JSON.stringify(createData)}`,
+    );
     shiftId = createData.id;
 
     // Publish
@@ -165,9 +173,14 @@ async function run() {
 
   // 9. Client confirms the worker
   await step('9. Client confirms the worker', async () => {
-    const { status, data } = await api('POST', `/v1/marketplace/requests/${requestId}/confirm`, clientToken, {
-      expectedVersion: 1,
-    });
+    const { status, data } = await api(
+      'POST',
+      `/v1/marketplace/requests/${requestId}/confirm`,
+      clientToken,
+      {
+        expectedVersion: 1,
+      },
+    );
     assert(status === 200, `Confirm failed: ${status} ${JSON.stringify(data)}`);
     assignmentId = data.assignmentId;
     assert(assignmentId, 'No assignmentId returned');
@@ -226,9 +239,14 @@ async function run() {
 
   // 15. Client approves the timecard
   await step('15. Client approves timecard', async () => {
-    const { status } = await api('POST', `/v1/timekeeping/timecards/${timecardId}/approve`, clientToken, {
-      expectedVersion: 2,
-    });
+    const { status } = await api(
+      'POST',
+      `/v1/timekeeping/timecards/${timecardId}/approve`,
+      clientToken,
+      {
+        expectedVersion: 2,
+      },
+    );
     assert(status === 200, `Timecard approve failed: ${status}`);
   });
 
@@ -236,12 +254,18 @@ async function run() {
   await step('16. Notification records + email delivery', async () => {
     // Trigger notification processing (admin can do this)
     const { status: processStatus, data: processData } = await api(
-      'POST', '/v1/notifications/process', adminToken,
+      'POST',
+      '/v1/notifications/process',
+      adminToken,
     );
     assert(processStatus === 200, `Process failed: ${processStatus}`);
 
     // Verify notification records exist for the worker
-    const { status, data } = await api('GET', `/v1/notifications/recipient/${WORKER_ID}`, adminToken);
+    const { status, data } = await api(
+      'GET',
+      `/v1/notifications/recipient/${WORKER_ID}`,
+      adminToken,
+    );
     assert(status === 200, `Notifications query failed: ${status}`);
     const notifications = data.data ?? [];
     assert(notifications.length >= 1, `Expected notifications, got ${notifications.length}`);
@@ -279,7 +303,10 @@ async function run() {
     const otherToken = await getToken('other-tenant-user', '99999999-9999-4000-a000-999999999999');
     const { status } = await api('GET', `/v1/shifts/${shiftId}`, otherToken);
     // Should be denied: 401 (unknown user) or 404 (RLS blocks)
-    assert(status === 404 || status === 401 || status === 403, `Cross-tenant not denied: ${status}`);
+    assert(
+      status === 404 || status === 401 || status === 403,
+      `Cross-tenant not denied: ${status}`,
+    );
   });
 
   // 19. Duplicate mutation is idempotent

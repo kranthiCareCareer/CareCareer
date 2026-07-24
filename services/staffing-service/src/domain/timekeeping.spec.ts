@@ -12,10 +12,7 @@ import {
 } from './timekeeping.js';
 import type { ClockEvent, Timecard } from './timekeeping.js';
 
-function makeClockEvent(
-  type: ClockEvent['eventType'],
-  minutesOffset: number,
-): ClockEvent {
+function makeClockEvent(type: ClockEvent['eventType'], minutesOffset: number): ClockEvent {
   const base = new Date('2026-01-01T08:00:00Z');
   return {
     id: crypto.randomUUID(),
@@ -167,13 +164,13 @@ describe('Timekeeping', () => {
           assignmentId: 'assign-1',
           workerId: 'worker-1',
           eventType: 'CLOCK_IN',
-          latitude: 33.7490,
-          longitude: -84.3880,
+          latitude: 33.749,
+          longitude: -84.388,
         },
         [],
       );
-      expect(event.latitude).toBe(33.7490);
-      expect(event.longitude).toBe(-84.3880);
+      expect(event.latitude).toBe(33.749);
+      expect(event.longitude).toBe(-84.388);
     });
   });
 

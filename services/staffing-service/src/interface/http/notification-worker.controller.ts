@@ -64,10 +64,18 @@ export class NotificationWorkerController {
       socket.on('data', () => {
         step++;
         switch (step) {
-          case 1: socket.write('EHLO localhost\r\n'); break;
-          case 2: socket.write(`MAIL FROM:<notifications@carecareer.local>\r\n`); break;
-          case 3: socket.write(`RCPT TO:<${to}>\r\n`); break;
-          case 4: socket.write('DATA\r\n'); break;
+          case 1:
+            socket.write('EHLO localhost\r\n');
+            break;
+          case 2:
+            socket.write(`MAIL FROM:<notifications@carecareer.local>\r\n`);
+            break;
+          case 3:
+            socket.write(`RCPT TO:<${to}>\r\n`);
+            break;
+          case 4:
+            socket.write('DATA\r\n');
+            break;
           case 5:
             socket.write(`From: notifications@carecareer.local\r\n`);
             socket.write(`To: ${to}\r\n`);
@@ -85,7 +93,10 @@ export class NotificationWorkerController {
       });
 
       socket.on('error', reject);
-      socket.setTimeout(5000, () => { socket.destroy(); reject(new Error('SMTP timeout')); });
+      socket.setTimeout(5000, () => {
+        socket.destroy();
+        reject(new Error('SMTP timeout'));
+      });
     });
   }
 }

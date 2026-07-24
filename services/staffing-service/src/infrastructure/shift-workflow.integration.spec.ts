@@ -17,8 +17,6 @@ import { PostgresAuditRepository } from './postgres-audit-repository.js';
 import { PostgresShiftRepository } from './postgres-shift-repository.js';
 import { PostgresShiftRequestRepository } from './postgres-shift-request-repository.js';
 
-
-
 /**
  * Shift Workflow Integration Tests
  *
@@ -103,7 +101,10 @@ describe('Shift Workflow Integration (GP-08/09/10)', () => {
     await superClient.query('DELETE FROM staffing.shifts');
   });
 
-  async function withTenantContext(tenantId: string, fn: (tx: TransactionClient) => Promise<void>): Promise<void> {
+  async function withTenantContext(
+    tenantId: string,
+    fn: (tx: TransactionClient) => Promise<void>,
+  ): Promise<void> {
     const conn = await appPool.connect();
     try {
       await conn.query('BEGIN');

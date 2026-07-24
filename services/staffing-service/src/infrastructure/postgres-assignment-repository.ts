@@ -35,10 +35,7 @@ export class PostgresAssignmentRepository implements AssignmentRepository {
       )`;
   }
 
-  async getAssignmentById(
-    tx: TransactionClient,
-    assignmentId: string,
-  ): Promise<Assignment | null> {
+  async getAssignmentById(tx: TransactionClient, assignmentId: string): Promise<Assignment | null> {
     const rows = await tx.$queryRaw<AssignmentRow>`
       SELECT * FROM staffing.assignments WHERE id = ${assignmentId}::uuid`;
     if (rows.length === 0) return null;

@@ -37,9 +37,7 @@ async function main() {
     const appliedSet = new Set(applied.map((r) => r.name));
 
     // Read and sort migration files
-    const files = (await readdir(migrationsDir))
-      .filter((f) => f.endsWith('.sql'))
-      .sort();
+    const files = (await readdir(migrationsDir)).filter((f) => f.endsWith('.sql')).sort();
 
     let count = 0;
     for (const file of files) {
@@ -52,10 +50,7 @@ async function main() {
       try {
         await client.query('BEGIN');
         await client.query(sql);
-        await client.query(
-          'INSERT INTO staffing._migrations (name) VALUES ($1)',
-          [file],
-        );
+        await client.query('INSERT INTO staffing._migrations (name) VALUES ($1)', [file]);
         await client.query('COMMIT');
         count++;
       } catch (err) {

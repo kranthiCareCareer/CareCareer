@@ -69,10 +69,7 @@ export class TimekeepingController {
   @Post('clock-events')
   @HttpCode(HttpStatus.CREATED)
   @RequirePermission('timekeeping:clock')
-  async recordClockEvent(
-    @Body() dto: ClockEventDto,
-    @Req() req: AuthenticatedStaffingRequest,
-  ) {
+  async recordClockEvent(@Body() dto: ClockEventDto, @Req() req: AuthenticatedStaffingRequest) {
     const principal = requirePrincipal(req);
 
     const result = await this.db.execute(principal.selectedTenantId, async (tx) => {

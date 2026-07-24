@@ -31,9 +31,7 @@ export function ShiftList() {
     async function load() {
       try {
         setLoading(true);
-        const url = statusFilter
-          ? `/api/v1/shifts?status=${statusFilter}`
-          : '/api/v1/shifts';
+        const url = statusFilter ? `/api/v1/shifts?status=${statusFilter}` : '/api/v1/shifts';
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${token ?? ''}` },
           signal: controller.signal,
@@ -88,11 +86,13 @@ export function ShiftList() {
       </div>
 
       {loading && <p role="status">Loading shifts...</p>}
-      {error && <p role="alert" className="error">{error}</p>}
-
-      {!loading && !error && shifts.length === 0 && (
-        <p className="empty-state">No shifts found.</p>
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
       )}
+
+      {!loading && !error && shifts.length === 0 && <p className="empty-state">No shifts found.</p>}
 
       {!loading && shifts.length > 0 && (
         <table className="data-table" role="table" aria-label="Shifts">
@@ -111,15 +111,21 @@ export function ShiftList() {
             {shifts.map((s) => (
               <tr key={s.id}>
                 <td>{s.businessDate}</td>
-                <td>{formatTime(s.startTime)} – {formatTime(s.endTime)}</td>
+                <td>
+                  {formatTime(s.startTime)} – {formatTime(s.endTime)}
+                </td>
                 <td>{s.role}</td>
                 <td>
                   <span className={`badge badge--${s.status.toLowerCase()}`}>{s.status}</span>
                 </td>
-                <td>{s.filledWorkerCount}/{s.requiredWorkerCount}</td>
+                <td>
+                  {s.filledWorkerCount}/{s.requiredWorkerCount}
+                </td>
                 <td>${(s.payRateCents / 100).toFixed(2)}/hr</td>
                 <td>
-                  <Link to={`/shifts/${s.id}`} className="btn btn--sm">View</Link>
+                  <Link to={`/shifts/${s.id}`} className="btn btn--sm">
+                    View
+                  </Link>
                 </td>
               </tr>
             ))}

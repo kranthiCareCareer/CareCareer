@@ -85,7 +85,11 @@ export function MarketplaceShifts() {
       </header>
 
       {loading && <p role="status">Loading available shifts...</p>}
-      {error && <p role="alert" className="error">{error}</p>}
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
 
       {!loading && !error && shifts.length === 0 && (
         <p className="empty-state">No shifts available at this time.</p>
@@ -100,7 +104,9 @@ export function MarketplaceShifts() {
                 <span className="card__date">{s.businessDate}</span>
               </div>
               <div className="card__body">
-                <p>{formatTime(s.startTime)} – {formatTime(s.endTime)}</p>
+                <p>
+                  {formatTime(s.startTime)} – {formatTime(s.endTime)}
+                </p>
                 <p className="card__rate">${(s.payRateCents / 100).toFixed(2)}/hr</p>
                 <p className="card__capacity">
                   {s.requiredWorkerCount - s.filledWorkerCount} spot(s) remaining

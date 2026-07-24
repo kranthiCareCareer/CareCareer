@@ -1,14 +1,5 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
-import {
-  Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
-  Inject,
-  Param,
-  Post,
-  Req,
-} from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Inject, Param, Post, Req } from '@nestjs/common';
 
 import type { TenantAwareTransaction } from '@carecareer/database';
 

@@ -17,7 +17,11 @@ import type { TenantAwareTransaction } from '@carecareer/database';
 import type { AssignmentRepository } from '../../application/ports/assignment-repository.js';
 import type { AuditRepository } from '../../application/ports/audit-repository.js';
 import type { ShiftRepository } from '../../application/ports/shift-repository.js';
-import { cancelAssignment, checkInAssignment, completeAssignment } from '../../domain/assignment.js';
+import {
+  cancelAssignment,
+  checkInAssignment,
+  completeAssignment,
+} from '../../domain/assignment.js';
 import type { AuthenticatedStaffingRequest } from '../../infrastructure/authenticated-request.js';
 import { RequirePermission } from '../../infrastructure/permission.decorator.js';
 import { requirePrincipal } from '../../infrastructure/require-principal.js';

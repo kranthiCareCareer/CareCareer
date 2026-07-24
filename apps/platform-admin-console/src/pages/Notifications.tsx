@@ -64,7 +64,11 @@ export function Notifications() {
       </header>
 
       {loading && <p role="status">Loading notifications...</p>}
-      {error && <p role="alert" className="error">{error}</p>}
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
 
       {!loading && !error && notifications.length === 0 && (
         <p className="empty-state">No notifications.</p>
@@ -79,9 +83,7 @@ export function Notifications() {
             >
               <div className="notification__header">
                 <span className="notification__type">{n.notificationType}</span>
-                <time className="notification__time">
-                  {new Date(n.createdAt).toLocaleString()}
-                </time>
+                <time className="notification__time">{new Date(n.createdAt).toLocaleString()}</time>
               </div>
               <h3 className="notification__subject">{n.subject}</h3>
               <p className="notification__body">{n.body}</p>

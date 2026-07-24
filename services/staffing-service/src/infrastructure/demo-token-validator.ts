@@ -52,15 +52,20 @@ export class DemoTokenValidator implements TokenValidator {
     }
 
     // Extract tenant info from claims
-    const tenants = payload.tenants as Array<{
-      tenantId: string;
-      roles: string[];
-      branchIds: string[];
-      status: string;
-    }> | undefined;
+    const tenants = payload.tenants as
+      | Array<{
+          tenantId: string;
+          roles: string[];
+          branchIds: string[];
+          status: string;
+        }>
+      | undefined;
     const selectedTenant = tenants?.[0];
-    const selectedTenantId = selectedTenant?.tenantId ??
-      (payload.tenant_id as string) ?? (payload.tenantId as string) ?? '';
+    const selectedTenantId =
+      selectedTenant?.tenantId ??
+      (payload.tenant_id as string) ??
+      (payload.tenantId as string) ??
+      '';
 
     return {
       subject: payload.sub as string,

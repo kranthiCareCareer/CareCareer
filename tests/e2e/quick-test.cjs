@@ -1,7 +1,9 @@
 /**
  * Quick Playwright browser sanity check against Docker Compose demo.
  */
-const { chromium } = require('C:/Users/Lenovo/Downloads/CareCareer/node_modules/.pnpm/playwright@1.52.0/node_modules/playwright');
+const {
+  chromium,
+} = require('C:/Users/Lenovo/Downloads/CareCareer/node_modules/.pnpm/playwright@1.52.0/node_modules/playwright');
 
 async function main() {
   console.log('Launching Chromium...');
@@ -25,7 +27,9 @@ async function main() {
     const url = page.url();
     console.log(`After admin login URL: ${url}`);
     const bodyText = await page.textContent('body');
-    console.log(`Dashboard visible: ${bodyText.includes('Dashboard') || bodyText.includes('dashboard')}`);
+    console.log(
+      `Dashboard visible: ${bodyText.includes('Dashboard') || bodyText.includes('dashboard')}`,
+    );
   }
 
   await browser.close();
@@ -33,4 +37,7 @@ async function main() {
   process.exit(hasPersona ? 0 : 1);
 }
 
-main().catch((e) => { console.error(e.message); process.exit(1); });
+main().catch((e) => {
+  console.error(e.message);
+  process.exit(1);
+});

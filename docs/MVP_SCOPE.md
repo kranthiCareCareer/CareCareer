@@ -31,12 +31,12 @@ Deliver one complete healthcare staffing workflow for three roles (Administrator
 
 ## Demo Accounts
 
-| Persona          | Role           | Tenant               |
-| ---------------- | -------------- | -------------------- |
-| platform-admin   | PLATFORM_ADMIN | platform             |
-| mas-admin        | TENANT_ADMIN   | mas-medical-staffing |
-| worker-sarah     | WORKER         | mas-medical-staffing |
-| client-mercy     | CLIENT         | mas-medical-staffing |
+| Persona        | Role           | Tenant               |
+| -------------- | -------------- | -------------------- |
+| platform-admin | PLATFORM_ADMIN | platform             |
+| mas-admin      | TENANT_ADMIN   | mas-medical-staffing |
+| worker-sarah   | WORKER         | mas-medical-staffing |
+| client-mercy   | CLIENT         | mas-medical-staffing |
 
 ## Demo Data
 

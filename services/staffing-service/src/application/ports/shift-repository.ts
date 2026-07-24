@@ -29,6 +29,10 @@ export interface ShiftRepository {
       toDate?: string | undefined;
     },
   ): Promise<Shift[]>;
-  incrementFilledCount(tx: TransactionClient, shiftId: string, expectedVersion: number): Promise<void>;
+  incrementFilledCount(
+    tx: TransactionClient,
+    shiftId: string,
+    expectedVersion: number,
+  ): Promise<void>;
   decrementFilledCount(tx: TransactionClient, shiftId: string): Promise<void>;
 }

@@ -98,10 +98,7 @@ export class ShiftController {
 
   @Get(':shiftId')
   @RequirePermission('shifts:read')
-  async getById(
-    @Param('shiftId') shiftId: string,
-    @Req() req: AuthenticatedStaffingRequest,
-  ) {
+  async getById(@Param('shiftId') shiftId: string, @Req() req: AuthenticatedStaffingRequest) {
     const principal = requirePrincipal(req);
 
     const shift = await this.db.execute(principal.selectedTenantId, async (tx) => {
@@ -171,7 +168,10 @@ export class ShiftController {
       if (result.error === 'NOT_FOUND') {
         throw new NotFoundException('Shift not found');
       }
-      throw new ConflictException({ error: 'VERSION_CONFLICT', currentVersion: result.currentVersion });
+      throw new ConflictException({
+        error: 'VERSION_CONFLICT',
+        currentVersion: result.currentVersion,
+      });
     }
 
     return { id: result.shift.id, status: result.shift.status, version: result.shift.version };
@@ -216,7 +216,10 @@ export class ShiftController {
       if (result.error === 'NOT_FOUND') {
         throw new NotFoundException('Shift not found');
       }
-      throw new ConflictException({ error: 'VERSION_CONFLICT', currentVersion: result.currentVersion });
+      throw new ConflictException({
+        error: 'VERSION_CONFLICT',
+        currentVersion: result.currentVersion,
+      });
     }
 
     return { id: result.shift.id, status: result.shift.status, version: result.shift.version };

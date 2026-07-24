@@ -6,7 +6,9 @@
  *
  * Run: node tests/e2e/demo-browser-tests.cjs
  */
-const { chromium } = require('C:/Users/Lenovo/Downloads/CareCareer/node_modules/.pnpm/playwright@1.52.0/node_modules/playwright');
+const {
+  chromium,
+} = require('C:/Users/Lenovo/Downloads/CareCareer/node_modules/.pnpm/playwright@1.52.0/node_modules/playwright');
 
 const BASE_URL = 'http://localhost:8080';
 const results = [];
@@ -104,9 +106,11 @@ async function main() {
     await page.waitForTimeout(1000);
     const content = await page.content();
     assert(
-      content.includes('marketplace') || content.includes('Marketplace') ||
-      content.includes('Available') || content.includes('assignment'),
-      'Worker routes not visible'
+      content.includes('marketplace') ||
+        content.includes('Marketplace') ||
+        content.includes('Available') ||
+        content.includes('assignment'),
+      'Worker routes not visible',
     );
     await page.close();
   });
@@ -119,7 +123,10 @@ async function main() {
     await page.goto(`${BASE_URL}/marketplace`);
     await page.waitForTimeout(2000);
     const content = await page.content();
-    assert(content.includes('Shift') || content.includes('Available') || content.includes('RN'), 'Marketplace empty');
+    assert(
+      content.includes('Shift') || content.includes('Available') || content.includes('RN'),
+      'Marketplace empty',
+    );
     await page.close();
   });
 
@@ -145,9 +152,11 @@ async function main() {
     await page.waitForTimeout(1000);
     const content = await page.content();
     assert(
-      content.includes('Shift') || content.includes('shift') ||
-      content.includes('Create') || content.includes('Timecard'),
-      'Client routes not visible'
+      content.includes('Shift') ||
+        content.includes('shift') ||
+        content.includes('Create') ||
+        content.includes('Timecard'),
+      'Client routes not visible',
     );
     await page.close();
   });
@@ -225,17 +234,22 @@ async function main() {
 
   // ─── SUMMARY ───────────────────────────────────────────────────────────────
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  const passed = results.filter(r => r.status === 'PASS').length;
-  const failed = results.filter(r => r.status === 'FAIL').length;
+  const passed = results.filter((r) => r.status === 'PASS').length;
+  const failed = results.filter((r) => r.status === 'FAIL').length;
   console.log(`\n  Browser Tests: ${passed} passed, ${failed} failed out of ${results.length}\n`);
 
   if (failed > 0) {
     console.log('  Failed:');
-    results.filter(r => r.status === 'FAIL').forEach(r => console.log(`    - ${r.name}: ${r.error}`));
+    results
+      .filter((r) => r.status === 'FAIL')
+      .forEach((r) => console.log(`    - ${r.name}: ${r.error}`));
     process.exit(1);
   } else {
     console.log('  🎉 All browser tests passed!\n');
   }
 }
 
-main().catch(e => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

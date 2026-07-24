@@ -25,15 +25,19 @@ async function main() {
 
     // Seed client
     await pool.query(setTenant);
-    await pool.query(`
+    await pool.query(
+      `
       INSERT INTO staffing.clients (id, tenant_id, name)
       VALUES ($1, $2, 'Mercy General Hospital')
       ON CONFLICT (id) DO NOTHING
-    `, [CLIENT_ID, TENANT_ID]);
+    `,
+      [CLIENT_ID, TENANT_ID],
+    );
 
     // Seed facility
     await pool.query(setTenant);
-    await pool.query(`
+    await pool.query(
+      `
       INSERT INTO staffing.facilities (
         id, tenant_id, client_id, name, status, timezone, country,
         address_line1, city, state, zip, latitude, longitude,
@@ -43,20 +47,26 @@ async function main() {
         '1000 Healthcare Blvd', 'Atlanta', 'GA', '30301',
         33.7490, -84.3880, 200, 1, 1
       ) ON CONFLICT (id) DO NOTHING
-    `, [FACILITY_ID, TENANT_ID, CLIENT_ID]);
+    `,
+      [FACILITY_ID, TENANT_ID, CLIENT_ID],
+    );
 
     // Seed department
     await pool.query(setTenant);
-    await pool.query(`
+    await pool.query(
+      `
       INSERT INTO staffing.departments (
         id, tenant_id, facility_id, name, status, version
       ) VALUES ($1, $2, $3, 'Emergency Department', 'ACTIVE', 1)
       ON CONFLICT (id) DO NOTHING
-    `, [DEPARTMENT_ID, TENANT_ID, FACILITY_ID]);
+    `,
+      [DEPARTMENT_ID, TENANT_ID, FACILITY_ID],
+    );
 
     // Seed worker
     await pool.query(setTenant);
-    await pool.query(`
+    await pool.query(
+      `
       INSERT INTO staffing.workers (
         id, tenant_id, user_id, first_name, last_name, email, phone,
         status, profession, specialty, home_city, home_state, version
@@ -64,12 +74,15 @@ async function main() {
         $1, $2, $1, 'Sarah', 'Johnson', 'sarah.johnson@example.com', '555-0101',
         'ACTIVE', 'RN', 'Emergency', 'Atlanta', 'GA', 1
       ) ON CONFLICT (id) DO NOTHING
-    `, [WORKER_ID, TENANT_ID]);
+    `,
+      [WORKER_ID, TENANT_ID],
+    );
 
     // Seed credential
     const credentialId = '00000000-0000-4000-a000-000000000021';
     await pool.query(setTenant);
-    await pool.query(`
+    await pool.query(
+      `
       INSERT INTO staffing.worker_credentials (
         id, tenant_id, worker_id, credential_type, status,
         issuing_authority, credential_number, issued_at, expires_at,
@@ -80,7 +93,9 @@ async function main() {
         '2024-01-01'::timestamptz, '2027-01-01'::timestamptz,
         '2024-01-15'::timestamptz, 'admin-verifier', 1
       ) ON CONFLICT (id) DO NOTHING
-    `, [credentialId, TENANT_ID, WORKER_ID]);
+    `,
+      [credentialId, TENANT_ID, WORKER_ID],
+    );
 
     // Seed published shifts
     const tomorrow = new Date();
@@ -92,7 +107,8 @@ async function main() {
 
     const shiftId = '00000000-0000-4000-a000-000000000050';
     await pool.query(setTenant);
-    await pool.query(`
+    await pool.query(
+      `
       INSERT INTO staffing.shifts (
         id, tenant_id, facility_id, department_id, status, role,
         start_time, end_time, business_date, required_worker_count,
@@ -103,8 +119,17 @@ async function main() {
         $5::timestamptz, $6::timestamptz, $7::date, 2,
         0, 4500, 7500, NOW(), 1, 'client-mercy'
       ) ON CONFLICT (id) DO NOTHING
-    `, [shiftId, TENANT_ID, FACILITY_ID, DEPARTMENT_ID,
-        tomorrow.toISOString(), shiftEnd.toISOString(), businessDate]);
+    `,
+      [
+        shiftId,
+        TENANT_ID,
+        FACILITY_ID,
+        DEPARTMENT_ID,
+        tomorrow.toISOString(),
+        shiftEnd.toISOString(),
+        businessDate,
+      ],
+    );
 
     console.log('  ✅ Demo data seeded successfully');
     console.log('');

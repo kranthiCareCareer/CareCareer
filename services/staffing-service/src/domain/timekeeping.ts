@@ -22,7 +22,12 @@ export interface ClockEvent {
   readonly createdAt: Date;
 }
 
-export type TimecardStatus = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'CORRECTION_REQUESTED';
+export type TimecardStatus =
+  | 'DRAFT'
+  | 'SUBMITTED'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'CORRECTION_REQUESTED';
 
 export interface Timecard {
   readonly id: string;
@@ -105,10 +110,7 @@ export function createClockEvent(
 /**
  * Validate clock event sequence is valid.
  */
-function validateEventSequence(
-  eventType: ClockEventType,
-  existingEvents: ClockEvent[],
-): void {
+function validateEventSequence(eventType: ClockEventType, existingEvents: ClockEvent[]): void {
   if (existingEvents.length === 0) {
     if (eventType !== 'CLOCK_IN') {
       throw new Error('First clock event must be CLOCK_IN');
@@ -133,9 +135,7 @@ function validateEventSequence(
 
   const validNext = VALID_NEXT_EVENTS[lastEvent.eventType];
   if (!validNext.includes(eventType)) {
-    throw new Error(
-      `Invalid clock event sequence: ${lastEvent.eventType} → ${eventType}`,
-    );
+    throw new Error(`Invalid clock event sequence: ${lastEvent.eventType} → ${eventType}`);
   }
 }
 
@@ -183,13 +183,8 @@ export function createTimecard(input: CreateTimecardInput): Timecard {
 /**
  * Calculate timecard hours from clock events.
  */
-export function calculateTimecardFromEvents(
-  timecard: Timecard,
-  events: ClockEvent[],
-): Timecard {
-  const sorted = [...events].sort(
-    (a, b) => a.occurredAt.getTime() - b.occurredAt.getTime(),
-  );
+export function calculateTimecardFromEvents(timecard: Timecard, events: ClockEvent[]): Timecard {
+  const sorted = [...events].sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
 
   const clockIn = sorted.find((e) => e.eventType === 'CLOCK_IN');
   const clockOut = sorted.find((e) => e.eventType === 'CLOCK_OUT');
@@ -263,11 +258,7 @@ export function approveTimecard(timecard: Timecard, approvedBy: string): Timecar
 /**
  * Reject a timecard.
  */
-export function rejectTimecard(
-  timecard: Timecard,
-  rejectedBy: string,
-  reason: string,
-): Timecard {
+export function rejectTimecard(timecard: Timecard, rejectedBy: string, reason: string): Timecard {
   assertTimecardTransition(timecard.status, 'REJECTED');
   if (!rejectedBy || rejectedBy.trim() === '') {
     throw new Error('Rejector is required');

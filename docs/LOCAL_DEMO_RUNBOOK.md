@@ -31,24 +31,24 @@ make demo-test
 
 ## Access Points
 
-| Service       | URL                    | Purpose              |
-| ------------- | ---------------------- | -------------------- |
-| Web UI        | http://localhost:8080   | Main application     |
-| MailHog       | http://localhost:8025   | Email inbox viewer   |
-| Identity API  | http://localhost:3100   | Auth + sessions      |
-| Platform API  | http://localhost:3001   | Tenant management    |
-| Staffing API  | http://localhost:3200   | Workforce operations |
-| PostgreSQL    | localhost:5432         | Database (direct)    |
+| Service      | URL                   | Purpose              |
+| ------------ | --------------------- | -------------------- |
+| Web UI       | http://localhost:8080 | Main application     |
+| MailHog      | http://localhost:8025 | Email inbox viewer   |
+| Identity API | http://localhost:3100 | Auth + sessions      |
+| Platform API | http://localhost:3001 | Tenant management    |
+| Staffing API | http://localhost:3200 | Workforce operations |
+| PostgreSQL   | localhost:5432        | Database (direct)    |
 
 ## Demo Accounts
 
 Select a persona from the login screen at http://localhost:8080:
 
-| Persona               | Role           | What they can do                        |
-| --------------------- | -------------- | --------------------------------------- |
-| Platform Administrator | PLATFORM_ADMIN | Full access: facilities, workers, shifts, audit |
-| Worker — Sarah Johnson | WORKER        | Browse marketplace, request shifts, clock in/out |
-| Client — Mercy General | CLIENT        | Create shifts, confirm workers, approve timecards |
+| Persona                | Role           | What they can do                                  |
+| ---------------------- | -------------- | ------------------------------------------------- |
+| Platform Administrator | PLATFORM_ADMIN | Full access: facilities, workers, shifts, audit   |
+| Worker — Sarah Johnson | WORKER         | Browse marketplace, request shifts, clock in/out  |
+| Client — Mercy General | CLIENT         | Create shifts, confirm workers, approve timecards |
 
 **Login process**: Click the persona button. No password needed (demo mode).
 
@@ -73,6 +73,7 @@ make demo-test
 ```
 
 This runs:
+
 1. **Acceptance test** (20 steps) — full API workflow
 2. **Notification proof** (8 steps) — delivery + deduplication
 3. **Browser tests** (15 tests) — Playwright against live UI
@@ -98,6 +99,7 @@ See `docs/DEMO_SCRIPT.md` for the 10-minute presentation walkthrough.
 ## Common Recovery Steps
 
 ### Containers not starting
+
 ```bash
 docker compose -f docker-compose.demo.yml logs
 # Check for port conflicts
@@ -106,12 +108,14 @@ docker compose -f docker-compose.demo.yml up -d --build
 ```
 
 ### Migrations failed
+
 ```bash
 docker compose -f docker-compose.demo.yml exec -T staffing-service \
   sh -c "node services/staffing-service/scripts/demo-run-migrations.mjs"
 ```
 
 ### Tests failing after reset
+
 ```bash
 # Ensure seed data is loaded
 docker compose -f docker-compose.demo.yml exec -T staffing-service \
@@ -119,6 +123,7 @@ docker compose -f docker-compose.demo.yml exec -T staffing-service \
 ```
 
 ### Port 8080 already in use
+
 ```bash
 # Find what's using the port
 netstat -ano | findstr :8080
@@ -126,6 +131,7 @@ netstat -ano | findstr :8080
 ```
 
 ### Database access
+
 ```bash
 docker compose -f docker-compose.demo.yml exec postgres \
   psql -U carecareer_admin -d carecareer_demo

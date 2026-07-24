@@ -28,6 +28,7 @@
 ## Service Responsibilities
 
 ### identity-service (:3100)
+
 - RS256 JWT token issuance
 - Session management with refresh rotation
 - User membership and role assignment
@@ -35,12 +36,14 @@
 - Demo token endpoint for local development
 
 ### platform-service (:3001)
+
 - Tenant provisioning and lifecycle
 - Organizations and entitlements
 - Feature configuration
 - Platform audit trail
 
 ### staffing-service (:3200)
+
 - Facilities and departments
 - Workers and profiles
 - Credentials and eligibility
@@ -52,6 +55,7 @@
 - Staffing audit trail
 
 ### carecareer-web (:5173)
+
 - React SPA with role-based routing
 - Admin, Worker, and Client views
 - Demo persona selection
@@ -59,6 +63,7 @@
 ## Database Schema
 
 Single PostgreSQL instance with schema-per-service:
+
 - `identity` — users, sessions, memberships, roles
 - `platform` — tenants, organizations, entitlements
 - `staffing` — facilities, workers, credentials, shifts, requests, assignments, timecards, notifications, audit

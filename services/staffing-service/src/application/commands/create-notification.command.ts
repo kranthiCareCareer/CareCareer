@@ -18,12 +18,7 @@ export class CreateNotificationHandler {
     details: Record<string, unknown>,
   ): Promise<void> {
     // Create EMAIL notification (will be picked up by worker)
-    const emailNotification = createNotificationForEvent(
-      tenantId,
-      recipientId,
-      eventType,
-      details,
-    );
+    const emailNotification = createNotificationForEvent(tenantId, recipientId, eventType, details);
     await this.notificationRepo.createNotification(tx, emailNotification);
 
     // Create IN_APP notification (immediately available)

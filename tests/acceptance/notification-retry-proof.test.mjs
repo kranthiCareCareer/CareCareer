@@ -32,7 +32,9 @@ async function step(name, fn) {
   }
 }
 
-function assert(condition, msg) { if (!condition) throw new Error(msg); }
+function assert(condition, msg) {
+  if (!condition) throw new Error(msg);
+}
 
 async function getToken(sub) {
   const res = await fetch(`${PLATFORM_URL}/demo/token`, {
@@ -44,7 +46,10 @@ async function getToken(sub) {
 }
 
 async function api(method, path, token, body) {
-  const opts = { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } };
+  const opts = {
+    method,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(`${STAFFING_URL}${path}`, opts);
   return { status: res.status, data: await res.json().catch(() => ({})) };
@@ -52,7 +57,9 @@ async function api(method, path, token, body) {
 
 async function getMailHogCount() {
   try {
-    const res = await fetch(`${MAILHOG_URL}/api/v1/messages`, { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(`${MAILHOG_URL}/api/v1/messages`, {
+      signal: AbortSignal.timeout(3000),
+    });
     if (!res.ok) return -1;
     const data = await res.json();
     return data.total ?? data.count ?? 0;
@@ -66,7 +73,7 @@ function dockerCmd(cmd) {
 }
 
 async function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function run() {
@@ -87,13 +94,18 @@ async function run() {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 3);
     tomorrow.setHours(7, 0, 0, 0);
-    const end = new Date(tomorrow); end.setHours(19, 0, 0, 0);
+    const end = new Date(tomorrow);
+    end.setHours(19, 0, 0, 0);
 
     const { status, data } = await api('POST', '/v1/shifts', clientToken, {
-      facilityId: FACILITY_ID, role: 'RN',
-      startTime: tomorrow.toISOString(), endTime: end.toISOString(),
+      facilityId: FACILITY_ID,
+      role: 'RN',
+      startTime: tomorrow.toISOString(),
+      endTime: end.toISOString(),
       businessDate: tomorrow.toISOString().split('T')[0],
-      requiredWorkerCount: 1, payRateCents: 5000, billRateCents: 8000,
+      requiredWorkerCount: 1,
+      payRateCents: 5000,
+      billRateCents: 8000,
     });
     assert(status === 201, `Create shift: ${status}`);
     shiftId = data.id;
@@ -102,7 +114,8 @@ async function run() {
 
   await step('2. Worker requests shift', async () => {
     const { status, data } = await api('POST', '/v1/marketplace/requests', workerToken, {
-      shiftId, workerId: WORKER_ID,
+      shiftId,
+      workerId: WORKER_ID,
     });
     assert(status === 201, `Request: ${status}`);
     requestId = data.id;
@@ -117,9 +130,14 @@ async function run() {
   });
 
   await step('4. Confirm request — notification created', async () => {
-    const { status } = await api('POST', `/v1/marketplace/requests/${requestId}/confirm`, clientToken, {
-      expectedVersion: 1,
-    });
+    const { status } = await api(
+      'POST',
+      `/v1/marketplace/requests/${requestId}/confirm`,
+      clientToken,
+      {
+        expectedVersion: 1,
+      },
+    );
     assert(status === 200, `Confirm: ${status}`);
   });
 
@@ -131,24 +149,26 @@ async function run() {
   });
 
   await step('6. Notification has failure state and incremented attempt', async () => {
-    const { status, data } = await api('GET', `/v1/notifications/recipient/${WORKER_ID}`, adminToken);
+    const { status, data } = await api(
+      'GET',
+      `/v1/notifications/recipient/${WORKER_ID}`,
+      adminToken,
+    );
     assert(status === 200, `Query: ${status}`);
     const notifs = data.data ?? [];
     // Find a notification that failed (PENDING with retry_count > 0 or FAILED)
-    const failedNotif = notifs.find(n =>
-      n.status === 'PENDING' || n.status === 'FAILED'
-    );
+    const failedNotif = notifs.find((n) => n.status === 'PENDING' || n.status === 'FAILED');
     assert(failedNotif, 'No failed notification found');
     assert(
       failedNotif.retryCount >= 1 || failedNotif.retry_count >= 1,
-      `Attempt count not incremented: ${JSON.stringify(failedNotif)}`
+      `Attempt count not incremented: ${JSON.stringify(failedNotif)}`,
     );
   });
 
   await step('7. Error stored is sanitized (no stack traces)', async () => {
     const { data } = await api('GET', `/v1/notifications/recipient/${WORKER_ID}`, adminToken);
     const notifs = data.data ?? [];
-    const failedNotif = notifs.find(n => n.lastError || n.last_error);
+    const failedNotif = notifs.find((n) => n.lastError || n.last_error);
     if (failedNotif) {
       const err = failedNotif.lastError ?? failedNotif.last_error ?? '';
       assert(!err.includes('/app/'), 'Stack trace in error');
@@ -159,9 +179,10 @@ async function run() {
   await step('8. Notification remains retryable', async () => {
     const { data } = await api('GET', `/v1/notifications/recipient/${WORKER_ID}`, adminToken);
     const notifs = data.data ?? [];
-    const retryable = notifs.find(n =>
-      (n.status === 'PENDING') &&
-      ((n.retryCount ?? n.retry_count ?? 0) < (n.maxRetries ?? n.max_retries ?? 3))
+    const retryable = notifs.find(
+      (n) =>
+        n.status === 'PENDING' &&
+        (n.retryCount ?? n.retry_count ?? 0) < (n.maxRetries ?? n.max_retries ?? 3),
     );
     assert(retryable, 'No retryable notification found');
   });
@@ -190,17 +211,17 @@ async function run() {
   await step('11. Final status is DELIVERED with timestamp', async () => {
     const { data } = await api('GET', `/v1/notifications/recipient/${WORKER_ID}`, adminToken);
     const notifs = data.data ?? [];
-    const delivered = notifs.find(n => n.status === 'DELIVERED');
+    const delivered = notifs.find((n) => n.status === 'DELIVERED');
     assert(delivered, 'No DELIVERED notification found');
-    assert(
-      delivered.deliveredAt || delivered.delivered_at,
-      'Delivered timestamp not set'
-    );
+    assert(delivered.deliveredAt || delivered.delivered_at, 'Delivered timestamp not set');
   });
 
   await step('12. MailHog message count increased by exactly expected amount', async () => {
     const emailCountAfter = await getMailHogCount();
-    assert(emailCountAfter > emailCountBefore, `No new emails: ${emailCountBefore} → ${emailCountAfter}`);
+    assert(
+      emailCountAfter > emailCountBefore,
+      `No new emails: ${emailCountBefore} → ${emailCountAfter}`,
+    );
   });
 
   await step('13. Reprocessing after success does NOT resend', async () => {
@@ -225,15 +246,20 @@ async function run() {
 
   // Summary
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  const passed = results.filter(r => r.status === 'PASS').length;
-  const failed = results.filter(r => r.status === 'FAIL').length;
+  const passed = results.filter((r) => r.status === 'PASS').length;
+  const failed = results.filter((r) => r.status === 'FAIL').length;
   console.log(`\n  Retry Proof: ${passed} passed, ${failed} failed out of ${results.length}\n`);
   if (failed > 0) {
-    results.filter(r => r.status === 'FAIL').forEach(r => console.log(`    - ${r.step}: ${r.error}`));
+    results
+      .filter((r) => r.status === 'FAIL')
+      .forEach((r) => console.log(`    - ${r.step}: ${r.error}`));
     process.exit(1);
   } else {
     console.log('  🎉 Notification retry after transient failure proven!\n');
   }
 }
 
-run().catch(e => { console.error(e); process.exit(1); });
+run().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

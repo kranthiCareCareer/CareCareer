@@ -63,7 +63,8 @@ export const DEMO_PERSONAS: DemoPersona[] = [
     label: 'Client — Mercy General Hospital',
     role: 'CLIENT',
     tenantId: 'mas-medical-staffing',
-    description: 'Facility hiring manager. Can create shifts, confirm workers, and approve timecards.',
+    description:
+      'Facility hiring manager. Can create shifts, confirm workers, and approve timecards.',
   },
 ];
 

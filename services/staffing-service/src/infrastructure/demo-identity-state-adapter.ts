@@ -57,24 +57,54 @@ const DEMO_USERS: readonly DemoUser[] = [
         roles: ['PLATFORM_ADMIN'],
         permissions: [
           // Facilities (dot-separated legacy)
-          'facility.create', 'facility.list', 'facility.read', 'facility.update', 'facility.activate',
-          'department.create', 'department.list', 'department.activate',
-          'credential-requirement.manage', 'credential-requirement.read',
+          'facility.create',
+          'facility.list',
+          'facility.read',
+          'facility.update',
+          'facility.activate',
+          'department.create',
+          'department.list',
+          'department.activate',
+          'credential-requirement.manage',
+          'credential-requirement.read',
           // Workers (dot-separated legacy)
-          'worker.create', 'worker.read', 'worker.list', 'worker.update', 'worker.change-status',
+          'worker.create',
+          'worker.read',
+          'worker.list',
+          'worker.update',
+          'worker.change-status',
           // Credentials
-          'credentials:create', 'credentials:read', 'credentials:verify', 'credentials:reject', 'credentials:revoke',
+          'credentials:create',
+          'credentials:read',
+          'credentials:verify',
+          'credentials:reject',
+          'credentials:revoke',
           // Shifts (colon-separated)
-          'shifts:create', 'shifts:read', 'shifts:publish', 'shifts:cancel',
+          'shifts:create',
+          'shifts:read',
+          'shifts:publish',
+          'shifts:cancel',
           // Marketplace
-          'shift-requests:create', 'shift-requests:read', 'shift-requests:confirm', 'shift-requests:reject', 'shift-requests:withdraw',
+          'shift-requests:create',
+          'shift-requests:read',
+          'shift-requests:confirm',
+          'shift-requests:reject',
+          'shift-requests:withdraw',
           'marketplace:read',
           // Assignments
-          'assignments:read', 'assignments:check-in', 'assignments:complete', 'assignments:cancel',
+          'assignments:read',
+          'assignments:check-in',
+          'assignments:complete',
+          'assignments:cancel',
           // Timekeeping
-          'timekeeping:clock', 'timekeeping:read', 'timekeeping:submit', 'timekeeping:approve', 'timekeeping:reject',
+          'timekeeping:clock',
+          'timekeeping:read',
+          'timekeeping:submit',
+          'timekeeping:approve',
+          'timekeeping:reject',
           // Notifications
-          'notifications:read', 'notifications:admin',
+          'notifications:read',
+          'notifications:admin',
           // Audit
           'audit:read',
         ],
@@ -95,9 +125,15 @@ const DEMO_USERS: readonly DemoUser[] = [
         roles: ['WORKER'],
         permissions: [
           'marketplace:read',
-          'shift-requests:create', 'shift-requests:read', 'shift-requests:withdraw',
-          'assignments:read', 'assignments:check-in', 'assignments:complete',
-          'timekeeping:clock', 'timekeeping:read', 'timekeeping:submit',
+          'shift-requests:create',
+          'shift-requests:read',
+          'shift-requests:withdraw',
+          'assignments:read',
+          'assignments:check-in',
+          'assignments:complete',
+          'timekeeping:clock',
+          'timekeeping:read',
+          'timekeeping:submit',
           'credentials:read',
           'notifications:read',
           'worker.read',
@@ -118,13 +154,22 @@ const DEMO_USERS: readonly DemoUser[] = [
         status: 'active',
         roles: ['CLIENT'],
         permissions: [
-          'facility.list', 'facility.read',
-          'shifts:create', 'shifts:read', 'shifts:publish', 'shifts:cancel',
-          'shift-requests:read', 'shift-requests:confirm', 'shift-requests:reject',
+          'facility.list',
+          'facility.read',
+          'shifts:create',
+          'shifts:read',
+          'shifts:publish',
+          'shifts:cancel',
+          'shift-requests:read',
+          'shift-requests:confirm',
+          'shift-requests:reject',
           'marketplace:read',
           'assignments:read',
-          'timekeeping:read', 'timekeeping:approve', 'timekeeping:reject',
-          'worker.list', 'worker.read',
+          'timekeeping:read',
+          'timekeeping:approve',
+          'timekeeping:reject',
+          'worker.list',
+          'worker.read',
         ],
         facilityIds: [DEMO_FACILITY_ID],
         authorizationVersion: 1,
@@ -165,9 +210,7 @@ export class DemoIdentityStateAdapter implements IdentityStateAdapter {
 
     // If tenant-scoped, validate membership
     if (input.selectedTenantId) {
-      const membership = user.tenantMemberships.find(
-        (m) => m.tenantId === input.selectedTenantId,
-      );
+      const membership = user.tenantMemberships.find((m) => m.tenantId === input.selectedTenantId);
       if (!membership) {
         return { valid: false, code: 'NO_MEMBERSHIP', message: 'No membership for tenant' };
       }

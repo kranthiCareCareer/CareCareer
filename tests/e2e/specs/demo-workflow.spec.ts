@@ -10,7 +10,11 @@ import { test, expect } from '@playwright/test';
 const PLATFORM_URL = 'http://localhost:3001';
 const TENANT_ID = '00000000-0000-4000-a000-000000000001';
 
-async function getToken(page: import('@playwright/test').Page, sub: string, role: string): Promise<string> {
+async function getToken(
+  page: import('@playwright/test').Page,
+  sub: string,
+  role: string,
+): Promise<string> {
   const response = await page.request.post(`${PLATFORM_URL}/demo/token`, {
     data: { sub, tenantId: TENANT_ID, role },
   });

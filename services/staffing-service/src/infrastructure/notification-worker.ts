@@ -1,7 +1,9 @@
- 
 import type { TransactionClient } from '@carecareer/database';
 
-import type { Notification, NotificationRepository } from '../application/ports/notification-repository.js';
+import type {
+  Notification,
+  NotificationRepository,
+} from '../application/ports/notification-repository.js';
 
 /**
  * Outbox-driven notification worker.
@@ -24,12 +26,7 @@ export interface NotificationWorkerConfig {
 }
 
 export interface SmtpTransport {
-  sendMail(options: {
-    from: string;
-    to: string;
-    subject: string;
-    text: string;
-  }): Promise<void>;
+  sendMail(options: { from: string; to: string; subject: string; text: string }): Promise<void>;
 }
 
 /**

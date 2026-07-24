@@ -31,7 +31,9 @@ async function step(name, fn) {
   }
 }
 
-function assert(condition, msg) { if (!condition) throw new Error(msg); }
+function assert(condition, msg) {
+  if (!condition) throw new Error(msg);
+}
 
 async function getToken(sub) {
   const res = await fetch(`${PLATFORM_URL}/demo/token`, {
@@ -43,7 +45,10 @@ async function getToken(sub) {
 }
 
 async function api(method, path, token, body) {
-  const opts = { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } };
+  const opts = {
+    method,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(`${STAFFING_URL}${path}`, opts);
   return { status: res.status, data: await res.json().catch(() => ({})) };
@@ -75,7 +80,8 @@ async function run() {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 2);
     tomorrow.setHours(7, 0, 0, 0);
-    const end = new Date(tomorrow); end.setHours(19, 0, 0, 0);
+    const end = new Date(tomorrow);
+    end.setHours(19, 0, 0, 0);
 
     const { status, data } = await api('POST', '/v1/shifts', clientToken, {
       facilityId: FACILITY_ID,
@@ -91,7 +97,9 @@ async function run() {
     globalThis.testShiftId = data.id;
 
     // Publish
-    const { status: ps } = await api('POST', `/v1/shifts/${data.id}/publish`, clientToken, { expectedVersion: 1 });
+    const { status: ps } = await api('POST', `/v1/shifts/${data.id}/publish`, clientToken, {
+      expectedVersion: 1,
+    });
     assert(ps === 200, `Publish failed: ${ps}`);
   });
 
@@ -105,9 +113,14 @@ async function run() {
   });
 
   await step('3. Client confirms — notification created', async () => {
-    const { status, data } = await api('POST', `/v1/marketplace/requests/${globalThis.testRequestId}/confirm`, clientToken, {
-      expectedVersion: 1,
-    });
+    const { status, data } = await api(
+      'POST',
+      `/v1/marketplace/requests/${globalThis.testRequestId}/confirm`,
+      clientToken,
+      {
+        expectedVersion: 1,
+      },
+    );
     assert(status === 200, `Confirm failed: ${status}`);
     globalThis.testAssignmentId = data.assignmentId;
   });
@@ -115,7 +128,11 @@ async function run() {
   // Count notifications BEFORE processing
   let notifCountBefore;
   await step('4. Verify notification row exists', async () => {
-    const { status, data } = await api('GET', `/v1/notifications/recipient/${WORKER_ID}`, adminToken);
+    const { status, data } = await api(
+      'GET',
+      `/v1/notifications/recipient/${WORKER_ID}`,
+      adminToken,
+    );
     assert(status === 200, `Query failed: ${status}`);
     const notifs = data.data ?? [];
     notifCountBefore = notifs.length;
@@ -144,7 +161,10 @@ async function run() {
     assert(data.delivered === 0, `Expected 0 new deliveries, got ${data.delivered}`);
 
     const emailCountAfterSecond = await getMailHogCount();
-    assert(emailCountAfterSecond === emailCountAfterFirst, `Email count changed: ${emailCountAfterFirst} → ${emailCountAfterSecond}`);
+    assert(
+      emailCountAfterSecond === emailCountAfterFirst,
+      `Email count changed: ${emailCountAfterFirst} → ${emailCountAfterSecond}`,
+    );
   });
 
   // Verify notification content doesn't have sensitive data
@@ -161,15 +181,20 @@ async function run() {
 
   // Summary
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  const passed = results.filter(r => r.status === 'PASS').length;
-  const failed = results.filter(r => r.status === 'FAIL').length;
+  const passed = results.filter((r) => r.status === 'PASS').length;
+  const failed = results.filter((r) => r.status === 'FAIL').length;
   console.log(`\n  Notification Proof: ${passed} passed, ${failed} failed\n`);
   if (failed > 0) {
-    results.filter(r => r.status === 'FAIL').forEach(r => console.log(`    - ${r.step}: ${r.error}`));
+    results
+      .filter((r) => r.status === 'FAIL')
+      .forEach((r) => console.log(`    - ${r.step}: ${r.error}`));
     process.exit(1);
   } else {
     console.log('  🎉 Notification deduplication and delivery proven!\n');
   }
 }
 
-run().catch(e => { console.error(e); process.exit(1); });
+run().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

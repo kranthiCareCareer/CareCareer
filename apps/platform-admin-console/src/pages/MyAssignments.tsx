@@ -48,7 +48,11 @@ export function MyAssignments() {
       </header>
 
       {loading && <p role="status">Loading assignments...</p>}
-      {error && <p role="alert" className="error">{error}</p>}
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
 
       {!loading && !error && assignments.length === 0 && (
         <p className="empty-state">No assignments yet.</p>

@@ -10,10 +10,7 @@ export default defineConfig({
   forbidOnly: !!process.env['CI'],
   retries: 1,
   workers: 1,
-  reporter: [
-    ['html', { open: 'never', outputFolder: 'playwright-report' }],
-    ['list'],
-  ],
+  reporter: [['html', { open: 'never', outputFolder: 'playwright-report' }], ['list']],
   use: {
     baseURL: 'http://localhost:8080',
     trace: 'on-first-retry',

@@ -80,10 +80,7 @@ export class MarketplaceController {
   @Post('requests')
   @HttpCode(HttpStatus.CREATED)
   @RequirePermission('shift-requests:create')
-  async submitRequest(
-    @Body() dto: SubmitRequestDto,
-    @Req() req: AuthenticatedStaffingRequest,
-  ) {
+  async submitRequest(@Body() dto: SubmitRequestDto, @Req() req: AuthenticatedStaffingRequest) {
     const principal = requirePrincipal(req);
 
     const result = await this.db.execute(principal.selectedTenantId, async (tx) => {

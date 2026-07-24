@@ -91,7 +91,11 @@ export function ShiftRequests() {
       </header>
 
       {loading && <p role="status">Loading requests...</p>}
-      {error && <p role="alert" className="error">{error}</p>}
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
 
       {!loading && !error && requests.length === 0 && (
         <p className="empty-state">No pending shift requests.</p>

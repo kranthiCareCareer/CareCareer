@@ -56,7 +56,11 @@ export function CreateShift() {
         <h1>Create Shift</h1>
       </header>
 
-      {error && <p role="alert" className="error">{error}</p>}
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
 
       <form onSubmit={handleSubmit} className="form">
         <div className="form__field">
@@ -87,7 +91,14 @@ export function CreateShift() {
         </div>
         <div className="form__field">
           <label htmlFor="requiredWorkerCount">Workers Needed</label>
-          <input id="requiredWorkerCount" name="requiredWorkerCount" type="number" min="1" defaultValue="1" required />
+          <input
+            id="requiredWorkerCount"
+            name="requiredWorkerCount"
+            type="number"
+            min="1"
+            defaultValue="1"
+            required
+          />
         </div>
         <div className="form__field">
           <label htmlFor="payRate">Pay Rate ($/hr)</label>

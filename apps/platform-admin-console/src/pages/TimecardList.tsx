@@ -69,7 +69,11 @@ export function TimecardList() {
       </div>
 
       {loading && <p role="status">Loading timecards...</p>}
-      {error && <p role="alert" className="error">{error}</p>}
+      {error && (
+        <p role="alert" className="error">
+          {error}
+        </p>
+      )}
 
       {!loading && !error && timecards.length === 0 && (
         <p className="empty-state">No timecards found.</p>
