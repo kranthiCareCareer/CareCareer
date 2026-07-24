@@ -50,18 +50,27 @@ export class DemoTokenValidator implements TokenValidator {
       throw new Error('Token expired');
     }
 
+    // Extract tenant info from claims
+    const tenants = payload.tenants as Array<{
+      tenantId: string;
+      roles: string[];
+      branchIds: string[];
+      status: string;
+    }> | undefined;
+    const selectedTenant = tenants?.[0];
+    const selectedTenantId = selectedTenant?.tenantId ??
+      (payload.tenant_id as string) ?? (payload.tenantId as string) ?? '';
+
     return {
       subject: payload.sub as string,
       actorType: 'user',
-      tenantMemberships: [
-        {
-          tenantId: (payload.tenant_id ?? payload.tenantId ?? '') as string,
-          roles: [payload.role as string ?? 'ALL'],
-          branchIds: [],
-          status: 'active',
-        },
-      ],
-      selectedTenantId: (payload.tenant_id ?? payload.tenantId ?? '') as string,
+      tenantMemberships: (tenants ?? []).map((t) => ({
+        tenantId: t.tenantId,
+        roles: t.roles as readonly string[],
+        branchIds: t.branchIds as readonly string[],
+        status: t.status as 'active' | 'inactive' | 'suspended',
+      })),
+      selectedTenantId,
       membershipId: (payload.membership_id ?? 'demo-membership') as string,
       sessionId: (payload.sid ?? 'demo-session') as string,
       userAuthorizationVersion: (payload.user_authz_version ?? 1) as number,
